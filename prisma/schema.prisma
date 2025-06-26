@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MODEL
+// ============================================================================
+// Maps to Supabase Auth users with UUID primary key
+// Designed for Row Level Security (RLS) integration
+model User {
+  id        String    @id @default(cuid()) @db.Uuid
+  email     String    @unique
+  name      String?
+  avatarUrl String?
+  
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  receipts  Receipt[]
+  
+  // Supabase Auth integration
+  // The id field will be synced with Supabase Auth users
+  // This allows for seamless RLS integration
+  
+  @@map("users")
+}
+
+// ============================================================================
+// RECEIPT MODEL
+// ============================================================================
+// Core receipt data with AI-powered analysis
+model Receipt {
+  id           String   @id @default(cuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId       String   @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Receipt data
+  imageUrl     String   // URL to stored receipt image
+  rawText      String   // OCR-extracted text
+  merchant     String   // Store/merchant name
+  total        Decimal  @db.Decimal(10, 2) // Currency amount with 2 decimal places
+  purchaseDate DateTime // Date of purchase
+  
+  // AI-generated content
+  summary      String?  // AI-generated summary of the receipt
+  
+  // Metadata
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Indexes for performance
+  @@index([userId])
+  @@index([purchaseDate])
+  @@index([merchant])
+  
+  @@map("receipts")
+}
+
+// ============================================================================
+// FUTURE EXTENSIONS (Commented for reference)
+// ============================================================================
+// These models can be uncommented and implemented as needed
+
+// model Category {
+//   id          String    @id @default(cuid()) @db.Uuid
+//   name        String
+//   color       String?   // Hex color for UI
+//   userId      String    @db.Uuid
+//   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   receipts    Receipt[]
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
+//   
+//   @@unique([name, userId])
+//   @@map("categories")
+// }
+
+// model Tag {
+//   id        String    @id @default(cuid()) @db.Uuid
+//   name      String
+//   userId    String    @db.Uuid
+//   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   receipts  Receipt[]
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   
+//   @@unique([name, userId])
+//   @@map("tags")
+// }
+
+// model ReceiptTag {
+//   receiptId String  @db.Uuid
+//   tagId     String  @db.Uuid
+//   receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+//   tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+//   
+//   @@id([receiptId, tagId])
+//   @@map("receipt_tags")
+// }
