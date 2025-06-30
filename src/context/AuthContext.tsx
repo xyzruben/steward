@@ -13,9 +13,10 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (email: string, password: string) => Promise<{ error: any; success?: boolean }>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
+  resendConfirmation: (email: string) => Promise<{ error: any }>
 }
 
 // ============================================================================
@@ -43,10 +44,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
     })
+    
+    if (!error && data.user && !data.session) {
+      // User created but needs email confirmation
+      return { error: null, success: true }
+    }
+    
     return { error }
   }
 
@@ -60,6 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setUser(session.user)
     }
+  }
+
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    return { error }
   }
 
   // ============================================================================
@@ -84,8 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // Sync user to Prisma database when user exists
-        if (session?.user) {
+        // Sync user to Prisma database when user exists and is confirmed
+        if (session?.user && event === 'SIGNED_IN') {
           try {
             await fetch('/api/auth/sync-user', {
               method: 'POST',
@@ -119,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     refreshSession,
+    resendConfirmation,
   }
 
   return (
