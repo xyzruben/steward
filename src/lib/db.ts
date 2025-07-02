@@ -52,10 +52,24 @@ export async function createReceipt(data: {
   purchaseDate: Date
   summary?: string
 }): Promise<Receipt> {
+  console.log('Data being sent to prisma.receipt.create:', {
+    userId: data.userId,
+    imageUrl: data.imageUrl,
+    rawText: data.rawText,
+    merchant: data.merchant,
+    total: data.total,
+    purchaseDate: data.purchaseDate,
+    summary: data.summary
+  })
   return prisma.receipt.create({
     data: {
-      ...data,
-      total: new Decimal(data.total)
+      userId: data.userId,
+      imageUrl: data.imageUrl,
+      rawText: data.rawText,
+      merchant: data.merchant,
+      total: new Decimal(data.total),
+      purchaseDate: data.purchaseDate,
+      summary: data.summary
     }
   })
 }

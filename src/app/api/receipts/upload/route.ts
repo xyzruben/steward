@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
-import { getOCRService } from '@/lib/services/ocr'
-import { createReceipt } from '@/lib/db'
+import { createReceipt, createUser, getUserById } from '@/lib/db'
 import { cookies } from 'next/headers'
+import { OCRService } from '@/lib/services/ocr'
+import { extractReceiptDataWithAI } from '@/lib/services/openai'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,27 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    // Ensure user exists in our database
+    let dbUser = await getUserById(user.id)
+    if (!dbUser) {
+      console.log('User not found in database, creating...', user.id)
+      try {
+        dbUser = await createUser({
+          id: user.id,
+          email: user.email!,
+          name: user.user_metadata?.full_name || null,
+          avatarUrl: user.user_metadata?.avatar_url || null,
+        })
+        console.log('User created in database:', dbUser.id)
+      } catch (error) {
+        console.error('Error creating user:', error)
+        return NextResponse.json(
+          { error: 'Failed to create user record' },
+          { status: 500 }
+        )
+      }
     }
 
     // Parse form data
@@ -74,44 +96,62 @@ export async function POST(request: NextRequest) {
       .from('receipts')
       .getPublicUrl(fileName)
 
-    // Process OCR
-    let ocrResult = null
-    let extractedText = ''
-    let ocrConfidence = 0
-
+    // =============================
+    // AI-POWERED OCR & ENRICHMENT
+    // =============================
+    // 1. Run OCR on the uploaded image (see master guide: OCR Processing)
+    const ocrService = new OCRService()
+    let ocrResult
     try {
-      const ocrService = getOCRService()
       ocrResult = await ocrService.extractText(publicUrl)
-      
-      extractedText = ocrService.cleanText(ocrResult.text)
-      ocrConfidence = ocrResult.confidence
-
-      console.log('OCR Result:', {
-        text: extractedText.substring(0, 100) + '...',
-        confidence: ocrConfidence,
-        processingTime: ocrResult.processingTime
-      })
-    } catch (ocrError) {
-      console.error('OCR processing failed:', ocrError)
-      // Continue without OCR - we'll store the receipt with empty text
+    } catch (err) {
+      console.error('OCR extraction failed:', err)
+      return NextResponse.json(
+        { error: 'Failed to extract text from image' },
+        { status: 500 }
+      )
     }
 
-    // Extract basic receipt data (placeholder - will be enhanced with AI later)
-    const merchant = extractMerchantFromText(extractedText)
-    const total = extractTotalFromText(extractedText)
-    const purchaseDate = new Date() // Default to current date
+    // 2. Use OpenAI to extract structured data and summary (see master guide: AI Categorization)
+    let aiData
+    try {
+      aiData = await extractReceiptDataWithAI(ocrResult.text)
+    } catch (err) {
+      console.error('OpenAI extraction failed:', err)
+      // Defensive: fallback to basic fields if AI fails
+      aiData = {
+        merchant: null,
+        total: null,
+        purchaseDate: null,
+        category: null,
+        tags: [],
+        confidence: 0,
+        summary: null,
+      }
+    }
 
-    // Create receipt record in database
+    // 3. Prepare fields for DB (see master guide: Data Persistence, Type Safety)
+    const merchant = aiData.merchant || 'Unknown Merchant'
+    const total = typeof aiData.total === 'number' && !isNaN(aiData.total) ? aiData.total : 0
+    const purchaseDate = aiData.purchaseDate ? new Date(aiData.purchaseDate) : new Date()
+    const summary = aiData.summary || 'No summary generated'
+    const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
+
+    // Log the user ID before saving
+    console.log('user.id being used for receipt:', user.id)
+
+    // 4. Create receipt record in database (see master guide: Database Schema Design)
     const receipt = await createReceipt({
       userId: user.id,
       imageUrl: publicUrl,
-      rawText: extractedText,
-      merchant: merchant || 'Unknown Merchant',
-      total: total || 0,
+      rawText: ocrResult.text,
+      merchant: merchant,
+      total: total,
       purchaseDate: purchaseDate,
-      summary: ocrResult ? `OCR Confidence: ${ocrConfidence.toFixed(1)}%` : 'OCR processing failed'
+      summary: summary
     })
 
+    // 5. Return enriched response (see master guide: API Response Typing)
     return NextResponse.json({
       success: true,
       receipt: {
@@ -120,7 +160,10 @@ export async function POST(request: NextRequest) {
         merchant: receipt.merchant,
         total: receipt.total,
         purchaseDate: receipt.purchaseDate,
-        ocrConfidence: ocrConfidence
+        ocrConfidence: ocrConfidence,
+        category: aiData.category,
+        tags: aiData.tags,
+        summary: summary
       }
     })
 

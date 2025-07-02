@@ -19,7 +19,7 @@ datasource db {
 // Maps to Supabase Auth users with UUID primary key
 // Designed for Row Level Security (RLS) integration
 model User {
-  id        String    @id @default(cuid()) @db.Uuid
+  id        String    @id @db.Uuid
   email     String    @unique
   name      String?
   avatarUrl String?
@@ -43,7 +43,7 @@ model User {
 // ============================================================================
 // Core receipt data with AI-powered analysis
 model Receipt {
-  id           String   @id @default(cuid()) @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
   
   // Foreign key to User (Supabase Auth)
   userId       String   @db.Uuid

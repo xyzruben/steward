@@ -1,10 +1,10 @@
-import { createWorker } from 'tesseract.js'
+import Tesseract from 'tesseract.js'
 
 // ============================================================================
-// OCR SERVICE
+// OCR SERVICE (tesseract.js v4.0.2)
 // ============================================================================
 // Handles optical character recognition for receipt images
-// Uses tesseract.js for text extraction with optimized settings for receipts
+// Uses tesseract.js v4.0.2 for text extraction with optimized settings for receipts
 
 export interface OCRResult {
   text: string
@@ -13,114 +13,74 @@ export interface OCRResult {
 }
 
 export class OCRService {
-  private worker: Tesseract.Worker | null = null
-  private isInitialized = false
-
-  // ============================================================================
-  // INITIALIZATION
-  // ============================================================================
-
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return
-
-    try {
-      this.worker = await createWorker('eng', 1, {
-        logger: process.env.NODE_ENV === 'development' ? m => console.log(m) : undefined,
-        errorHandler: err => console.error('OCR Error:', err),
-      })
-
-      this.isInitialized = true
-    } catch (error) {
-      console.error('Failed to initialize OCR worker:', error)
-      throw new Error('OCR initialization failed')
-    }
-  }
-
-  // ============================================================================
-  // TEXT EXTRACTION
-  // ============================================================================
-
+  // ==========================================================================
+  // TEXT EXTRACTION (v4.0.2 API)
+  // ==========================================================================
   async extractText(imageUrl: string): Promise<OCRResult> {
-    if (!this.isInitialized) {
-      await this.initialize()
-    }
-
-    if (!this.worker) {
-      throw new Error('OCR worker not initialized')
-    }
-
     const startTime = Date.now()
-
+    
     try {
-      const { data } = await this.worker.recognize(imageUrl)
+      console.log('Starting OCR extraction for:', imageUrl)
+      
+      // Use tesseract.js v4.0.2 recognize method
+      const result = await Tesseract.recognize(
+        imageUrl,
+        'eng', // English language
+        {
+          logger: m => {
+            // Log progress for debugging (optional)
+            if (m.status === 'recognizing text') {
+              console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`)
+            }
+          }
+        }
+      )
       
       const processingTime = Date.now() - startTime
-
+      
+      // Extract text and confidence from result
+      const extractedText = result.data.text.trim()
+      const confidence = result.data.confidence || 0
+      
+      console.log(`OCR completed in ${processingTime}ms with confidence: ${confidence}%`)
+      
+      // Validate that we got meaningful text
+      if (!extractedText || extractedText.length < 10) {
+        throw new Error('OCR extracted insufficient text - image may be unclear or not contain readable text')
+      }
+      
       return {
-        text: data.text.trim(),
-        confidence: data.confidence,
+        text: extractedText,
+        confidence,
         processingTime
       }
+      
     } catch (error) {
-      console.error('OCR text extraction failed:', error)
-      throw new Error('Failed to extract text from image')
+      console.error('OCR extraction failed:', error)
+      throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-
-  // ============================================================================
-  // CLEANUP
-  // ============================================================================
-
-  async terminate(): Promise<void> {
-    if (this.worker) {
-      await this.worker.terminate()
-      this.worker = null
-      this.isInitialized = false
-    }
-  }
-
-  // ============================================================================
-  // UTILITY METHODS
-  // ============================================================================
-
-  /**
-   * Clean and normalize extracted text for better processing
-   */
-  cleanText(text: string): string {
-    return text
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .replace(/[^\w\s.,$€£¥@#%&*()_+\-=\[\]{}|;:'"/<>?\\~`]/g, '') // Remove invalid characters
-      .trim()
-  }
-
-  /**
-   * Check if OCR result is likely a receipt
-   */
-  isLikelyReceipt(text: string): boolean {
+  
+  // ==========================================================================
+  // RECEIPT DETECTION
+  // ==========================================================================
+  isReceiptText(text: string): boolean {
     const receiptKeywords = [
-      'receipt', 'total', 'subtotal', 'tax', 'change', 'cash', 'card', 'credit',
-      'debit', 'amount', 'price', 'cost', 'payment', 'transaction', 'purchase',
-      'sale', 'invoice', 'bill', 'checkout', 'register', 'pos', 'terminal'
+      'total', 'subtotal', 'tax', 'receipt', 'invoice', 'amount', 'payment',
+      'cash', 'credit', 'debit', 'change', 'balance', 'due', 'paid',
+      'store', 'merchant', 'vendor', 'business', 'company', 'inc', 'llc',
+      'date', 'time', 'transaction', 'purchase', 'sale', 'item', 'quantity'
     ]
-
+    
     const lowerText = text.toLowerCase()
     const keywordMatches = receiptKeywords.filter(keyword => 
       lowerText.includes(keyword)
-    )
-
-    return keywordMatches.length >= 2
+    ).length
+    
+    // Consider it a receipt if we find at least 3 receipt-related keywords
+    return keywordMatches >= 3
   }
 }
 
-// ============================================================================
-// SINGLETON INSTANCE
-// ============================================================================
-
-let ocrServiceInstance: OCRService | null = null
-
-export function getOCRService(): OCRService {
-  if (!ocrServiceInstance) {
-    ocrServiceInstance = new OCRService()
-  }
-  return ocrServiceInstance
-} 
+// Export singleton instance for consistent usage
+export const ocrService = new OCRService() 

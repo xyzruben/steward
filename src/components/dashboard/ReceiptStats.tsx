@@ -67,7 +67,7 @@ export function ReceiptStats() {
         
         <div className="text-center">
           <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-            ${stats?.totalSpent.toFixed(2) || '0.00'}
+            ${Number(stats?.totalSpent || 0).toFixed(2)}
           </div>
           <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Total Spent
@@ -76,7 +76,7 @@ export function ReceiptStats() {
         
         <div className="text-center">
           <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-            ${stats?.averageSpent.toFixed(2) || '0.00'}
+            ${Number(stats?.averageSpent || 0).toFixed(2)}
           </div>
           <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Average per Receipt

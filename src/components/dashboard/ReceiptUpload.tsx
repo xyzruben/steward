@@ -99,7 +99,7 @@ export function ReceiptUpload() {
                     {result.merchant}
                   </p>
                   <p className="text-xs text-green-600 dark:text-green-300">
-                    ${result.total.toFixed(2)} • OCR: {result.ocrConfidence.toFixed(1)}%
+                    ${Number(result.total).toFixed(2)} • OCR: {result.ocrConfidence.toFixed(1)}%
                   </p>
                 </div>
                 <div className="text-xs text-green-600 dark:text-green-300">

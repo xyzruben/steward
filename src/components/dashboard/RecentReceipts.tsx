@@ -130,7 +130,7 @@ export function RecentReceipts() {
               
               <div className="text-right">
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  ${receipt.total.toFixed(2)}
+                  ${Number(receipt.total).toFixed(2)}
                 </p>
               </div>
             </div>
