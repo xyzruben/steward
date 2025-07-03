@@ -4,12 +4,17 @@ import { useAuth } from '@/context/AuthContext'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { DashboardHeader } from './DashboardHeader'
 import { ReceiptStats } from './ReceiptStats'
-import { ReceiptUpload } from './ReceiptUpload'
+import ReceiptUpload from './ReceiptUpload'
 import { RecentReceipts } from './RecentReceipts'
-import { TestReceiptGenerator } from '@/components/test/TestReceiptGenerator'
+
 
 export function DashboardContent() {
   const { user, loading } = useAuth()
+
+  const handleUploadSuccess = () => {
+    // Refresh the page to show new data
+    window.location.reload()
+  }
 
   // Show loading state while auth is initializing
   if (loading) {
@@ -57,8 +62,7 @@ export function DashboardContent() {
           
           {/* Sidebar */}
           <div className="space-y-8">
-            <ReceiptUpload />
-            <TestReceiptGenerator />
+            <ReceiptUpload onUploadSuccess={handleUploadSuccess} />
           </div>
         </div>
       </main>

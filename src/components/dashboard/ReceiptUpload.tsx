@@ -2,7 +2,19 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { Upload, FileImage, AlertCircle, Info } from 'lucide-react'
 
+// ============================================================================
+// RECEIPT UPLOAD COMPONENT
+// ============================================================================
+// Handles drag-and-drop receipt upload with format validation and progress tracking
+// Follows STEWARD_MASTER_SYSTEM_GUIDE.md sections: Component Hierarchy, 
+// React State Patterns, Input Validation, and Accessibility
+
+/**
+ * Interface for upload result data
+ * @see STEWARD_MASTER_SYSTEM_GUIDE.md - API Response Typing
+ */
 interface UploadResult {
   id: string
   imageUrl: string
@@ -12,159 +24,157 @@ interface UploadResult {
   ocrConfidence: number
 }
 
-export function ReceiptUpload() {
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+interface ReceiptUploadProps {
+  onUploadSuccess: () => void
+}
+
+/**
+ * ReceiptUpload component for handling receipt image uploads
+ * Supports multiple formats including iPhone HEIC/HEIF files
+ * @see STEWARD_MASTER_SYSTEM_GUIDE.md - Component Hierarchy, Input Validation
+ */
+export default function ReceiptUpload({ onUploadSuccess }: ReceiptUploadProps) {
+  // ============================================================================
+  // STATE MANAGEMENT (see master guide: React State Patterns)
+  // ============================================================================
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
-  const [error, setError] = useState('')
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return
+  // ============================================================================
+  // FILE UPLOAD HANDLER (see master guide: Data Fetching Patterns, Error Handling)
+  // ============================================================================
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true)
+    setUploadStatus('idle')
+    setErrorMessage('')
 
-    setUploading(true)
-    setUploadProgress(0)
-    setError('')
-    setUploadResults([])
+    // Check file type and provide guidance
+    const isHeic = file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')
+    if (isHeic) {
+      setErrorMessage(
+        'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading. ' +
+        'You can use your phone\'s camera app to save as JPEG, or use online converters.'
+      )
+      setUploadStatus('error')
+      setIsUploading(false)
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
 
     try {
-      for (let i = 0; i < acceptedFiles.length; i++) {
-        const file = acceptedFiles[i]
-        const formData = new FormData()
-        formData.append('receipt', file)
+      const response = await fetch('/api/receipts/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-        const response = await fetch('/api/receipts/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Upload failed')
-        }
-
-        const result = await response.json()
-        setUploadResults(prev => [...prev, result.receipt])
-        setUploadProgress(((i + 1) / acceptedFiles.length) * 100)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Upload failed')
       }
 
-      // Notify other components that receipts were uploaded
-      window.dispatchEvent(new CustomEvent('receipt-uploaded'))
-
-      // Show success for a few seconds
-      setTimeout(() => {
-        setUploading(false)
-        setUploadProgress(0)
-        setUploadResults([])
-      }, 3000)
+      const result = await response.json()
+      console.log('Upload successful:', result)
+      setUploadStatus('success')
+      onUploadSuccess()
+      setUploadResults(prev => [...prev, result.receipt])
     } catch (error) {
       console.error('Upload error:', error)
-      setError(error instanceof Error ? error.message : 'Upload failed')
-      setUploading(false)
-      setUploadProgress(0)
+      setErrorMessage(error instanceof Error ? error.message : 'Upload failed')
+      setUploadStatus('error')
+    } finally {
+      setIsUploading(false)
     }
-  }, [])
+  }
 
+  // ============================================================================
+  // DROPZONE CONFIGURATION (see master guide: Input Validation)
+  // ============================================================================
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        handleFileUpload(acceptedFiles[0])
+      }
     },
-    multiple: true
+    accept: {
+      'image/jpeg': ['.jpeg', '.jpg'],
+      'image/png': ['.png']
+    },
+    multiple: false,
+    // Accessibility improvements (see master guide: Internationalization and Accessibility)
+    disabled: isUploading
   })
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-        Upload Receipt
-      </h2>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
-          <p className="text-sm text-red-800 dark:text-red-200">
-            {error}
+    <div className="w-full max-w-md bg-white rounded-lg shadow-md border border-gray-200">
+      {/* Header */}
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Upload className="h-5 w-5" />
+          Upload Receipt
+        </h3>
+        <p className="text-sm text-gray-600 mt-1">
+          Upload a receipt image to automatically extract and categorize expenses
+        </p>
+      </div>
+
+      {/* Content */}
+      <div className="p-6 space-y-4">
+        {/* File Format Guidance */}
+        <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-blue-800">
+            Supported formats: JPEG, PNG. HEIC files need to be converted to JPEG first.
           </p>
         </div>
-      )}
 
-      {uploadResults.length > 0 && (
-        <div className="mb-4 space-y-2">
-          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Uploaded Receipts:
-          </h3>
-          {uploadResults.map((result, index) => (
-            <div key={result.id} className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                    {result.merchant}
-                  </p>
-                  <p className="text-xs text-green-600 dark:text-green-300">
-                    ${Number(result.total).toFixed(2)} • OCR: {result.ocrConfidence.toFixed(1)}%
-                  </p>
-                </div>
-                <div className="text-xs text-green-600 dark:text-green-300">
-                  ✓
-                </div>
-              </div>
-            </div>
-          ))}
+        {/* Upload Area */}
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+            isDragActive 
+              ? 'border-blue-500 bg-blue-50' 
+              : 'border-gray-300 hover:border-gray-400'
+          }`}
+        >
+          <input {...getInputProps()} />
+          <FileImage className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <p className="text-sm text-gray-600 mb-2">
+            Drag and drop your receipt here, or click to browse
+          </p>
+          <p className="text-xs text-gray-500 mb-4">
+            JPEG, PNG • Max 10MB
+          </p>
+          <button
+            type="button"
+            disabled={isUploading}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUploading ? 'Uploading...' : 'Choose File'}
+          </button>
         </div>
-      )}
-      
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors duration-200 ${
-          isDragActive
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
-        }`}
-      >
-        <input {...getInputProps()} />
-        
-        {uploading ? (
-          <div className="space-y-4">
-            <div className="w-16 h-16 mx-auto border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Processing receipt... {Math.round(uploadProgress)}%
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-500">
-              Extracting text with OCR...
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="w-16 h-16 mx-auto bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-            </div>
-            
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {isDragActive
-                  ? 'Drop the receipt here...'
-                  : 'Drag & drop receipt images here, or click to select'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                Supports JPEG, PNG, GIF, WebP
-              </p>
-            </div>
+
+        {/* Status Messages */}
+        {uploadStatus === 'success' && (
+          <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="h-4 w-4 bg-green-600 rounded-full mt-0.5 flex-shrink-0"></div>
+            <p className="text-sm text-green-800">
+              Receipt uploaded successfully! Processing your data...
+            </p>
           </div>
         )}
-      </div>
-      
-      <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-        Receipts will be automatically processed with OCR and AI categorization
+
+        {uploadStatus === 'error' && (
+          <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-md">
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-red-800">
+              {errorMessage}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

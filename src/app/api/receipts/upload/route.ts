@@ -4,10 +4,24 @@ import { createReceipt, createUser, getUserById } from '@/lib/db'
 import { cookies } from 'next/headers'
 import { OCRService } from '@/lib/services/ocr'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
+import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr'
+import sharp from 'sharp'
+
+// ============================================================================
+// RECEIPT UPLOAD API ROUTE
+// ============================================================================
+// Handles receipt image upload, format conversion, OCR, and AI enrichment
+// Follows STEWARD_MASTER_SYSTEM_GUIDE.md sections: API Route Principles, 
+// Input Validation, File Access Controls, and Type Safety Requirements
 
 export async function POST(request: NextRequest) {
+  console.log('=== RECEIPT UPLOAD START ===')
+  console.log('Receipt upload endpoint called')
+  
   try {
-    // Get authenticated user
+    // ============================================================================
+    // AUTHENTICATION & USER VALIDATION (see master guide: Authentication and Authorization)
+    // ============================================================================
     const cookieStore = await cookies()
     const supabase = createSupabaseServerClient(cookieStore)
     
@@ -20,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Ensure user exists in our database
+    // Ensure user exists in our database (see master guide: Data Persistence)
     let dbUser = await getUserById(user.id)
     if (!dbUser) {
       console.log('User not found in database, creating...', user.id)
@@ -41,9 +55,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Parse form data
+    // ============================================================================
+    // FILE VALIDATION & PROCESSING (see master guide: Input Validation, File Storage Optimization)
+    // ============================================================================
     const formData = await request.formData()
-    const file = formData.get('receipt') as File
+    const file = formData.get('file') as File
     
     if (!file) {
       return NextResponse.json(
@@ -52,16 +68,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    // Validate file type (see master guide: Input Validation)
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/gif', 
+      'image/webp',
+      'image/heic',
+      'image/heif'
+    ]
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.' },
+        { 
+          error: 'Unsupported file format',
+          details: 'Supported formats: JPEG, PNG, GIF, WebP, HEIC (iPhone). Please convert to a supported format.'
+        },
         { status: 400 }
       )
     }
 
-    // Validate file size (max 10MB)
+    // Validate file size (see master guide: File Storage Optimization)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -70,17 +97,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique filename
+    // ============================================================================
+    // IMAGE FORMAT CONVERSION (see master guide: File Storage Optimization, Type Safety)
+    // ============================================================================
+    let processedBuffer: Buffer
+    let fileExtension: string
+    let contentType: string
+    
+    try {
+      // Convert file to Buffer for processing
+      const fileBuffer = Buffer.from(await file.arrayBuffer())
+      
+      // Debug file information
+      console.log('=== FILE DEBUG INFO ===')
+      console.log('File name:', file.name)
+      console.log('File type:', file.type)
+      console.log('File size:', file.size, 'bytes')
+      console.log('Buffer size:', fileBuffer.length, 'bytes')
+      console.log('File extension:', file.name.split('.').pop()?.toLowerCase())
+      
+      // Check for HEIC/HEIF files (multiple detection methods)
+      const isHeicByType = file.type === 'image/heic' || file.type === 'image/heif'
+      const isHeicByExtension = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      const isHeic = isHeicByType || isHeicByExtension
+      
+      console.log('Is HEIC by type:', isHeicByType)
+      console.log('Is HEIC by extension:', isHeicByExtension)
+      console.log('Is HEIC overall:', isHeic)
+      console.log('========================')
+      
+      // Early rejection for HEIC files with clear error message
+      if (isHeic) {
+        console.log('HEIC file detected, rejecting upload')
+        return NextResponse.json(
+          { 
+            error: 'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading. You can use your phone\'s camera app to save as JPEG, or use online converters.' 
+          }, 
+          { status: 400 }
+        )
+      }
+      
+            // Standard formats - no conversion needed (HEIC files are rejected earlier)
+      processedBuffer = fileBuffer
+      fileExtension = file.name.split('.').pop() || 'jpg'
+      contentType = file.type
+      
+      // Validate processed image (see master guide: Input Validation)
+      if (processedBuffer.length === 0) {
+        throw new Error('Image processing resulted in empty buffer')
+      }
+      
+    } catch (conversionError) {
+      console.error('Image processing failed:', conversionError)
+      return NextResponse.json(
+        { 
+          error: 'Failed to process image format',
+          details: 'Please try uploading a JPEG, PNG, or WebP image instead'
+        },
+        { status: 500 }
+      )
+    }
+
+    // ============================================================================
+    // FILE UPLOAD TO STORAGE (see master guide: File Access Controls)
+    // ============================================================================
     const timestamp = Date.now()
-    const fileExtension = file.name.split('.').pop()
     const fileName = `${user.id}/${timestamp}.${fileExtension}`
 
-    // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('receipts')
-      .upload(fileName, file, {
+      .upload(fileName, processedBuffer, {
         cacheControl: '3600',
-        upsert: false
+        upsert: false,
+        contentType: contentType
       })
 
     if (uploadError) {
@@ -91,34 +180,50 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get public URL
+    // Get public URL (see master guide: File Access Controls)
     const { data: { publicUrl } } = supabase.storage
       .from('receipts')
       .getPublicUrl(fileName)
 
-    // =============================
-    // AI-POWERED OCR & ENRICHMENT
-    // =============================
-    // 1. Run OCR on the uploaded image (see master guide: OCR Processing)
-    const ocrService = new OCRService()
-    let ocrResult
+    // ============================================================================
+    // AI-POWERED OCR & ENRICHMENT (see master guide: OCR Processing, AI Categorization)
+    // ============================================================================
+    // 1. Run OCR on the uploaded image (using Google Cloud Vision API)
+    let ocrText: string
     try {
-      ocrResult = await ocrService.extractText(publicUrl)
-    } catch (err) {
-      console.error('OCR extraction failed:', err)
-      return NextResponse.json(
-        { error: 'Failed to extract text from image' },
-        { status: 500 }
-      )
+      // Validate processed buffer before OCR (see master guide: Input Validation)
+      console.log('Processed buffer size:', processedBuffer.length, 'bytes')
+      console.log('Content type for OCR:', contentType)
+      
+      // Ensure we have a valid image buffer
+      if (processedBuffer.length < 100) {
+        throw new Error('Processed image buffer is too small - conversion may have failed')
+      }
+      
+      // Use base64 encoding to ensure Google Vision API can access the image
+      // This works for all formats including converted HEIC files (see master guide: API Integration)
+      console.log('Converting image to base64 for Google Vision API processing')
+      const base64Image = imageBufferToBase64(processedBuffer, contentType)
+      console.log('Base64 image length:', base64Image.length)
+      // Temporarily remove base64 prefix logging to test
+      // console.log('Base64 image prefix:', base64Image.substring(0, 50) + '...')
+      
+      ocrText = await extractTextFromImage(base64Image)
+    } catch (error) {
+      console.error('OCR extraction failed:', error)
+      return NextResponse.json({ 
+        error: 'OCR extraction failed', 
+        details: error instanceof Error ? error.message : error 
+      }, { status: 500 })
     }
 
     // 2. Use OpenAI to extract structured data and summary (see master guide: AI Categorization)
     let aiData
     try {
-      aiData = await extractReceiptDataWithAI(ocrResult.text)
+      aiData = await extractReceiptDataWithAI(ocrText)
     } catch (err) {
       console.error('OpenAI extraction failed:', err)
-      // Defensive: fallback to basic fields if AI fails
+      // Defensive: fallback to basic fields if AI fails (see master guide: Error Handling)
       aiData = {
         merchant: null,
         total: null,
@@ -130,28 +235,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Prepare fields for DB (see master guide: Data Persistence, Type Safety)
+    // ============================================================================
+    // DATA PERSISTENCE (see master guide: Data Persistence, Type Safety)
+    // ============================================================================
     const merchant = aiData.merchant || 'Unknown Merchant'
     const total = typeof aiData.total === 'number' && !isNaN(aiData.total) ? aiData.total : 0
     const purchaseDate = aiData.purchaseDate ? new Date(aiData.purchaseDate) : new Date()
     const summary = aiData.summary || 'No summary generated'
     const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
 
-    // Log the user ID before saving
-    console.log('user.id being used for receipt:', user.id)
+    console.log('Creating receipt record for user:', user.id)
 
-    // 4. Create receipt record in database (see master guide: Database Schema Design)
     const receipt = await createReceipt({
       userId: user.id,
       imageUrl: publicUrl,
-      rawText: ocrResult.text,
+      rawText: ocrText,
       merchant: merchant,
       total: total,
       purchaseDate: purchaseDate,
       summary: summary
     })
 
-    // 5. Return enriched response (see master guide: API Response Typing)
+    // ============================================================================
+    // API RESPONSE (see master guide: API Response Typing)
+    // ============================================================================
     return NextResponse.json({
       success: true,
       receipt: {
@@ -168,6 +275,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    // ============================================================================
+    // ERROR HANDLING (see master guide: Secure Error Handling)
+    // ============================================================================
     console.error('Error uploading receipt:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -177,9 +287,14 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================================================
-// UTILITY FUNCTIONS
+// UTILITY FUNCTIONS (see master guide: Function and File Length)
 // ============================================================================
 
+/**
+ * Extracts merchant name from OCR text using simple pattern matching
+ * @param text - Raw OCR text from receipt
+ * @returns Merchant name or null if not found
+ */
 function extractMerchantFromText(text: string): string | null {
   // Simple merchant extraction - will be enhanced with AI later
   const lines = text.split('\n').filter(line => line.trim().length > 0)
@@ -198,19 +313,24 @@ function extractMerchantFromText(text: string): string | null {
   return null
 }
 
+/**
+ * Extracts total amount from OCR text using regex patterns
+ * @param text - Raw OCR text from receipt
+ * @returns Total amount or null if not found
+ */
 function extractTotalFromText(text: string): number | null {
   // Simple total extraction - will be enhanced with AI later
   const totalPatterns = [
     /total.*?\$?(\d+\.?\d*)/i,
     /amount.*?\$?(\d+\.?\d*)/i,
-    /sum.*?\$?(\d+\.?\d*)/i,
+    /due.*?\$?(\d+\.?\d*)/i,
     /\$(\d+\.?\d*)/g
   ]
   
   for (const pattern of totalPatterns) {
-    const matches = text.match(pattern)
-    if (matches && matches[1]) {
-      const amount = parseFloat(matches[1])
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const amount = parseFloat(match[1])
       if (!isNaN(amount) && amount > 0) {
         return amount
       }

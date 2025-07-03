@@ -1,36 +1,152 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Steward - AI-Powered Receipt & Expense Tracker
+
+Steward is a production-grade, AI-powered receipt and expense tracker designed for individuals and professionals who value faithful financial stewardship. The application automates the tedious process of manual expense tracking by leveraging optical character recognition (OCR) and artificial intelligence to extract, categorize, and analyze receipt data.
+
+## Features
+
+- 📸 **Smart Receipt Upload**: Drag-and-drop receipt images with automatic data extraction
+- 🤖 **AI-Powered OCR**: Uses Google Cloud Vision API for accurate text recognition
+- 🏷️ **Intelligent Categorization**: OpenAI GPT-4 analyzes and categorizes expenses
+- 📊 **Expense Analytics**: Track spending patterns and generate insights
+- 🔒 **Secure Storage**: All data stored securely in Supabase with user authentication
+- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
+
+## Supported File Formats
+
+**✅ Supported:**
+- JPEG (.jpg, .jpeg)
+- PNG (.png)
+
+**❌ Not Supported:**
+- HEIC/HEIF files (iPhone default format)
+- GIF, WebP, and other formats
+
+**Note:** If you have HEIC files from your iPhone, please convert them to JPEG before uploading. You can:
+1. Use your phone's camera app to save photos as JPEG
+2. Use online converters like [Convertio](https://convertio.co/heic-jpg/) or [CloudConvert](https://cloudconvert.com/heic-to-jpg)
+3. Use macOS Preview app to export HEIC files as JPEG
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Supabase (PostgreSQL + Auth + Storage)
+- **AI/OCR**: Google Cloud Vision API, OpenAI GPT-4
+- **Database**: Prisma ORM with PostgreSQL
+- **Deployment**: Vercel
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+- Google Cloud Vision API key
+- OpenAI API key
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd steward
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Fill in your environment variables:
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-## Learn More
+# Google Cloud Vision API
+GOOGLE_CLOUD_VISION_API_KEY=your_vision_api_key
 
-To learn more about Next.js, take a look at the following resources:
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Set up the database:
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Run the development server:
+```bash
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Sign Up/Login**: Create an account or sign in with your existing credentials
+2. **Upload Receipts**: Drag and drop receipt images or click to browse
+3. **Review Data**: The AI will extract merchant, amount, date, and category
+4. **Track Expenses**: View your spending patterns and analytics
+
+## Development
+
+### Project Structure
+
+```
+src/
+├── app/                 # Next.js App Router pages and API routes
+├── components/          # React components organized by feature
+├── lib/                 # Utility functions and service integrations
+├── types/               # TypeScript type definitions
+└── context/             # React context providers
+```
+
+### Key Components
+
+- **ReceiptUpload**: Handles file upload with format validation
+- **DashboardContent**: Main dashboard with stats and recent receipts
+- **ReceiptStats**: Displays spending analytics
+- **RecentReceipts**: Shows latest uploaded receipts
+
+### API Routes
+
+- `/api/receipts/upload`: Handles receipt upload and OCR processing
+- `/api/receipts`: Retrieves user's receipts
+- `/api/receipts/stats`: Provides spending statistics
+- `/api/auth/sync-user`: Syncs user authentication state
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you encounter any issues or have questions, please:
+1. Check the [Issues](https://github.com/your-repo/steward/issues) page
+2. Create a new issue with detailed information about your problem
+3. Include steps to reproduce, expected behavior, and actual behavior
+
+## Roadmap
+
+- [ ] Multi-currency support
+- [ ] Integration with accounting software
+- [ ] Recurring expense detection
+- [ ] Advanced analytics dashboards
+- [ ] Mobile app development
+- [ ] Export capabilities for tax preparation
