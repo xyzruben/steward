@@ -99,8 +99,6 @@ jobs:
           SUPABASE_URL: https://test.supabase.co
           SUPABASE_ANON_KEY: test-key
           SUPABASE_SERVICE_ROLE_KEY: test-key
-          # Temporarily disable ESLint for build verification
-          DISABLE_ESLINT_PLUGIN: true
           
       - name: Verify build artifacts
         run: |
