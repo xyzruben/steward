@@ -8,12 +8,12 @@ import { createUser, getUserById } from '@/lib/db'
 // Syncs Supabase Auth users with our Prisma database
 // Uses service role key for server-side operations
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function POST(request: NextRequest) {
+  // Create Supabase client inside function to avoid build-time initialization
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   try {
     const { userId, email } = await request.json()
 
