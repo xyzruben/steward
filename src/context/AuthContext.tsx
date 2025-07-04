@@ -29,13 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createSupabaseBrowserClient()
+  const [supabase, setSupabase] = useState<ReturnType<typeof createSupabaseBrowserClient> | null>(null)
+
+  // Initialize Supabase client only on client side
+  useEffect(() => {
+    setSupabase(createSupabaseBrowserClient())
+  }, [])
 
   // ============================================================================
   // AUTH METHODS
   // ============================================================================
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') }
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -44,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') }
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
@@ -61,10 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    if (!supabase) return
     await supabase.auth.signOut()
   }
 
   const refreshSession = async () => {
+    if (!supabase) return
     const { data: { session }, error } = await supabase.auth.getSession()
     if (!error && session) {
       setSession(session)
@@ -73,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const resendConfirmation = async (email: string) => {
+    if (!supabase) return { error: new Error('Supabase client not initialized') }
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
@@ -88,6 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ============================================================================
 
   useEffect(() => {
+    if (!supabase) return
+
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -126,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   // ============================================================================
   // CONTEXT VALUE
