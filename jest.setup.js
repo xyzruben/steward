@@ -70,6 +70,62 @@ global.createMockApiResponse = (data, status = 200) => {
 // TEST ENVIRONMENT CONFIGURATION (see master guide: Testing and Quality Assurance)
 // ============================================================================
 
+// Add Web API globals for API route testing
+global.Request = class MockRequest {
+  constructor(url, init = {}) {
+    this.url = url
+    this.method = init.method || 'GET'
+    this.body = init.body
+    this.headers = new Map(Object.entries(init.headers || {}))
+  }
+  
+  async formData() {
+    return this.body
+  }
+}
+
+global.Response = class MockResponse {
+  constructor(body, init = {}) {
+    this.body = body
+    this.status = init.status || 200
+    this.headers = new Map(Object.entries(init.headers || {}))
+  }
+  
+  async json() {
+    return typeof this.body === 'string' ? JSON.parse(this.body) : this.body
+  }
+}
+
+global.FormData = class MockFormData {
+  constructor() {
+    this.data = new Map()
+  }
+  
+  append(key, value) {
+    this.data.set(key, value)
+  }
+  
+  get(key) {
+    return this.data.get(key)
+  }
+}
+
+global.File = class MockFile {
+  constructor(content, name, options = {}) {
+    // Ensure content is a string of the correct length
+    this.content = Array.isArray(content) ? content.join('') : String(content)
+    this.name = name
+    this.type = options.type || 'text/plain'
+    this.size = this.content.length
+  }
+  
+  async arrayBuffer() {
+    // Fill buffer with 'x' char code (120) to simulate real file content
+    const arr = new Uint8Array(this.size).fill(120)
+    return arr.buffer
+  }
+}
+
 // Suppress console warnings in tests (but keep errors)
 const originalWarn = console.warn
 beforeAll(() => {

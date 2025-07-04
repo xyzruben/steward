@@ -21,13 +21,6 @@ export interface ReceiptAIExtraction {
 }
 
 // -----------------------------
-// OpenAI Client Initialization
-// -----------------------------
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
-// -----------------------------
 // Main Extraction Function
 // -----------------------------
 /**
@@ -36,6 +29,11 @@ const openai = new OpenAI({
  * - Returns merchant, total, date, category, tags, confidence, and summary.
  */
 export async function extractReceiptDataWithAI(ocrText: string): Promise<ReceiptAIExtraction> {
+  // Create the OpenAI client inside the function for testability
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+
   // Prompt engineering: clear, structured, and robust for receipts
   const systemPrompt = `You are an expert at extracting structured data from receipt OCR text. 
 Return a JSON object with these fields: merchant, total, purchaseDate (ISO), category, tags (array), confidence (0-100), summary. 
