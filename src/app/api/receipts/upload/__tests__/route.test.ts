@@ -10,11 +10,11 @@ import { POST } from '../route'
 jest.mock('next/server', () => ({
   NextRequest: class MockNextRequest {
     constructor(url: string, init?: RequestInit) {
-      return new Request(url, init) as any
+      return new Request(url, init) as unknown as NextRequest
     }
   },
   NextResponse: {
-    json: (data: any, init?: ResponseInit) => new Response(JSON.stringify(data), {
+    json: (data: unknown, init?: ResponseInit) => new Response(JSON.stringify(data), {
       status: init?.status || 200,
       headers: { 'Content-Type': 'application/json', ...init?.headers },
     }),
@@ -72,6 +72,7 @@ const mockDbUser = {
   updatedAt: new Date(),
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockReceipt = {
   id: 'receipt-123',
   userId: 'test-user-id',
@@ -100,13 +101,21 @@ const mockAiData = {
 // ============================================================================
 
 describe('POST /api/receipts/upload', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockSupabase: any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockCreateReceipt: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockCreateUser: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockGetUserById: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockExtractTextFromImage: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockImageBufferToBase64: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockExtractReceiptDataWithAI: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockCookies: jest.Mock
 
   beforeEach(() => {
@@ -135,11 +144,13 @@ describe('POST /api/receipts/upload', () => {
     }
 
     // Setup module mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createSupabaseServerClient } = require('@/lib/supabase')
     createSupabaseServerClient.mockReturnValue(mockSupabase)
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createReceipt, createUser, getUserById } = require('@/lib/db')
-    createReceipt.mockImplementation((params: any) => {
+    createReceipt.mockImplementation((params: Record<string, unknown>) => {
       // Return a receipt based on the parameters passed, not the hardcoded mockReceipt
       return Promise.resolve({
         id: 'receipt-123',
@@ -157,13 +168,16 @@ describe('POST /api/receipts/upload', () => {
     createUser.mockResolvedValue(mockDbUser)
     getUserById.mockResolvedValue(mockDbUser)
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { extractTextFromImage, imageBufferToBase64 } = require('@/lib/services/cloudOcr')
     extractTextFromImage.mockResolvedValue('Welcome to Chick-fil-A\nTotal: $11.48')
     imageBufferToBase64.mockReturnValue('data:image/jpeg;base64,mock-base64-data')
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { extractReceiptDataWithAI } = require('@/lib/services/openai')
     extractReceiptDataWithAI.mockResolvedValue(mockAiData)
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { cookies } = require('next/headers')
     cookies.mockResolvedValue({})
 
@@ -210,6 +224,7 @@ describe('POST /api/receipts/upload', () => {
 
     it('should create user in database if not exists', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { getUserById, createUser } = require('@/lib/db')
       getUserById.mockResolvedValue(null) // User doesn't exist
 
@@ -367,6 +382,7 @@ describe('POST /api/receipts/upload', () => {
   describe('OCR Processing', () => {
     it('should return 500 when OCR extraction fails', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { extractTextFromImage } = require('@/lib/services/cloudOcr')
       extractTextFromImage.mockRejectedValue(new Error('OCR failed'))
 
@@ -401,6 +417,7 @@ describe('POST /api/receipts/upload', () => {
       await POST(request)
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { imageBufferToBase64, extractTextFromImage } = require('@/lib/services/cloudOcr')
       expect(imageBufferToBase64).toHaveBeenCalledWith(
         expect.any(Buffer),
@@ -415,6 +432,7 @@ describe('POST /api/receipts/upload', () => {
   describe('AI Processing', () => {
     it('should handle AI processing failures gracefully', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { extractReceiptDataWithAI } = require('@/lib/services/openai')
       // Override the mock to throw an error for this test (after beforeEach has run)
       extractReceiptDataWithAI.mockImplementation(() => {
@@ -478,6 +496,7 @@ describe('POST /api/receipts/upload', () => {
       await POST(request)
 
       // Assert
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createReceipt } = require('@/lib/db')
       expect(createReceipt).toHaveBeenCalledWith({
         userId: mockUser.id,
@@ -492,6 +511,7 @@ describe('POST /api/receipts/upload', () => {
 
     it('should handle database creation failures', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createReceipt } = require('@/lib/db')
       createReceipt.mockRejectedValue(new Error('Database error'))
 

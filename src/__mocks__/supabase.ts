@@ -92,6 +92,7 @@ export const createSupabaseServerClient = jest.fn(() => ({
   },
   storage: {
     from: jest.fn(() => ({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       upload: jest.fn(async (path: string, _file: Buffer, _options?: unknown) => {
         // Simulate successful upload
         return {

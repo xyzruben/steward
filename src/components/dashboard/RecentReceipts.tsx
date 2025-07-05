@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 
 interface Receipt {
@@ -17,7 +17,7 @@ export function RecentReceipts() {
   const [receipts, setReceipts] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchReceipts = async () => {
+  const fetchReceipts = useCallback(async () => {
     if (!user) return
 
     try {
@@ -31,11 +31,11 @@ export function RecentReceipts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     fetchReceipts()
-  }, [user])
+  }, [user, fetchReceipts])
 
   // Listen for custom events when receipts are uploaded
   useEffect(() => {
@@ -47,7 +47,7 @@ export function RecentReceipts() {
     return () => {
       window.removeEventListener('receipt-uploaded', handleReceiptUploaded)
     }
-  }, [])
+  }, [fetchReceipts])
 
   if (loading) {
     return (

@@ -12,11 +12,11 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string) => Promise<{ error: any; success?: boolean }>
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string) => Promise<{ error: Error | null; success?: boolean }>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
-  resendConfirmation: (email: string) => Promise<{ error: any }>
+  resendConfirmation: (email: string) => Promise<{ error: Error | null }>
 }
 
 // ============================================================================

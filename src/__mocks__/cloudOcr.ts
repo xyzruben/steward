@@ -5,7 +5,7 @@
 
 export interface MockOcrResponse {
   text: string
-  confidence: number
+  confidence?: number
   error?: string
 }
 
@@ -42,7 +42,6 @@ Visa: $11.48
 Register:50
 Cashier:Shane
 Tran Seq No: 5628104`,
-            confidence: 0.95, // eslint-disable-line @typescript-eslint/no-unused-vars
   },
   starbucks: {
     text: `STARBUCKS
@@ -65,7 +64,6 @@ Total: $9.57
 
 Payment: Credit Card
 Thank you for your visit!`,
-    confidence: 0.92,
   },
   walmart: {
     text: `WALMART
@@ -91,7 +89,6 @@ Total: $8.50
 
 Payment: Debit Card
 Thank you for shopping at Walmart!`,
-    confidence: 0.88,
   },
 }
 
@@ -116,7 +113,6 @@ export const extractTextFromImage = jest.fn(async (base64Image: string): Promise
     // Default mock response
     mockResponse = {
       text: 'Sample receipt text for testing purposes',
-      confidence: 0.85,
     }
   }
   
@@ -124,7 +120,6 @@ export const extractTextFromImage = jest.fn(async (base64Image: string): Promise
   if (Math.random() < 0.1) {
     throw new Error('Mock OCR service error: Bad image data')
   }
-  
   return mockResponse.text
 })
 
@@ -142,7 +137,7 @@ export const resetMocks = () => {
   imageBufferToBase64.mockClear()
 }
 
-export const setMockResponse = (text: string, confidence: number = 0.9) => {
+export const setMockResponse = (text: string) => {
   extractTextFromImage.mockResolvedValue(text)
 }
 

@@ -16,7 +16,14 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
   }
   
   try {
-    let request: any;
+    let request: {
+      image: {
+        content?: string;
+        source?: {
+          imageUri: string;
+        };
+      };
+    };
     
     // Check if the URL is a base64 encoded image or a regular URL
     if (imageUrl.startsWith('data:image/')) {

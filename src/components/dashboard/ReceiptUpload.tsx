@@ -40,7 +40,8 @@ export default function ReceiptUpload({ onUploadSuccess }: ReceiptUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [_uploadResults, setUploadResults] = useState<UploadResult[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
 
   // ============================================================================
   // FILE UPLOAD HANDLER (see master guide: Data Fetching Patterns, Error Handling)

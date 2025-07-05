@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const cookieStore = await cookies()
     const supabase = createSupabaseServerClient(cookieStore)

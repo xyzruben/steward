@@ -44,7 +44,7 @@ export function LoginForm() {
           }
         }
       }
-    } catch (_err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -68,7 +68,7 @@ export function LoginForm() {
       } else {
         setSuccess('Confirmation email sent! Please check your inbox.')
       }
-    } catch (_err) {
+    } catch {
       setError('Failed to send confirmation email')
     } finally {
       setLoading(false)
@@ -141,7 +141,7 @@ export function LoginForm() {
       {showResend && (
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
           <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-            Didn't receive the confirmation email?
+            Didn&apos;t receive the confirmation email?
           </p>
           <button
             type="button"
