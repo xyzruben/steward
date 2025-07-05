@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileImage, AlertCircle, Info } from 'lucide-react'
 
@@ -40,7 +40,7 @@ export default function ReceiptUpload({ onUploadSuccess }: ReceiptUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
+  const [_uploadResults, setUploadResults] = useState<UploadResult[]>([])
 
   // ============================================================================
   // FILE UPLOAD HANDLER (see master guide: Data Fetching Patterns, Error Handling)

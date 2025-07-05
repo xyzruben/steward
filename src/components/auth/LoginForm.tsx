@@ -44,7 +44,7 @@ export function LoginForm() {
           }
         }
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -68,7 +68,7 @@ export function LoginForm() {
       } else {
         setSuccess('Confirmation email sent! Please check your inbox.')
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to send confirmation email')
     } finally {
       setLoading(false)
@@ -160,7 +160,7 @@ export function LoginForm() {
           onClick={toggleMode}
           className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
         >
-          {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+          {isSignUp ? 'Already have an account? Sign In' : "Don&apos;t have an account? Sign Up"}
         </button>
       </div>
     </div>

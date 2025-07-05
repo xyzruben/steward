@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { createReceipt, createUser, getUserById } from '@/lib/db'
 import { cookies } from 'next/headers'
-import { OCRService } from '@/lib/services/ocr'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr'
-import sharp from 'sharp'
 
 // ============================================================================
 // RECEIPT UPLOAD API ROUTE
@@ -164,7 +162,7 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now()
     const fileName = `${user.id}/${timestamp}.${fileExtension}`
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('receipts')
       .upload(fileName, processedBuffer, {
         cacheControl: '3600',
@@ -286,56 +284,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS (see master guide: Function and File Length)
-// ============================================================================
-
-/**
- * Extracts merchant name from OCR text using simple pattern matching
- * @param text - Raw OCR text from receipt
- * @returns Merchant name or null if not found
- */
-function extractMerchantFromText(text: string): string | null {
-  // Simple merchant extraction - will be enhanced with AI later
-  const lines = text.split('\n').filter(line => line.trim().length > 0)
-  
-  // Look for common merchant patterns
-  for (const line of lines.slice(0, 5)) { // Check first 5 lines
-    const cleanLine = line.trim()
-    if (cleanLine.length > 3 && cleanLine.length < 50) {
-      // Skip lines that look like prices or dates
-      if (!/^\$?\d+\.?\d*$/.test(cleanLine) && !/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(cleanLine)) {
-        return cleanLine
-      }
-    }
-  }
-  
-  return null
-}
-
-/**
- * Extracts total amount from OCR text using regex patterns
- * @param text - Raw OCR text from receipt
- * @returns Total amount or null if not found
- */
-function extractTotalFromText(text: string): number | null {
-  // Simple total extraction - will be enhanced with AI later
-  const totalPatterns = [
-    /total.*?\$?(\d+\.?\d*)/i,
-    /amount.*?\$?(\d+\.?\d*)/i,
-    /due.*?\$?(\d+\.?\d*)/i,
-    /\$(\d+\.?\d*)/g
-  ]
-  
-  for (const pattern of totalPatterns) {
-    const match = text.match(pattern)
-    if (match && match[1]) {
-      const amount = parseFloat(match[1])
-      if (!isNaN(amount) && amount > 0) {
-        return amount
-      }
-    }
-  }
-  
-  return null
-} 
+ 

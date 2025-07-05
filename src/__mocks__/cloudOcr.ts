@@ -42,7 +42,7 @@ Visa: $11.48
 Register:50
 Cashier:Shane
 Tran Seq No: 5628104`,
-    confidence: 0.95,
+            confidence: 0.95, // eslint-disable-line @typescript-eslint/no-unused-vars
   },
   starbucks: {
     text: `STARBUCKS

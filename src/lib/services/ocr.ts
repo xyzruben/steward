@@ -18,7 +18,7 @@ export class OCRService {
   // ==========================================================================
   async extractText(imageUrl: string): Promise<OCRResult> {
     const startTime = Date.now()
-    
+
     try {
       console.log('Starting OCR extraction for:', imageUrl)
       
@@ -48,7 +48,7 @@ export class OCRService {
       if (!extractedText || extractedText.length < 10) {
         throw new Error('OCR extracted insufficient text - image may be unclear or not contain readable text')
       }
-      
+
       return {
         text: extractedText,
         confidence,
@@ -60,7 +60,7 @@ export class OCRService {
       throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   // ==========================================================================
   // RECEIPT DETECTION
   // ==========================================================================
@@ -71,7 +71,7 @@ export class OCRService {
       'store', 'merchant', 'vendor', 'business', 'company', 'inc', 'llc',
       'date', 'time', 'transaction', 'purchase', 'sale', 'item', 'quantity'
     ]
-    
+
     const lowerText = text.toLowerCase()
     const keywordMatches = receiptKeywords.filter(keyword => 
       lowerText.includes(keyword)

@@ -92,7 +92,7 @@ export const createSupabaseServerClient = jest.fn(() => ({
   },
   storage: {
     from: jest.fn(() => ({
-      upload: jest.fn(async (path: string, file: Buffer, options: any) => {
+      upload: jest.fn(async (path: string, _file: Buffer, _options?: unknown) => {
         // Simulate successful upload
         return {
           data: { path },
@@ -131,7 +131,7 @@ export const createSupabaseClient = jest.fn(() => ({
         })),
       })),
     })),
-    insert: jest.fn(async (data: any) => ({
+    insert: jest.fn(async (data: Record<string, unknown>) => ({
       data: { id: 'new-receipt-id', ...data },
       error: null,
     })),
@@ -235,7 +235,7 @@ export const setMockAuthError = () => {
   createSupabaseServerClient.mockReturnValue({
     auth: {
       getUser: jest.fn(async () => ({
-        data: { user: null as any },
+        data: { user: null },
         error: { message: 'Authentication failed' },
       })),
     },
