@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import Link from 'next/link'
 
 interface Receipt {
   id: string
@@ -140,9 +141,9 @@ export function RecentReceipts() {
       
       {receipts.length > 0 && (
         <div className="mt-6 text-center">
-          <button className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">
+          <Link href="/receipts" className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">
             View All Receipts
-          </button>
+          </Link>
         </div>
       )}
     </div>

@@ -3,9 +3,20 @@
 import { useAuth } from '@/context/AuthContext'
 import { useEffect, useState } from 'react'
 
+interface ApiResponse {
+  authenticated: boolean
+  user: {
+    id: string
+    email: string
+    emailConfirmed: boolean
+  } | null
+  authError: string | null
+  cookies: Record<string, string>
+}
+
 export default function DebugPage() {
   const { user, session, loading } = useAuth()
-  const [apiResponse, setApiResponse] = useState<any>(null)
+  const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null)
   const [apiLoading, setApiLoading] = useState(false)
 
   const testApiCall = async () => {
@@ -15,7 +26,12 @@ export default function DebugPage() {
       const data = await response.json()
       setApiResponse(data)
     } catch (error) {
-      setApiResponse({ error: error instanceof Error ? error.message : 'Unknown error' })
+      setApiResponse({ 
+        authenticated: false, 
+        user: null, 
+        authError: error instanceof Error ? error.message : 'Unknown error',
+        cookies: {}
+      })
     } finally {
       setApiLoading(false)
     }

@@ -2,7 +2,8 @@
 
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
-import { BarChart3, Home } from 'lucide-react'
+import { BarChart3, Home, Receipt } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth()
@@ -35,6 +36,13 @@ export function DashboardHeader() {
               <span>Dashboard</span>
             </Link>
             <Link
+              href="/receipts"
+              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
+            >
+              <Receipt className="h-4 w-4" />
+              <span>Receipts</span>
+            </Link>
+            <Link
               href="/analytics"
               className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
             >
@@ -43,8 +51,9 @@ export function DashboardHeader() {
             </Link>
           </nav>
 
-          {/* User menu */}
+          {/* User menu and theme toggle */}
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             <div className="text-sm text-slate-700 dark:text-slate-300">
               Welcome, {user?.email}
             </div>

@@ -128,14 +128,9 @@ export const imageBufferToBase64 = jest.fn((buffer: Buffer, mimeType: string): s
   return `data:${mimeType};base64,${Buffer.from('mock-image-data').toString('base64')}`
 })
 
-export const compressImage = jest.fn(async (imageBuffer: Buffer, mimeType: string): Promise<Buffer> => {
-  // Mock image compression - return the original buffer for testing
-  // Simulate processing delay
-  await new Promise(resolve => setTimeout(resolve, 50))
-  
-  // For testing, we'll return the original buffer
-  // In real implementation, this would compress the image
-  return imageBuffer
+export const compressImage = jest.fn().mockImplementation(async () => {
+  // Mock compression - return a smaller buffer
+  return Buffer.from('compressed-image-data')
 })
 
 // ============================================================================

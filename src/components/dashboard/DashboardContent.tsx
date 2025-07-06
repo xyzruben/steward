@@ -6,7 +6,7 @@ import { DashboardHeader } from './DashboardHeader'
 import { ReceiptStats } from './ReceiptStats'
 import ReceiptUpload from './ReceiptUpload'
 import { RecentReceipts } from './RecentReceipts'
-
+import { RealtimeNotifications } from '@/components/ui/RealtimeNotifications'
 
 export function DashboardContent() {
   const { user, loading } = useAuth()
@@ -66,6 +66,9 @@ export function DashboardContent() {
           </div>
         </div>
       </main>
+      
+      {/* Real-time notifications */}
+      <RealtimeNotifications position="top-right" />
     </div>
   )
 } 

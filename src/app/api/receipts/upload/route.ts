@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
 import { AnalyticsService } from '@/lib/services/analytics'
+import { realtimeService } from '@/lib/services/realtime'
 
 // ============================================================================
 // RECEIPT UPLOAD API ROUTE - PERFORMANCE OPTIMIZED
@@ -317,6 +318,15 @@ async function processReceiptAsync(
       const analyticsService = new AnalyticsService();
       await analyticsService.invalidateUserCache(userId);
       console.log('Analytics cache invalidated for user:', userId);
+      
+      // 5. Broadcast real-time analytics update (see master guide: Scalability and Performance)
+      try {
+        await realtimeService.broadcastAnalyticsUpdate(userId);
+        console.log('Real-time analytics update broadcasted for user:', userId);
+      } catch (broadcastError) {
+        console.error('Failed to broadcast analytics update:', broadcastError);
+        // Don't fail the processing if broadcasting fails
+      }
     } catch (cacheError) {
       console.error('Failed to invalidate analytics cache:', cacheError);
       // Don't fail the processing if cache invalidation fails
