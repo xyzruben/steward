@@ -113,7 +113,7 @@ export class AnalyticsService {
     }>>(
       `SELECT ${groupBy} as period, SUM("total") as amount, COUNT(*) as "receiptCount"
        FROM "receipts"
-       WHERE "userId" = $1 ${whereCondition}
+       WHERE "userId" = $1::uuid ${whereCondition}
        GROUP BY period
        ORDER BY period ASC`,
       userId
@@ -167,14 +167,14 @@ export class AnalyticsService {
     const whereClause = this.buildWhereClause(userId, filters);
     const results = await prisma.receipt.groupBy({
       by: ['category'],
-      where: { ...whereClause, category: { not: null } },
+      where: whereClause, // Remove the category filter to include null categories
       _sum: { total: true },
       _count: { _all: true },
     });
 
     const total = results.reduce((sum, r) => sum + Number(r._sum.total ?? 0), 0);
     const result = results.map(r => ({
-      category: r.category!,
+      category: r.category || 'Uncategorized', // Handle null categories
       amount: Number(r._sum.total ?? 0),
       percentage: total ? (Number(r._sum.total ?? 0) / total) * 100 : 0,
       receiptCount: r._count._all,

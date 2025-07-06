@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
-import { createReceipt, createUser, getUserById } from '@/lib/db'
+import { createReceipt, createUser, getUserById, updateReceipt } from '@/lib/db'
+import { Decimal } from '@/generated/prisma/runtime/library'
 import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
-import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr'
+import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
 import { AnalyticsService } from '@/lib/services/analytics'
 
 // ============================================================================
-// RECEIPT UPLOAD API ROUTE
+// RECEIPT UPLOAD API ROUTE - PERFORMANCE OPTIMIZED
 // ============================================================================
-// Handles receipt image upload, format conversion, OCR, and AI enrichment
-// Follows STEWARD_MASTER_SYSTEM_GUIDE.md sections: API Route Principles, 
-// Input Validation, File Access Controls, and Type Safety Requirements
+// Handles receipt image upload with async processing for better UX
+// Follows STEWARD_MASTER_SYSTEM_GUIDE.md sections: Scalability and Performance,
+// Concurrent Upload Handling, and File Storage Optimization
 
 export async function POST(request: NextRequest) {
   console.log('=== RECEIPT UPLOAD START ===')
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // IMAGE FORMAT CONVERSION (see master guide: File Storage Optimization, Type Safety)
+    // IMAGE COMPRESSION & OPTIMIZATION (see master guide: File Storage Optimization)
     // ============================================================================
     let processedBuffer: Buffer
     let fileExtension: string
@@ -136,10 +137,13 @@ export async function POST(request: NextRequest) {
         )
       }
       
-            // Standard formats - no conversion needed (HEIC files are rejected earlier)
-      processedBuffer = fileBuffer
+      // Compress image for better performance (see master guide: File Storage Optimization)
+      console.log('Compressing image for better performance...')
+      processedBuffer = await compressImage(fileBuffer, file.type)
       fileExtension = file.name.split('.').pop() || 'jpg'
-      contentType = file.type
+      contentType = 'image/jpeg' // Always use JPEG for compressed images
+      
+      console.log('Compression complete - Original size:', fileBuffer.length, 'bytes, Compressed size:', processedBuffer.length, 'bytes')
       
       // Validate processed image (see master guide: Input Validation)
       if (processedBuffer.length === 0) {
@@ -185,104 +189,42 @@ export async function POST(request: NextRequest) {
       .getPublicUrl(fileName)
 
     // ============================================================================
-    // AI-POWERED OCR & ENRICHMENT (see master guide: OCR Processing, AI Categorization)
+    // IMMEDIATE RESPONSE WITH ASYNC PROCESSING (see master guide: Scalability and Performance)
     // ============================================================================
-    // 1. Run OCR on the uploaded image (using Google Cloud Vision API)
-    let ocrText: string
-    try {
-      // Validate processed buffer before OCR (see master guide: Input Validation)
-      console.log('Processed buffer size:', processedBuffer.length, 'bytes')
-      console.log('Content type for OCR:', contentType)
-      
-      // Ensure we have a valid image buffer
-      if (processedBuffer.length < 100) {
-        throw new Error('Processed image buffer is too small - conversion may have failed')
-      }
-      
-      // Use base64 encoding to ensure Google Vision API can access the image
-      // This works for all formats including converted HEIC files (see master guide: API Integration)
-      console.log('Converting image to base64 for Google Vision API processing')
-      const base64Image = imageBufferToBase64(processedBuffer, contentType)
-      console.log('Base64 image length:', base64Image.length)
-      // Temporarily remove base64 prefix logging to test
-      // console.log('Base64 image prefix:', base64Image.substring(0, 50) + '...')
-      
-      ocrText = await extractTextFromImage(base64Image)
-    } catch (error) {
-      console.error('OCR extraction failed:', error)
-      return NextResponse.json({ 
-        error: 'OCR extraction failed', 
-        details: error instanceof Error ? error.message : error 
-      }, { status: 500 })
-    }
+    // Create a temporary receipt record immediately for better UX
+    console.log('Creating temporary receipt record for user:', user.id)
 
-    // 2. Use OpenAI to extract structured data and summary (see master guide: AI Categorization)
-    let aiData
-    try {
-      aiData = await extractReceiptDataWithAI(ocrText)
-    } catch (err) {
-      console.error('OpenAI extraction failed:', err)
-      // Defensive: fallback to basic fields if AI fails (see master guide: Error Handling)
-      aiData = {
-        merchant: null,
-        total: null,
-        purchaseDate: null,
-        category: null,
-        tags: [],
-        confidence: 0,
-        summary: null,
-      }
-    }
-
-    // ============================================================================
-    // DATA PERSISTENCE (see master guide: Data Persistence, Type Safety)
-    // ============================================================================
-    const merchant = aiData.merchant || 'Unknown Merchant'
-    const total = typeof aiData.total === 'number' && !isNaN(aiData.total) ? aiData.total : 0
-    const purchaseDate = aiData.purchaseDate ? new Date(aiData.purchaseDate) : new Date()
-    const summary = aiData.summary || 'No summary generated'
-    const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
-
-    console.log('Creating receipt record for user:', user.id)
-
-    const receipt = await createReceipt({
+    const tempReceipt = await createReceipt({
       userId: user.id,
       imageUrl: publicUrl,
-      rawText: ocrText,
-      merchant: merchant,
-      total: total,
-      purchaseDate: purchaseDate,
-      summary: summary
+      rawText: 'Processing...',
+      merchant: 'Processing...',
+      total: 0,
+      purchaseDate: new Date(),
+      summary: 'Processing receipt...'
+    })
+
+    // Start async processing in the background (see master guide: Concurrent Upload Handling)
+    processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id).catch(error => {
+      console.error('Async receipt processing failed:', error)
     })
 
     // ============================================================================
-    // CACHE INVALIDATION (see master guide: Scalability and Performance)
-    // ============================================================================
-    // Invalidate analytics cache when new receipt is added
-    try {
-      const analyticsService = new AnalyticsService();
-      await analyticsService.invalidateUserCache(user.id);
-      console.log('Analytics cache invalidated for user:', user.id);
-    } catch (cacheError) {
-      console.error('Failed to invalidate analytics cache:', cacheError);
-      // Don't fail the upload if cache invalidation fails
-    }
-
-    // ============================================================================
-    // API RESPONSE (see master guide: API Response Typing)
+    // IMMEDIATE API RESPONSE (see master guide: API Response Typing)
     // ============================================================================
     return NextResponse.json({
       success: true,
       receipt: {
-        id: receipt.id,
+        id: tempReceipt.id,
         imageUrl: publicUrl,
-        merchant: receipt.merchant,
-        total: receipt.total,
-        purchaseDate: receipt.purchaseDate,
-        ocrConfidence: ocrConfidence,
-        category: aiData.category,
-        tags: aiData.tags,
-        summary: summary
+        merchant: 'Processing...',
+        total: 0,
+        purchaseDate: tempReceipt.purchaseDate,
+        ocrConfidence: 0,
+        category: null,
+        tags: [],
+        summary: 'Processing receipt...',
+        status: 'processing'
       }
     })
 
@@ -295,6 +237,95 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// ============================================================================
+// ASYNC RECEIPT PROCESSING FUNCTION (see master guide: Concurrent Upload Handling)
+// ============================================================================
+/**
+ * Processes receipt asynchronously in the background
+ * This allows the upload to return immediately while processing continues
+ */
+async function processReceiptAsync(
+  receiptId: string, 
+  imageBuffer: Buffer, 
+  contentType: string, 
+  userId: string
+) {
+  console.log('Starting async processing for receipt:', receiptId)
+  
+  try {
+    // 1. Run OCR on the uploaded image (using Google Cloud Vision API)
+    let ocrText: string
+    try {
+      console.log('Starting OCR processing for receipt:', receiptId)
+      const base64Image = imageBufferToBase64(imageBuffer, contentType)
+      ocrText = await extractTextFromImage(base64Image)
+      console.log('OCR completed for receipt:', receiptId)
+    } catch (error) {
+      console.error('OCR extraction failed for receipt:', receiptId, error)
+      ocrText = 'OCR processing failed'
+    }
+
+    // 2. Use OpenAI to extract structured data and summary (see master guide: AI Categorization)
+    let aiData
+    try {
+      console.log('Starting AI processing for receipt:', receiptId)
+      aiData = await extractReceiptDataWithAI(ocrText)
+      console.log('AI processing completed for receipt:', receiptId)
+    } catch (err) {
+      console.error('OpenAI extraction failed for receipt:', receiptId, err)
+      // Defensive: fallback to basic fields if AI fails (see master guide: Error Handling)
+      aiData = {
+        merchant: null,
+        total: null,
+        purchaseDate: null,
+        category: null,
+        tags: [],
+        confidence: 0,
+        summary: null,
+      }
+    }
+
+    // 3. Update the receipt record with processed data (see master guide: Data Persistence)
+    const merchant = aiData.merchant || 'Unknown Merchant'
+    const total = typeof aiData.total === 'number' && !isNaN(aiData.total) ? aiData.total : 0
+    const purchaseDate = aiData.purchaseDate ? new Date(aiData.purchaseDate) : new Date()
+    const summary = aiData.summary || 'No summary generated'
+    const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
+
+    // Update the receipt with processed data (see master guide: Data Persistence)
+    await updateReceipt(receiptId, {
+      merchant,
+      total: new Decimal(total),
+      purchaseDate,
+      summary
+    })
+    
+    console.log('Receipt processing completed and database updated:', {
+      receiptId,
+      merchant,
+      total,
+      purchaseDate,
+      summary,
+      ocrConfidence
+    })
+
+    // 4. Invalidate analytics cache (see master guide: Scalability and Performance)
+    try {
+      const analyticsService = new AnalyticsService();
+      await analyticsService.invalidateUserCache(userId);
+      console.log('Analytics cache invalidated for user:', userId);
+    } catch (cacheError) {
+      console.error('Failed to invalidate analytics cache:', cacheError);
+      // Don't fail the processing if cache invalidation fails
+    }
+
+    console.log('Async processing completed successfully for receipt:', receiptId)
+    
+  } catch (error) {
+    console.error('Async processing failed for receipt:', receiptId, error)
   }
 }
 

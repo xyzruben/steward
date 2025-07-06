@@ -82,7 +82,9 @@ export async function GET(request: NextRequest) {
 
     // Get analytics overview with filters
     const analyticsService = new AnalyticsService();
+    console.log('Fetching analytics overview for user:', user.id, 'with filters:', filters);
     const overview = await analyticsService.getOverview(user.id, filters);
+    console.log('Analytics overview result:', overview);
 
     // Add rate limit headers to response
     const response = NextResponse.json(overview);

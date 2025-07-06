@@ -35,6 +35,7 @@ jest.mock('@/lib/db', () => ({
 jest.mock('@/lib/services/cloudOcr', () => ({
   extractTextFromImage: jest.fn(),
   imageBufferToBase64: jest.fn(),
+  compressImage: jest.fn(),
 }))
 
 jest.mock('@/lib/services/openai', () => ({
@@ -114,6 +115,8 @@ describe('POST /api/receipts/upload', () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockImageBufferToBase64: jest.Mock
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let mockCompressImage: jest.Mock
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockExtractReceiptDataWithAI: jest.Mock
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let mockCookies: jest.Mock
@@ -128,6 +131,7 @@ describe('POST /api/receipts/upload', () => {
     mockGetUserById = jest.fn()
     mockExtractTextFromImage = jest.fn()
     mockImageBufferToBase64 = jest.fn()
+    mockCompressImage = jest.fn()
     mockExtractReceiptDataWithAI = jest.fn()
     mockCookies = jest.fn()
 
@@ -169,9 +173,10 @@ describe('POST /api/receipts/upload', () => {
     getUserById.mockResolvedValue(mockDbUser)
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { extractTextFromImage, imageBufferToBase64 } = require('@/lib/services/cloudOcr')
+    const { extractTextFromImage, imageBufferToBase64, compressImage } = require('@/lib/services/cloudOcr')
     extractTextFromImage.mockResolvedValue('Welcome to Chick-fil-A\nTotal: $11.48')
     imageBufferToBase64.mockReturnValue('data:image/jpeg;base64,mock-base64-data')
+    compressImage.mockImplementation(async (buffer: Buffer) => buffer) // Return original buffer for testing
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { extractReceiptDataWithAI } = require('@/lib/services/openai')
@@ -380,7 +385,7 @@ describe('POST /api/receipts/upload', () => {
   })
 
   describe('OCR Processing', () => {
-    it('should return 500 when OCR extraction fails', async () => {
+    it('should handle OCR extraction failures gracefully in async processing', async () => {
       // Arrange
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { extractTextFromImage } = require('@/lib/services/cloudOcr')
@@ -398,12 +403,14 @@ describe('POST /api/receipts/upload', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      // Assert
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('OCR extraction failed')
+      // Assert - Upload should succeed immediately with processing status
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.receipt.status).toBe('processing')
+      expect(data.receipt.merchant).toBe('Processing...')
     })
 
-    it('should process image with correct base64 conversion', async () => {
+    it('should start async processing with correct parameters', async () => {
       // Arrange
       const formData = new FormData()
       formData.append('file', createLargeMockFile('receipt.jpg', 'image/jpeg'))
@@ -414,23 +421,26 @@ describe('POST /api/receipts/upload', () => {
       })
 
       // Act
-      await POST(request)
+      const response = await POST(request)
+      const data = await response.json()
 
-      // Assert
+      // Assert - Should return immediately with processing status
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.receipt.status).toBe('processing')
+      
+      // Verify that compression was called
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { imageBufferToBase64, extractTextFromImage } = require('@/lib/services/cloudOcr')
-      expect(imageBufferToBase64).toHaveBeenCalledWith(
+      const { compressImage } = require('@/lib/services/cloudOcr')
+      expect(compressImage).toHaveBeenCalledWith(
         expect.any(Buffer),
         'image/jpeg'
-      )
-      expect(extractTextFromImage).toHaveBeenCalledWith(
-        'data:image/jpeg;base64,mock-base64-data'
       )
     })
   })
 
   describe('AI Processing', () => {
-    it('should handle AI processing failures gracefully', async () => {
+    it('should handle AI processing failures gracefully in async processing', async () => {
       // Arrange
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { extractReceiptDataWithAI } = require('@/lib/services/openai')
@@ -451,13 +461,38 @@ describe('POST /api/receipts/upload', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      // Assert
-      expect(response.status).toBe(200) // Should still succeed with fallback data
-      expect(data.receipt.merchant).toBe('Unknown Merchant')
-      expect(data.receipt.total).toBe(0)
+      // Assert - Upload should succeed immediately with processing status
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.receipt.status).toBe('processing')
+      expect(data.receipt.merchant).toBe('Processing...')
     })
 
-    it('should use AI data when available', async () => {
+    it('should return processing status immediately for successful uploads', async () => {
+      // Arrange
+      const formData = new FormData()
+      formData.append('file', createLargeMockFile('receipt.jpg', 'image/jpeg'))
+
+      const request = new NextRequest('http://localhost:3000/api/receipts/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert - Should return immediately with processing status
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.receipt.status).toBe('processing')
+      expect(data.receipt.merchant).toBe('Processing...')
+      expect(data.receipt.total).toBe(0)
+    })
+  })
+
+  describe('Database Persistence', () => {
+    it('should create temporary receipt record immediately', async () => {
       // Arrange
       const formData = new FormData()
       formData.append('file', createLargeMockFile('receipt.jpg', 'image/jpeg'))
@@ -473,39 +508,18 @@ describe('POST /api/receipts/upload', () => {
 
       // Assert
       expect(response.status).toBe(200)
-      expect(data.receipt.merchant).toBe('Chick-fil-A')
-      expect(data.receipt.total).toBe(11.48)
-      expect(data.receipt.category).toBe('Food & Dining')
-      expect(data.receipt.tags).toEqual(['fast food', 'chicken'])
-      expect(data.receipt.ocrConfidence).toBe(95)
-    })
-  })
-
-  describe('Database Persistence', () => {
-    it('should create receipt record with correct data', async () => {
-      // Arrange
-      const formData = new FormData()
-      formData.append('file', createLargeMockFile('receipt.jpg', 'image/jpeg'))
-
-      const request = new NextRequest('http://localhost:3000/api/receipts/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      // Act
-      await POST(request)
-
-      // Assert
+      expect(data.success).toBe(true)
+      
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createReceipt } = require('@/lib/db')
       expect(createReceipt).toHaveBeenCalledWith({
         userId: mockUser.id,
         imageUrl: expect.stringContaining('supabase.co/storage'),
-        rawText: 'Welcome to Chick-fil-A\nTotal: $11.48',
-        merchant: 'Chick-fil-A',
-        total: 11.48,
+        rawText: 'Processing...',
+        merchant: 'Processing...',
+        total: 0,
         purchaseDate: expect.any(Date),
-        summary: 'Purchase at Chick-fil-A for $11.48',
+        summary: 'Processing receipt...',
       })
     })
 
@@ -534,7 +548,7 @@ describe('POST /api/receipts/upload', () => {
   })
 
   describe('Success Response', () => {
-    it('should return successful response with receipt data', async () => {
+    it('should return successful response with processing status', async () => {
       // Arrange
       const formData = new FormData()
       formData.append('file', createLargeMockFile('receipt.jpg', 'image/jpeg'))
@@ -554,13 +568,14 @@ describe('POST /api/receipts/upload', () => {
       expect(data.receipt).toEqual({
         id: 'receipt-123',
         imageUrl: expect.stringContaining('supabase.co/storage'),
-        merchant: 'Chick-fil-A',
-        total: 11.48,
+        merchant: 'Processing...',
+        total: 0,
         purchaseDate: expect.any(String),
-        ocrConfidence: 95,
-        category: 'Food & Dining',
-        tags: ['fast food', 'chicken'],
-        summary: 'Purchase at Chick-fil-A for $11.48',
+        ocrConfidence: 0,
+        category: null,
+        tags: [],
+        summary: 'Processing receipt...',
+        status: 'processing',
       })
     })
   })

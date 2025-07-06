@@ -46,6 +46,11 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
   // EFFECTS AND DATA FETCHING (see master guide: Data Fetching Patterns)
   // ============================================================================
 
+  // Set initial loading to false after component mounts
+  useEffect(() => {
+    setLoading(false)
+  }, [])
+
   // Update timestamp when filters change
   useEffect(() => {
     setLastUpdated(new Date())
