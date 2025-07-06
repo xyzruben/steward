@@ -92,8 +92,7 @@ export const createSupabaseServerClient = jest.fn(() => ({
   },
   storage: {
     from: jest.fn(() => ({
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      upload: jest.fn(async (path: string, _file: Buffer, _options?: unknown) => {
+      upload: jest.fn(async (path: string) => {
         // Simulate successful upload
         return {
           data: { path },
@@ -238,6 +237,19 @@ export const setMockAuthError = () => {
       getUser: jest.fn(async () => ({
         data: { user: null },
         error: { message: 'Authentication failed' },
+      })),
+    },
+    storage: {
+      from: jest.fn(() => ({
+        upload: jest.fn(async (path: string) => {
+          return {
+            data: { path },
+            error: null,
+          }
+        }),
+        getPublicUrl: jest.fn((path: string) => ({
+          data: { publicUrl: `https://example.com/storage/${path}` },
+        })),
       })),
     },
   })

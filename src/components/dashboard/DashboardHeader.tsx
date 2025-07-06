@@ -1,6 +1,8 @@
 'use client'
 
 import { useAuth } from '@/context/AuthContext'
+import Link from 'next/link'
+import { BarChart3, Home } from 'lucide-react'
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth()
@@ -22,6 +24,24 @@ export function DashboardHeader() {
               AI-powered receipt tracking
             </span>
           </div>
+
+          {/* Navigation */}
+          <nav className="flex items-center space-x-6">
+            <Link
+              href="/"
+              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
+            >
+              <Home className="h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/analytics"
+              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span>Analytics</span>
+            </Link>
+          </nav>
 
           {/* User menu */}
           <div className="flex items-center space-x-4">

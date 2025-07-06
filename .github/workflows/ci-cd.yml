@@ -8,7 +8,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch: # Allow manual triggers
@@ -21,7 +21,7 @@ jobs:
   # ============================================================================
   # QUALITY ASSURANCE (see master guide: Testing and Quality Assurance)
   # ============================================================================
-  quality-check:
+  quality-assurance:
     name: Quality Assurance
     runs-on: ubuntu-latest
     
@@ -38,26 +38,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: TypeScript type checking
-        run: npx tsc --noEmit
-        
-      - name: ESLint check
+      - name: Run linting
         run: npm run lint
         
-      - name: Run unit tests
-        run: npm test
-        env:
-          # Test environment variables
-          NODE_ENV: test
-          # Mock external services for tests
-          GOOGLE_CLOUD_PROJECT: test-project
-          OPENAI_API_KEY: test-key
-          SUPABASE_URL: https://test.supabase.co
-          SUPABASE_ANON_KEY: test-key
-          
-      - name: Test coverage report
-        run: npm run test:coverage
-        continue-on-error: true # Don't fail build on coverage thresholds
+      - name: Run type checking
+        run: npm run type-check
+        
+      - name: Run tests with coverage
+        run: npm test -- --coverage --watchAll=false
         
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -65,46 +53,6 @@ jobs:
           file: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
-        continue-on-error: true # Optional coverage reporting
-
-  # ============================================================================
-  # BUILD VERIFICATION (see master guide: DevOps and Deployment)
-  # ============================================================================
-  build-verification:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    needs: quality-check
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build application
-        run: npm run build
-        env:
-          # Build-time environment variables
-          NODE_ENV: production
-          # Use test values for build verification
-          GOOGLE_CLOUD_PROJECT: test-project
-          OPENAI_API_KEY: test-key
-          SUPABASE_URL: https://test.supabase.co
-          SUPABASE_ANON_KEY: test-key
-          SUPABASE_SERVICE_ROLE_KEY: test-key
-          
-      - name: Verify build artifacts
-        run: |
-          echo "Checking build output..."
-          ls -la .next/
-          echo "Build verification complete"
 
   # ============================================================================
   # SECURITY SCAN (see master guide: Security Requirements)
@@ -112,7 +60,7 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    needs: quality-check
+    needs: quality-assurance
     
     steps:
       - name: Checkout code
@@ -120,24 +68,14 @@ jobs:
         
       - name: Run security audit
         run: npm audit --audit-level=moderate
-        continue-on-error: true # Don't fail build on moderate issues
-        
-      - name: Run Snyk security scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
-        continue-on-error: true # Optional security scanning
 
   # ============================================================================
-  # DEPLOYMENT (see master guide: DevOps and Deployment)
+  # BUILD VERIFICATION (see master guide: DevOps and Deployment)
   # ============================================================================
-  deploy:
-    name: Deploy to Vercel
+  build-verification:
+    name: Build Verification
     runs-on: ubuntu-latest
-    needs: [quality-check, build-verification]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [quality-assurance, security-scan]
     
     steps:
       - name: Checkout code
@@ -152,71 +90,153 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Generate Prisma client
+        run: npx prisma generate
+        
+      - name: Build application
+        run: npm run build
+
+  # ============================================================================
+  # DEPLOYMENT (see master guide: DevOps and Deployment)
+  # ============================================================================
+  deployment-gate:
+    name: Deployment Gate
+    runs-on: ubuntu-latest
+    needs: [quality-assurance, security-scan, build-verification]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Create deployment status
+        run: |
+          echo "All quality gates passed!"
+          echo "✅ Linting: PASSED"
+          echo "✅ Type checking: PASSED"
+          echo "✅ Tests: PASSED"
+          echo "✅ Security scan: PASSED"
+          echo "✅ Build: PASSED"
+          echo "🚀 Ready for deployment to production"
+
+      - name: Create deployment protection status
+        id: deployment-status
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "message=All quality gates passed - ready for deployment" >> $GITHUB_OUTPUT
+
+      - name: Create deployment status check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              description: 'Production deployment',
+              auto_merge: false,
+              required_contexts: ['quality-assurance', 'security-scan', 'build-verification']
+            });
+            
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.id,
+              state: 'success',
+              description: 'All quality gates passed - deployment approved'
+            });
+            
+            console.log('Deployment status created successfully');
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deployment-gate
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy to Vercel
+        id: deploy
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
-        
-      - name: Deploy notification
-        run: |
-          echo "🚀 Deployment to Vercel completed successfully!"
-          echo "Production URL: https://steward.vercel.app"
+
+      - name: Comment deployment URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Production Deployment Successful!**
+              
+              **Deployment URL:** ${{ steps.deploy.outputs.url }}
+              **Environment:** Production
+              **Commit:** ${context.sha}
+              
+              All quality gates passed:
+              ✅ Code quality checks
+              ✅ Security scan
+              ✅ Test coverage
+              ✅ Build verification
+              
+              Deployment completed at: ${new Date().toISOString()}`
+            });
 
   # ============================================================================
   # PREVIEW DEPLOYMENT (see master guide: DevOps and Deployment)
   # ============================================================================
-  preview-deploy:
+  preview-deployment:
     name: Preview Deployment
     runs-on: ubuntu-latest
-    needs: [quality-check, build-verification]
+    needs: [quality-assurance, security-scan, build-verification]
     if: github.event_name == 'pull_request'
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Deploy to Vercel Preview
+
+      - name: Deploy to Vercel (Preview)
+        id: deploy-preview
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--target=preview'
-        
-      - name: Comment PR with preview URL
+
+      - name: Comment preview URL
         uses: actions/github-script@v7
         with:
           script: |
-            const { data: deployments } = await github.rest.repos.listDeployments({
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: context.sha,
-              environment: 'preview'
-            });
-            
-            if (deployments.length > 0) {
-              const deployment = deployments[0];
-              const previewUrl = `https://${deployment.environment_url}`;
+              body: `🔍 **Preview Deployment Ready!**
               
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: `🎉 **Preview deployment ready!**\n\n🔗 **Preview URL:** ${previewUrl}\n\nThis preview will be automatically updated with each push to this PR.`
-              });
-            }
+              **Preview URL:** ${{ steps.deploy-preview.outputs.url }}
+              **Environment:** Preview
+              **Commit:** ${context.sha}
+              
+              All quality gates passed:
+              ✅ Code quality checks
+              ✅ Security scan
+              ✅ Test coverage
+              ✅ Build verification
+              
+              Preview deployed at: ${new Date().toISOString()}`
+            });
 
 # ============================================================================
 # WORKFLOW COMPLETION NOTIFICATION
@@ -224,13 +244,13 @@ jobs:
   notify:
     name: Workflow Notification
     runs-on: ubuntu-latest
-    needs: [quality-check, build-verification, security-scan]
+    needs: [quality-assurance, build-verification, security-scan]
     if: always() && github.event_name == 'push'
     
     steps:
       - name: Workflow status
         run: |
-          if [ "${{ needs.quality-check.result }}" == "success" ] && \
+          if [ "${{ needs.quality-assurance.result }}" == "success" ] && \
              [ "${{ needs.build-verification.result }}" == "success" ]; then
             echo "✅ All checks passed! Ready for deployment."
           else

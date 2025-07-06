@@ -4,6 +4,7 @@ import { createReceipt, createUser, getUserById } from '@/lib/db'
 import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr'
+import { AnalyticsService } from '@/lib/services/analytics'
 
 // ============================================================================
 // RECEIPT UPLOAD API ROUTE
@@ -253,6 +254,19 @@ export async function POST(request: NextRequest) {
       purchaseDate: purchaseDate,
       summary: summary
     })
+
+    // ============================================================================
+    // CACHE INVALIDATION (see master guide: Scalability and Performance)
+    // ============================================================================
+    // Invalidate analytics cache when new receipt is added
+    try {
+      const analyticsService = new AnalyticsService();
+      await analyticsService.invalidateUserCache(user.id);
+      console.log('Analytics cache invalidated for user:', user.id);
+    } catch (cacheError) {
+      console.error('Failed to invalidate analytics cache:', cacheError);
+      // Don't fail the upload if cache invalidation fails
+    }
 
     // ============================================================================
     // API RESPONSE (see master guide: API Response Typing)

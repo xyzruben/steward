@@ -59,14 +59,22 @@ model Receipt {
   // AI-generated content
   summary      String?  // AI-generated summary of the receipt
   
+  // Analytics and categorization fields (see master guide: Database Schema Design)
+  category     String?  // AI-categorized spending category (e.g., "Food & Dining", "Transportation")
+  subcategory  String?  // More specific subcategory (e.g., "Restaurants", "Gas Stations")
+  confidenceScore Decimal? @db.Decimal(3, 2) // AI confidence score (0.00-1.00)
+  
   // Metadata
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
-  // Indexes for performance
+  // Indexes for performance (see master guide: Indexing Strategy)
   @@index([userId])
   @@index([purchaseDate])
   @@index([merchant])
+  @@index([category]) // New index for analytics queries
+  @@index([userId, purchaseDate]) // Composite index for user date range queries
+  @@index([userId, category]) // Composite index for user category analysis
   
   @@map("receipts")
 }

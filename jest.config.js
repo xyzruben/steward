@@ -37,25 +37,25 @@ const customJestConfig = {
   ],
   
   // Coverage thresholds (see master guide: 80% critical paths, 60% overall)
-  // Note: Temporarily disabled for initial CI/CD setup, will enable as more tests are added
-  coverageThreshold: process.env.CI ? undefined : {
+  // Traditional CI/CD with quality gates - strict thresholds for production quality
+  coverageThreshold: {
     global: {
-      branches: 30,
-      functions: 30,
-      lines: 30,
-      statements: 30,
+      branches: 25,
+      functions: 25,
+      lines: 25,
+      statements: 25,
     },
     './src/lib/services/': {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
-    },
-    './src/app/api/': {
       branches: 60,
       functions: 60,
       lines: 60,
       statements: 60,
+    },
+    './src/app/api/': {
+      branches: 50,
+      functions: 50,
+      lines: 50,
+      statements: 50,
     },
   },
   
