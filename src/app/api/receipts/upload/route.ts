@@ -7,6 +7,7 @@ import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
 import { AnalyticsService } from '@/lib/services/analytics'
 import { realtimeService } from '@/lib/services/realtime'
+import { notificationService } from '@/lib/services/notifications'
 
 // ============================================================================
 // RECEIPT UPLOAD API ROUTE - PERFORMANCE OPTIMIZED
@@ -210,6 +211,14 @@ export async function POST(request: NextRequest) {
       console.error('Async receipt processing failed:', error)
     })
 
+    // Send upload notification
+    try {
+      await notificationService.notifyReceiptUploaded(user.id, tempReceipt.id, 'Processing...')
+    } catch (notificationError) {
+      console.error('Failed to send upload notification:', notificationError)
+      // Don't fail the upload if notification fails
+    }
+
     // ============================================================================
     // IMMEDIATE API RESPONSE (see master guide: API Response Typing)
     // ============================================================================
@@ -334,8 +343,24 @@ async function processReceiptAsync(
 
     console.log('Async processing completed successfully for receipt:', receiptId)
     
+    // Send processing completion notification
+    try {
+      await notificationService.notifyReceiptProcessed(userId, receiptId, merchant, new Decimal(total))
+    } catch (notificationError) {
+      console.error('Failed to send processing notification:', notificationError)
+      // Don't fail the processing if notification fails
+    }
+    
   } catch (error) {
     console.error('Async processing failed for receipt:', receiptId, error)
+    
+    // Send error notification
+    try {
+      await notificationService.notifyReceiptError(userId, receiptId, error instanceof Error ? error.message : 'Unknown error')
+    } catch (notificationError) {
+      console.error('Failed to send error notification:', notificationError)
+      // Don't fail the processing if notification fails
+    }
   }
 }
 

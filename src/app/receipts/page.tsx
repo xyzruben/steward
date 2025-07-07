@@ -4,15 +4,25 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { BulkOperationsToolbar } from '@/components/receipts/BulkOperationsToolbar'
 import { ReceiptList } from '@/components/receipts/ReceiptList'
+import { EnhancedSearch } from '@/components/search/EnhancedSearch'
+import { SearchResults } from '@/components/search/SearchResults'
+import { ReceiptFilters, ReceiptFilters as ReceiptFiltersType } from '@/components/receipts/ReceiptFilters'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Receipt } from '@/types/database'
+import { SharedNavigation } from '@/components/ui/SharedNavigation'
+import type { SearchFilters, SearchOptions } from '@/lib/services/search'
+
 
 export default function ReceiptsPage() {
   const { user } = useAuth()
-  const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [receipts, setReceipts] = useState<any[]>([])
   const [selectedReceipts, setSelectedReceipts] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<ReceiptFiltersType>({})
+  const [searchAnalytics, setSearchAnalytics] = useState<any>(null)
+  const [searchMetadata, setSearchMetadata] = useState<any>(null)
+  const [currentSearchFilters, setCurrentSearchFilters] = useState<any>(null)
 
   const fetchReceipts = useCallback(async () => {
     if (!user) return
@@ -21,10 +31,51 @@ export default function ReceiptsPage() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('/api/receipts?limit=1000') // Get all receipts for bulk operations
+      // Build query parameters
+      const params = new URLSearchParams()
+      params.append('limit', '1000') // Get all receipts for search/filter
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim())
+      }
+      
+      if (filters.category) {
+        params.append('category', filters.category)
+      }
+      
+      if (filters.subcategory) {
+        params.append('subcategory', filters.subcategory)
+      }
+      
+      if (filters.minAmount !== undefined) {
+        params.append('minAmount', filters.minAmount.toString())
+      }
+      
+      if (filters.maxAmount !== undefined) {
+        params.append('maxAmount', filters.maxAmount.toString())
+      }
+      
+      if (filters.startDate) {
+        params.append('startDate', filters.startDate)
+      }
+      
+      if (filters.endDate) {
+        params.append('endDate', filters.endDate)
+      }
+      
+      if (filters.minConfidence !== undefined) {
+        params.append('minConfidence', filters.minConfidence.toString())
+      }
+      
+      const response = await fetch(`/api/receipts?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setReceipts(data)
+        
+        // Clear search analytics when using regular fetch
+        setSearchAnalytics(null)
+        setSearchMetadata(null)
+        setCurrentSearchFilters(null)
       } else {
         throw new Error('Failed to fetch receipts')
       }
@@ -34,7 +85,7 @@ export default function ReceiptsPage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, searchQuery, filters])
 
   useEffect(() => {
     fetchReceipts()
@@ -154,7 +205,7 @@ export default function ReceiptsPage() {
           r.data.summary || '',
           r.data.createdAt
         ])
-      ].map(row => row.map(field => `"${field}"`).join(',')).join('\n')
+      ].map(row => row.map((field: any) => `"${field}"`).join(',')).join('\n')
 
       // Create and download CSV file
       const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -175,6 +226,91 @@ export default function ReceiptsPage() {
     }
   }
 
+  const handleSearch = async (query: string, filters?: SearchFilters, options?: SearchOptions) => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+      setError(null)
+      setSearchQuery(query)
+      
+      // Build enhanced search parameters
+      const params = new URLSearchParams()
+      params.append('query', query)
+      
+      if (filters) {
+        if (filters.category) params.append('category', filters.category)
+        if (filters.subcategory) params.append('subcategory', filters.subcategory)
+        if (filters.minAmount !== undefined) params.append('minAmount', filters.minAmount.toString())
+        if (filters.maxAmount !== undefined) params.append('maxAmount', filters.maxAmount.toString())
+        if (filters.startDate) params.append('startDate', filters.startDate.toISOString())
+        if (filters.endDate) params.append('endDate', filters.endDate.toISOString())
+        if (filters.minConfidence !== undefined) params.append('minConfidence', filters.minConfidence.toString())
+        if (filters.merchant) params.append('merchant', filters.merchant)
+        if (filters.tags) params.append('tags', filters.tags.join(','))
+      }
+      
+      if (options) {
+        if (options.limit) params.append('limit', options.limit.toString())
+        if (options.offset) params.append('offset', options.offset.toString())
+        if (options.sortBy) params.append('sortBy', options.sortBy)
+        if (options.sortOrder) params.append('sortOrder', options.sortOrder)
+        if (options.includeSuggestions) params.append('includeSuggestions', 'true')
+        if (options.fuzzyMatch) params.append('fuzzyMatch', 'true')
+      }
+      
+      const response = await fetch(`/api/search?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setReceipts(data.receipts || [])
+        
+        // Store search analytics and metadata for display
+        setSearchAnalytics(data.searchAnalytics || null)
+        setSearchMetadata(data.metadata || null)
+        setCurrentSearchFilters(filters || null)
+      } else {
+        throw new Error('Search failed')
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      setError('Search failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSaveSearch = async (name: string, query: string, filters: SearchFilters) => {
+    if (!user) return
+
+    try {
+      const response = await fetch('/api/search/saved', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          query,
+          filters
+        })
+      })
+
+      if (response.ok) {
+        console.log('Search saved successfully')
+        // You could show a toast notification here
+      } else {
+        throw new Error('Failed to save search')
+      }
+    } catch (error) {
+      console.error('Failed to save search:', error)
+      // You could show an error toast here
+    }
+  }
+
+  const handleFiltersChange = (newFilters: ReceiptFiltersType) => {
+    setFilters(newFilters)
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -187,24 +323,41 @@ export default function ReceiptsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Receipts
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400 mt-1">
-                Manage and organize your receipts
-              </p>
+      <SharedNavigation />
+      
+      {/* Search and Filters */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <EnhancedSearch 
+                onSearch={handleSearch}
+                onSaveSearch={handleSaveSearch}
+                placeholder="Search receipts by merchant, category, or description..."
+                showAdvancedFilters={true}
+                showSuggestions={true}
+                showSavedSearches={true}
+              />
             </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              {receipts.length} receipt{receipts.length !== 1 ? 's' : ''}
+            <div>
+              <ReceiptFilters onFiltersChange={handleFiltersChange} />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Search Results */}
+      {(searchAnalytics || searchMetadata) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <SearchResults
+            totalResults={receipts.length}
+            searchAnalytics={searchAnalytics}
+            metadata={searchMetadata}
+            query={searchQuery}
+            filters={currentSearchFilters}
+          />
+        </div>
+      )}
 
       {/* Bulk operations toolbar */}
       <BulkOperationsToolbar

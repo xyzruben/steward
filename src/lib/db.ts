@@ -79,14 +79,86 @@ export async function getReceiptsByUserId(
   options?: {
     skip?: number
     take?: number
-    orderBy?: 'createdAt' | 'purchaseDate' | 'total'
+    orderBy?: 'createdAt' | 'purchaseDate' | 'total' | 'merchant'
     order?: 'asc' | 'desc'
+    search?: string
+    category?: string
+    subcategory?: string
+    minAmount?: number
+    maxAmount?: number
+    startDate?: Date
+    endDate?: Date
+    minConfidence?: number
   }
 ): Promise<Receipt[]> {
-  const { skip = 0, take = 20, orderBy = 'createdAt', order = 'desc' } = options || {}
+  const { 
+    skip = 0, 
+    take = 20, 
+    orderBy = 'createdAt', 
+    order = 'desc',
+    search,
+    category,
+    subcategory,
+    minAmount,
+    maxAmount,
+    startDate,
+    endDate,
+    minConfidence
+  } = options || {}
+  
+  // Build where clause with filters
+  const whereClause: any = { userId }
+  
+  // Search across merchant, summary, and rawText
+  if (search && search.trim()) {
+    whereClause.OR = [
+      { merchant: { contains: search, mode: 'insensitive' } },
+      { summary: { contains: search, mode: 'insensitive' } },
+      { rawText: { contains: search, mode: 'insensitive' } }
+    ]
+  }
+  
+  // Category filter
+  if (category) {
+    whereClause.category = category
+  }
+  
+  // Subcategory filter
+  if (subcategory) {
+    whereClause.subcategory = subcategory
+  }
+  
+  // Amount range filter
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    whereClause.total = {}
+    if (minAmount !== undefined) {
+      whereClause.total.gte = new Decimal(minAmount)
+    }
+    if (maxAmount !== undefined) {
+      whereClause.total.lte = new Decimal(maxAmount)
+    }
+  }
+  
+  // Date range filter
+  if (startDate || endDate) {
+    whereClause.purchaseDate = {}
+    if (startDate) {
+      whereClause.purchaseDate.gte = startDate
+    }
+    if (endDate) {
+      whereClause.purchaseDate.lte = endDate
+    }
+  }
+  
+  // Confidence score filter
+  if (minConfidence !== undefined) {
+    whereClause.confidenceScore = {
+      gte: new Decimal(minConfidence)
+    }
+  }
   
   return prisma.receipt.findMany({
-    where: { userId },
+    where: whereClause,
     skip,
     take,
     orderBy: { [orderBy]: order },

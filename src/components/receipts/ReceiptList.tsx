@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Receipt } from '@/types/database'
+import { Receipt } from '@/generated/prisma'
 
 interface ReceiptListProps {
   receipts: Receipt[]

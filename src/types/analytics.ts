@@ -74,4 +74,68 @@ export interface AnalyticsFilters {
     min: number;
     max: number;
   };
+}
+
+// Daily breakdown for detailed spending analysis
+export interface DailyBreakdown {
+  date: string;
+  amount: number;
+  receiptCount: number;
+}
+
+// Spending patterns analysis
+export interface SpendingPatterns {
+  dayOfWeek: Array<{ day: string; amount: number; receiptCount: number }>;
+  timeOfDay: Array<{ hour: number; amount: number; receiptCount: number }>;
+  averageByDay: number;
+  mostActiveDay: string;
+  leastActiveDay: string;
+}
+
+// Export data structure
+export interface ExportData {
+  receipts: Array<{
+    id: string;
+    merchant: string;
+    total: number;
+    purchaseDate: string;
+    category: string | null;
+    subcategory: string | null;
+    summary: string | null;
+    confidenceScore: number | null;
+  }>;
+  summary: {
+    totalReceipts: number;
+    totalSpent: number;
+    averageReceipt: number;
+    dateRange: { start: string | null; end: string | null };
+  };
+}
+
+// Advanced analytics dashboard state
+export interface AdvancedAnalyticsState {
+  selectedType: 'overview' | 'trends' | 'categories' | 'merchants' | 'daily-breakdown' | 'spending-patterns';
+  period: 'monthly' | 'yearly';
+  filters: AnalyticsFilters;
+  isLoading: boolean;
+  error: string | null;
+  data: unknown;
+  metadata: {
+    cached: boolean;
+    queryTime: number;
+    timestamp: string;
+    cacheKey?: string;
+  } | null;
+}
+
+// Chart configuration for different analytics types
+export interface ChartConfig {
+  type: 'line' | 'bar' | 'pie' | 'doughnut' | 'area';
+  title: string;
+  description: string;
+  dataKey: string;
+  valueKey: string;
+  colorScheme?: string[];
+  showLegend?: boolean;
+  showGrid?: boolean;
 } 

@@ -7,6 +7,7 @@
 import { Suspense } from 'react'
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { SharedNavigation } from '@/components/ui/SharedNavigation'
 
 // ============================================================================
 // ANALYTICS PAGE COMPONENT (see master guide: App Router Structure)
@@ -20,6 +21,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <SharedNavigation />
       <Suspense fallback={<LoadingSpinner />}>
         <AnalyticsDashboard />
       </Suspense>

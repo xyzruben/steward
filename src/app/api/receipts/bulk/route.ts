@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     let results: any[] = []
-    let errors: any[] = []
+    const errors: any[] = []
 
     switch (action) {
       case 'delete':

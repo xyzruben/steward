@@ -30,6 +30,9 @@ model User {
   
   // Relations
   receipts  Receipt[]
+  notifications Notification[]
+  notificationPreferences NotificationPreferences?
+  savedSearches SavedSearch[]
   
   // Supabase Auth integration
   // The id field will be synced with Supabase Auth users
@@ -77,6 +80,101 @@ model Receipt {
   @@index([userId, category]) // Composite index for user category analysis
   
   @@map("receipts")
+}
+
+// ============================================================================
+// NOTIFICATION MODEL (see master guide: Database Schema Design)
+// ============================================================================
+// User notifications with real-time support
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification data
+  type      String   // Notification type (receipt_uploaded, analytics_updated, etc.)
+  title     String   // Notification title
+  message   String   // Notification message
+  metadata  Json?    // Additional metadata as JSON
+  isRead    Boolean  @default(false)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Indexes for performance (see master guide: Indexing Strategy)
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead]) // Composite index for unread notifications
+  @@index([userId, type]) // Composite index for notification type filtering
+  @@index([userId, createdAt]) // Composite index for chronological queries
+  
+  @@map("notifications")
+}
+
+// ============================================================================
+// NOTIFICATION PREFERENCES MODEL (see master guide: Database Schema Design)
+// ============================================================================
+// User notification preferences and settings
+model NotificationPreferences {
+  id                  String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId              String   @unique @db.Uuid
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification type preferences
+  emailNotifications  Boolean  @default(true)
+  pushNotifications   Boolean  @default(true)
+  receiptUploads      Boolean  @default(true)
+  receiptProcessing   Boolean  @default(true)
+  analyticsUpdates    Boolean  @default(true)
+  searchSuggestions   Boolean  @default(true)
+  systemAlerts        Boolean  @default(true)
+  exportNotifications Boolean  @default(true)
+  backupNotifications Boolean  @default(true)
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@map("notification_preferences")
+}
+
+// ============================================================================
+// SAVED SEARCH MODEL (see master guide: Database Schema Design)
+// ============================================================================
+// User's saved search queries and filters
+model SavedSearch {
+  id        String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Search data
+  name      String   // User-friendly name for the search
+  query     String   // Search query string
+  filters   Json     // Search filters as JSON object
+  
+  // Usage tracking
+  useCount  Int      @default(1)
+  lastUsed  DateTime @default(now())
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Indexes for performance
+  @@index([userId])
+  @@index([lastUsed])
+  @@index([userId, lastUsed]) // Composite index for user's recent searches
+  
+  @@map("saved_searches")
 }
 
 // ============================================================================

@@ -15,7 +15,7 @@ export const createSupabaseBrowserClient = () =>
   )
 
 export const createSupabaseServerClient = (
-  cookies: ReadonlyRequestCookies
+  cookies?: ReadonlyRequestCookies
 ) =>
   createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,12 +23,15 @@ export const createSupabaseServerClient = (
     {
       cookies: {
         get: (key: string) => {
+          if (!cookies) return undefined
           const cookie = cookies.get(key)
           return cookie?.value
         },
         set: (key: string, value: string, options?: CookieOptions) => {
           try {
-            cookies.set(key, value, options)
+            if (cookies) {
+              cookies.set(key, value, options)
+            }
           } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
@@ -37,7 +40,9 @@ export const createSupabaseServerClient = (
         },
         remove: (key: string, options?: CookieOptions) => {
           try {
-            cookies.set(key, '', { ...options, maxAge: 0 })
+            if (cookies) {
+              cookies.set(key, '', { ...options, maxAge: 0 })
+            }
           } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing

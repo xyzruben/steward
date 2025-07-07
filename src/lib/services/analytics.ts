@@ -315,4 +315,305 @@ export class AnalyticsService {
   getCacheStats() {
     return analyticsCache.getStats();
   }
+
+  // Get daily spending breakdown for detailed analysis
+  async getDailyBreakdown(
+    userId: string,
+    filters?: AnalyticsFilters
+  ): Promise<AnalyticsResponse<Array<{ date: string; amount: number; receiptCount: number }>>> {
+    const startTime = Date.now();
+    const cacheKey = analyticsCache.generateKey('daily-breakdown', { 
+      userId, 
+      filters: JSON.stringify(filters) 
+    });
+    
+    // Try to get from cache first
+    const cached = await analyticsCache.get<Array<{ date: string; amount: number; receiptCount: number }>>(cacheKey);
+    if (cached) {
+      return {
+        data: cached,
+        metadata: {
+          cached: true,
+          queryTime: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          cacheKey,
+        },
+      };
+    }
+
+    const whereClause = this.buildWhereClause(userId, filters);
+    const whereCondition = this.buildSqlWhereCondition(whereClause);
+    
+    const results = await prisma.$queryRawUnsafe<Array<{
+      date: string;
+      amount: string;
+      receiptCount: string;
+    }>>(
+      `SELECT to_char("purchaseDate", 'YYYY-MM-DD') as date, 
+              SUM("total") as amount, 
+              COUNT(*) as "receiptCount"
+       FROM "receipts"
+       WHERE "userId" = $1::uuid ${whereCondition}
+       GROUP BY date
+       ORDER BY date ASC`,
+      userId
+    );
+
+    const result = results.map(r => ({
+      date: r.date,
+      amount: Number(r.amount),
+      receiptCount: Number(r.receiptCount),
+    }));
+
+    // Cache the result
+    await analyticsCache.set(cacheKey, result);
+
+    return {
+      data: result,
+      metadata: {
+        cached: false,
+        queryTime: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        cacheKey,
+      },
+    };
+  }
+
+  // Get spending patterns analysis (day of week, time of day, etc.)
+  async getSpendingPatterns(
+    userId: string,
+    filters?: AnalyticsFilters
+  ): Promise<AnalyticsResponse<{
+    dayOfWeek: Array<{ day: string; amount: number; receiptCount: number }>;
+    timeOfDay: Array<{ hour: number; amount: number; receiptCount: number }>;
+    averageByDay: number;
+    mostActiveDay: string;
+    leastActiveDay: string;
+  }>> {
+    const startTime = Date.now();
+    const cacheKey = analyticsCache.generateKey('spending-patterns', { 
+      userId, 
+      filters: JSON.stringify(filters) 
+    });
+    
+    // Try to get from cache first
+    const cached = await analyticsCache.get<{
+      dayOfWeek: Array<{ day: string; amount: number; receiptCount: number }>;
+      timeOfDay: Array<{ hour: number; amount: number; receiptCount: number }>;
+      averageByDay: number;
+      mostActiveDay: string;
+      leastActiveDay: string;
+    }>(cacheKey);
+    if (cached) {
+      return {
+        data: cached,
+        metadata: {
+          cached: true,
+          queryTime: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          cacheKey,
+        },
+      };
+    }
+
+    const whereClause = this.buildWhereClause(userId, filters);
+    const whereCondition = this.buildSqlWhereCondition(whereClause);
+    
+    // Get day of week patterns
+    const dayOfWeekResults = await prisma.$queryRawUnsafe<Array<{
+      day: string;
+      amount: string;
+      receiptCount: string;
+    }>>(
+      `SELECT to_char("purchaseDate", 'Day') as day, 
+              SUM("total") as amount, 
+              COUNT(*) as "receiptCount"
+       FROM "receipts"
+       WHERE "userId" = $1::uuid ${whereCondition}
+       GROUP BY day
+       ORDER BY amount DESC`,
+      userId
+    );
+
+    // Get time of day patterns (hour)
+    const timeOfDayResults = await prisma.$queryRawUnsafe<Array<{
+      hour: string;
+      amount: string;
+      receiptCount: string;
+    }>>(
+      `SELECT EXTRACT(hour FROM "purchaseDate") as hour, 
+              SUM("total") as amount, 
+              COUNT(*) as "receiptCount"
+       FROM "receipts"
+       WHERE "userId" = $1::uuid ${whereCondition}
+       GROUP BY hour
+       ORDER BY hour ASC`,
+      userId
+    );
+
+    const dayOfWeek = dayOfWeekResults.map(r => ({
+      day: r.day.trim(),
+      amount: Number(r.amount),
+      receiptCount: Number(r.receiptCount),
+    }));
+
+    const timeOfDay = timeOfDayResults.map(r => ({
+      hour: Number(r.hour),
+      amount: Number(r.amount),
+      receiptCount: Number(r.receiptCount),
+    }));
+
+    // Calculate averages and find most/least active days
+    const totalAmount = dayOfWeek.reduce((sum, d) => sum + d.amount, 0);
+    const averageByDay = dayOfWeek.length > 0 ? totalAmount / dayOfWeek.length : 0;
+    
+    const mostActiveDay = dayOfWeek.length > 0 ? dayOfWeek[0].day : '';
+    const leastActiveDay = dayOfWeek.length > 0 ? dayOfWeek[dayOfWeek.length - 1].day : '';
+
+    const result = {
+      dayOfWeek,
+      timeOfDay,
+      averageByDay,
+      mostActiveDay,
+      leastActiveDay,
+    };
+
+    // Cache the result
+    await analyticsCache.set(cacheKey, result);
+
+    return {
+      data: result,
+      metadata: {
+        cached: false,
+        queryTime: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        cacheKey,
+      },
+    };
+  }
+
+  // Get comprehensive data for export functionality
+  async getExportData(
+    userId: string,
+    filters?: AnalyticsFilters
+  ): Promise<AnalyticsResponse<{
+    receipts: Array<{
+      id: string;
+      merchant: string;
+      total: number;
+      purchaseDate: string;
+      category: string | null;
+      subcategory: string | null;
+      summary: string | null;
+      confidenceScore: number | null;
+    }>;
+    summary: {
+      totalReceipts: number;
+      totalSpent: number;
+      averageReceipt: number;
+      dateRange: { start: string | null; end: string | null };
+    };
+  }>> {
+    const startTime = Date.now();
+    const cacheKey = analyticsCache.generateKey('export-data', { 
+      userId, 
+      filters: JSON.stringify(filters) 
+    });
+    
+    // Try to get from cache first
+    const cached = await analyticsCache.get<{
+      receipts: Array<{
+        id: string;
+        merchant: string;
+        total: number;
+        purchaseDate: string;
+        category: string | null;
+        subcategory: string | null;
+        summary: string | null;
+        confidenceScore: number | null;
+      }>;
+      summary: {
+        totalReceipts: number;
+        totalSpent: number;
+        averageReceipt: number;
+        dateRange: { start: string | null; end: string | null };
+      };
+    }>(cacheKey);
+    if (cached) {
+      return {
+        data: cached,
+        metadata: {
+          cached: true,
+          queryTime: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          cacheKey,
+        },
+      };
+    }
+
+    const whereClause = this.buildWhereClause(userId, filters);
+    
+    // Get all receipts with filters
+    const receipts = await prisma.receipt.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        merchant: true,
+        total: true,
+        purchaseDate: true,
+        category: true,
+        subcategory: true,
+        summary: true,
+        confidenceScore: true,
+      },
+      orderBy: { purchaseDate: 'desc' },
+    });
+
+    // Get summary statistics
+    const [aggregate, first, last] = await Promise.all([
+      prisma.receipt.aggregate({
+        where: whereClause,
+        _sum: { total: true },
+        _count: true,
+        _avg: { total: true },
+      }),
+      prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'asc' } }),
+      prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'desc' } }),
+    ]);
+
+    const result = {
+      receipts: receipts.map(r => ({
+        id: r.id,
+        merchant: r.merchant,
+        total: Number(r.total),
+        purchaseDate: r.purchaseDate.toISOString().split('T')[0],
+        category: r.category,
+        subcategory: r.subcategory,
+        summary: r.summary,
+        confidenceScore: r.confidenceScore ? Number(r.confidenceScore) : null,
+      })),
+      summary: {
+        totalReceipts: aggregate._count,
+        totalSpent: Number(aggregate._sum.total ?? 0),
+        averageReceipt: Number(aggregate._avg.total ?? 0),
+        dateRange: {
+          start: first?.purchaseDate.toISOString().split('T')[0] ?? null,
+          end: last?.purchaseDate.toISOString().split('T')[0] ?? null,
+        },
+      },
+    };
+
+    // Cache the result
+    await analyticsCache.set(cacheKey, result);
+
+    return {
+      data: result,
+      metadata: {
+        cached: false,
+        queryTime: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+        cacheKey,
+      },
+    };
+  }
 } 

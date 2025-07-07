@@ -2,14 +2,21 @@
 
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { BarChart3, Home, Receipt, TrendingUp } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
-export function DashboardHeader() {
+export function SharedNavigation() {
   const { user, signOut } = useAuth()
+  const pathname = usePathname()
 
   const handleSignOut = async () => {
     await signOut()
+  }
+
+  // Don't show navigation on the home page (dashboard)
+  if (pathname === '/') {
+    return null
   }
 
   return (
@@ -33,7 +40,7 @@ export function DashboardHeader() {
               className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
             >
               <Home className="h-4 w-4" />
-              <span>Dashboard</span>
+              <span>Home</span>
             </Link>
             <Link
               href="/receipts"

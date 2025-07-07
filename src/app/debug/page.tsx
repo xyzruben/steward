@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useEffect, useState } from 'react'
+import { SharedNavigation } from '@/components/ui/SharedNavigation'
 
 interface ApiResponse {
   authenticated: boolean
@@ -42,8 +43,10 @@ export default function DebugPage() {
   }, [])
 
   return (
-    <div className="container mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Debug Authentication</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <SharedNavigation />
+      <div className="container mx-auto p-8">
+        <h1 className="text-2xl font-bold mb-6">Debug Authentication</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
@@ -81,6 +84,7 @@ export default function DebugPage() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   )
