@@ -14,6 +14,9 @@ export const createSupabaseBrowserClient = () =>
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+// Alias for backward compatibility
+export const createSupabaseClient = createSupabaseBrowserClient
+
 export const createSupabaseServerClient = (
   cookies?: ReadonlyRequestCookies
 ) =>

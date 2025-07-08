@@ -80,7 +80,7 @@ const mockReceipts: MockReceipt[] = [
 // MOCK SUPABASE CLIENT (see master guide: Mocking Practices)
 // ============================================================================
 
-export const createSupabaseServerClient = jest.fn(() => ({
+const createSupabaseServerClientFn = () => ({
   auth: {
     getUser: jest.fn(async (): Promise<MockAuthResponse> => {
       // Simulate authenticated user
@@ -104,7 +104,13 @@ export const createSupabaseServerClient = jest.fn(() => ({
       })),
     })),
   },
-}))
+})
+
+export const createSupabaseServerClient = Object.assign(createSupabaseServerClientFn, {
+  mockClear: jest.fn(),
+  mockReset: jest.fn(),
+  mockReturnValue: jest.fn(),
+})
 
 export const createSupabaseClient = jest.fn(() => ({
   auth: {
@@ -149,6 +155,35 @@ export const createSupabaseClient = jest.fn(() => ({
     })),
   })),
 }))
+
+// Mock for browser client (used in realtime service)
+const createSupabaseBrowserClientFn = () => ({
+  auth: {
+    getUser: jest.fn(async () => ({
+      data: { user: mockUsers['test-user-1'] },
+      error: null,
+    })),
+    signInWithOAuth: jest.fn(async () => ({
+      data: { user: mockUsers['test-user-1'] },
+      error: null,
+    })),
+    signOut: jest.fn(async () => ({
+      error: null,
+    })),
+  },
+  channel: jest.fn(() => ({
+    on: jest.fn(),
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+  })),
+  removeAllChannels: jest.fn(),
+})
+
+export const createSupabaseBrowserClient = Object.assign(createSupabaseBrowserClientFn, {
+  mockClear: jest.fn(),
+  mockReset: jest.fn(),
+  mockReturnValue: jest.fn(),
+})
 
 // ============================================================================
 // MOCK DATABASE FUNCTIONS (see master guide: Mocking Practices)
@@ -253,4 +288,19 @@ export const setMockAuthError = () => {
       })),
     },
   })
+} 
+
+export default {
+  createSupabaseServerClient,
+  createSupabaseClient,
+  createSupabaseBrowserClient,
+  createUser,
+  getUserById,
+  createReceipt,
+  getReceiptsByUserId,
+  getReceiptStats,
+  resetMocks,
+  setMockUser,
+  setMockReceipts,
+  setMockAuthError,
 } 

@@ -51,6 +51,7 @@ export async function createReceipt(data: {
   total: number
   purchaseDate: Date
   summary?: string
+  currency?: string // NEW: currency support
 }): Promise<Receipt> {
   console.log('Data being sent to prisma.receipt.create:', {
     userId: data.userId,
@@ -59,7 +60,8 @@ export async function createReceipt(data: {
     merchant: data.merchant,
     total: data.total,
     purchaseDate: data.purchaseDate,
-    summary: data.summary
+    summary: data.summary,
+    currency: data.currency // NEW: log currency
   })
   return prisma.receipt.create({
     data: {
@@ -69,7 +71,8 @@ export async function createReceipt(data: {
       merchant: data.merchant,
       total: new Decimal(data.total),
       purchaseDate: data.purchaseDate,
-      summary: data.summary
+      summary: data.summary,
+      currency: data.currency || 'USD' // NEW: persist currency
     }
   })
 }
@@ -191,13 +194,15 @@ export async function getReceiptById(id: string): Promise<Receipt | null> {
 
 export async function updateReceipt(
   id: string,
-  data: Partial<Pick<Receipt, 'merchant' | 'total' | 'purchaseDate' | 'summary'>>
+  data: Partial<Pick<Receipt, 'merchant' | 'total' | 'purchaseDate' | 'summary'>> & { currency?: string }
 ): Promise<Receipt> {
-  const updateData = { ...data }
+  const updateData: any = { ...data }
   if (data.total !== undefined) {
     updateData.total = new Decimal(data.total)
   }
-  
+  if (data.currency !== undefined) {
+    updateData.currency = data.currency
+  }
   return prisma.receipt.update({
     where: { id },
     data: updateData

@@ -29,13 +29,13 @@ describe('GET /api/receipts', () => {
       rawText: 'Sample receipt text',
       merchant: 'Test Store',
       total: 25.50,
-      purchaseDate: new Date('2024-01-15'),
+      purchaseDate: '2024-01-15T00:00:00.000Z',
       summary: 'Test purchase',
       category: 'Food & Dining',
       subcategory: 'Restaurants',
       confidenceScore: 0.95,
-      createdAt: new Date('2024-01-15T10:00:00Z'),
-      updatedAt: new Date('2024-01-15T10:00:00Z')
+      createdAt: '2024-01-15T10:00:00.000Z',
+      updatedAt: '2024-01-15T10:00:00.000Z'
     }
   ]
 
@@ -55,14 +55,14 @@ describe('GET /api/receipts', () => {
   })
 
   it('should return receipts for authenticated user', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
+    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts as any)
 
     const request = new NextRequest('http://localhost:3000/api/receipts')
     const response = await GET(request)
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data).toEqual(mockReceipts)
+    expect(data).toEqual(mockReceipts as any)
     expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
       skip: 0,
       take: 20,

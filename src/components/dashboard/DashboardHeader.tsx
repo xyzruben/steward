@@ -2,8 +2,17 @@
 
 import { useAuth } from '@/context/AuthContext'
 import Link from 'next/link'
-import { BarChart3, Home, Receipt, TrendingUp } from 'lucide-react'
+import { BarChart3, Home, Receipt, TrendingUp, User, Settings, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth()
@@ -61,15 +70,31 @@ export function DashboardHeader() {
           {/* User menu and theme toggle */}
           <div className="flex items-center space-x-4">
             <ThemeToggle />
-            <div className="text-sm text-slate-700 dark:text-slate-300">
-              Welcome, {user?.email}
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
-            >
-              Sign Out
-            </button>
+            
+            {/* User dropdown menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span className="text-sm">{user?.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex items-center">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Profile & Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

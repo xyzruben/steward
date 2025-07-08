@@ -1,263 +1,316 @@
+// ============================================================================
+// BULK OPERATIONS TOOLBAR
+// ============================================================================
+// Toolbar for bulk receipt operations
+// See: Master System Guide - Frontend Architecture, UI Components
+
 'use client'
 
-import React, { useState } from 'react'
-import { Trash2, Tag, Download, X, Check } from 'lucide-react'
+import React, { useState, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { 
+  CheckSquare, 
+  Square, 
+  Trash2, 
+  Edit, 
+  Download, 
+  Filter,
+  X,
+  Loader2,
+  AlertTriangle,
+  CheckCircle
+} from 'lucide-react'
+import { SimpleToast } from '@/components/ui/SimpleToast'
+import { BulkUpdateModal } from './BulkUpdateModal'
 
-interface Receipt {
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface Receipt {
   id: string
   merchant: string
   total: number
-  purchaseDate: string
+  purchaseDate: Date
   category?: string
+  subcategory?: string
+  confidenceScore?: number
+  summary?: string
+  imageUrl: string
 }
 
-interface BulkOperationsToolbarProps {
+export interface BulkOperationsToolbarProps {
   receipts: Receipt[]
   selectedReceipts: string[]
   onSelectionChange: (selectedIds: string[]) => void
+  onBulkUpdate: (receiptIds: string[], updates: any) => Promise<void>
   onBulkDelete: (receiptIds: string[]) => Promise<void>
-  onBulkCategorize: (receiptIds: string[], category: string, subcategory?: string) => Promise<void>
-  onBulkExport: (receiptIds: string[]) => Promise<void>
-  onRefresh: () => void
+  onBulkExport: (receiptIds: string[], format: string) => Promise<void>
+  onShowFilters: () => void
+  isLoading?: boolean
 }
 
-const CATEGORIES = [
-  'Food & Dining',
-  'Transportation',
-  'Shopping',
-  'Entertainment',
-  'Healthcare',
-  'Utilities',
-  'Travel',
-  'Education',
-  'Other'
-]
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function BulkOperationsToolbar({
   receipts,
   selectedReceipts,
   onSelectionChange,
+  onBulkUpdate,
   onBulkDelete,
-  onBulkCategorize,
   onBulkExport,
-  onRefresh
+  onShowFilters,
+  isLoading = false
 }: BulkOperationsToolbarProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showCategoryModal, setShowCategoryModal] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('')
-  const [selectedSubcategory, setSelectedSubcategory] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
 
-  const allSelected = selectedReceipts.length === receipts.length && receipts.length > 0
-  const someSelected = selectedReceipts.length > 0 && !allSelected
+  // ============================================================================
+  // SELECTION HANDLERS
+  // ============================================================================
 
-  const handleSelectAll = () => {
-    if (allSelected) {
-      onSelectionChange([])
-    } else {
-      onSelectionChange(receipts.map(receipt => receipt.id))
-    }
-  }
+  const handleSelectAll = useCallback(() => {
+    const allIds = receipts.map(receipt => receipt.id)
+    onSelectionChange(allIds)
+  }, [receipts, onSelectionChange])
 
-  const handleSelectReceipt = (receiptId: string) => {
-    if (selectedReceipts.includes(receiptId)) {
-      onSelectionChange(selectedReceipts.filter(id => id !== receiptId))
-    } else {
+  const handleSelectNone = useCallback(() => {
+    onSelectionChange([])
+  }, [onSelectionChange])
+
+  const handleSelectReceipt = useCallback((receiptId: string, selected: boolean) => {
+    if (selected) {
       onSelectionChange([...selectedReceipts, receiptId])
+    } else {
+      onSelectionChange(selectedReceipts.filter(id => id !== receiptId))
     }
-  }
+  }, [selectedReceipts, onSelectionChange])
 
-  const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedReceipts.length} receipt(s)? This action cannot be undone.`)) {
-      return
+  const isAllSelected = receipts.length > 0 && selectedReceipts.length === receipts.length
+  const isPartiallySelected = selectedReceipts.length > 0 && selectedReceipts.length < receipts.length
+
+  // ============================================================================
+  // BULK ACTION HANDLERS
+  // ============================================================================
+
+  const handleBulkUpdate = useCallback(async (updates: any) => {
+    if (selectedReceipts.length === 0) return
+
+    setIsProcessing(true)
+    try {
+      await onBulkUpdate(selectedReceipts, updates)
+      setNotification({ type: 'success', message: `Updated ${selectedReceipts.length} receipts` })
+      onSelectionChange([]) // Clear selection after successful update
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Failed to update receipts' })
+      throw error
+    } finally {
+      setIsProcessing(false)
     }
+  }, [selectedReceipts, onBulkUpdate, onSelectionChange])
 
-    setIsLoading(true)
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedReceipts.length === 0) return
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedReceipts.length} receipt(s)? This action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    setIsProcessing(true)
     try {
       await onBulkDelete(selectedReceipts)
-      onSelectionChange([])
-      onRefresh()
+      setNotification({ type: 'success', message: `Deleted ${selectedReceipts.length} receipts` })
+      onSelectionChange([]) // Clear selection after successful delete
     } catch (error) {
-      console.error('Failed to delete receipts:', error)
+      setNotification({ type: 'error', message: 'Failed to delete receipts' })
     } finally {
-      setIsLoading(false)
+      setIsProcessing(false)
     }
-  }
+  }, [selectedReceipts, onBulkDelete, onSelectionChange])
 
-  const handleBulkCategorize = async () => {
-    if (!selectedCategory) {
-      window.alert('Please select a category')
-      return
-    }
+  const handleBulkExport = useCallback(async () => {
+    if (selectedReceipts.length === 0) return
 
-    setIsLoading(true)
+    setIsProcessing(true)
     try {
-      await onBulkCategorize(selectedReceipts, selectedCategory, selectedSubcategory)
-      setShowCategoryModal(false)
-      setSelectedCategory('')
-      setSelectedSubcategory('')
-      onSelectionChange([])
-      onRefresh()
+      await onBulkExport(selectedReceipts, 'csv')
+      setNotification({ type: 'success', message: `Exported ${selectedReceipts.length} receipts` })
     } catch (error) {
-      console.error('Failed to categorize receipts:', error)
+      setNotification({ type: 'error', message: 'Failed to export receipts' })
     } finally {
-      setIsLoading(false)
+      setIsProcessing(false)
     }
-  }
+  }, [selectedReceipts, onBulkExport])
 
-  const handleBulkExport = async () => {
-    setIsLoading(true)
-    try {
-      await onBulkExport(selectedReceipts)
-      onSelectionChange([])
-    } catch (error) {
-      console.error('Failed to export receipts:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (receipts.length === 0) {
     return null
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
-      {/* Selection controls */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              ref={input => {
-                if (input) input.indeterminate = someSelected
-              }}
-              onChange={handleSelectAll}
-              className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {allSelected ? 'Deselect All' : 'Select All'}
-            </span>
-          </label>
-          
-          {selectedReceipts.length > 0 && (
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              {selectedReceipts.length} receipt(s) selected
-            </span>
-          )}
+    <>
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
+        <div className="flex items-center justify-between">
+          {/* Left side - Selection controls */}
+          <div className="flex items-center space-x-4">
+            {/* Select all/none */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={isAllSelected ? handleSelectNone : handleSelectAll}
+                disabled={isLoading || isProcessing}
+                className="flex items-center space-x-2"
+              >
+                {isAllSelected ? (
+                  <CheckSquare className="h-4 w-4" />
+                ) : isPartiallySelected ? (
+                  <div className="h-4 w-4 border-2 border-slate-400 rounded" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                <span className="text-sm">
+                  {isAllSelected ? 'Deselect All' : 'Select All'}
+                </span>
+              </Button>
+            </div>
+
+            {/* Selection count */}
+            {selectedReceipts.length > 0 && (
+              <Badge variant="secondary" className="flex items-center space-x-1">
+                <CheckCircle className="h-3 w-3" />
+                <span>{selectedReceipts.length} selected</span>
+              </Badge>
+            )}
+
+            {/* Clear selection */}
+            {selectedReceipts.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectNone}
+                disabled={isLoading || isProcessing}
+                className="flex items-center space-x-1 text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-3 w-3" />
+                <span className="text-sm">Clear</span>
+              </Button>
+            )}
+          </div>
+
+          {/* Right side - Actions */}
+          <div className="flex items-center space-x-2">
+            {/* Filters button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShowFilters}
+              disabled={isLoading || isProcessing}
+              className="flex items-center space-x-2"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+            </Button>
+
+            {/* Bulk actions - only show when items are selected */}
+            {selectedReceipts.length > 0 && (
+              <>
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600" />
+
+                {/* Update button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowUpdateModal(true)}
+                  disabled={isLoading || isProcessing}
+                  className="flex items-center space-x-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Update</span>
+                </Button>
+
+                {/* Export button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkExport}
+                  disabled={isLoading || isProcessing}
+                  className="flex items-center space-x-2"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span>Export</span>
+                </Button>
+
+                {/* Delete button */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={isLoading || isProcessing}
+                  className="flex items-center space-x-2"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span>Delete</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
-        {selectedReceipts.length > 0 && (
-          <button
-            onClick={() => onSelectionChange([])}
-            className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            Clear Selection
-          </button>
+        {/* Processing indicator */}
+        {isProcessing && (
+          <div className="mt-3 flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Processing bulk operation...</span>
+          </div>
+        )}
+
+        {/* Warning for large selections */}
+        {selectedReceipts.length > 100 && (
+          <div className="mt-3 flex items-center space-x-2 text-sm text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Large selection detected. This operation may take longer than usual.</span>
+          </div>
         )}
       </div>
 
-      {/* Bulk action buttons */}
-      {selectedReceipts.length > 0 && (
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleBulkDelete}
-            disabled={isLoading}
-            className="flex items-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md text-sm font-medium transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Delete ({selectedReceipts.length})</span>
-          </button>
+      {/* Bulk Update Modal */}
+      <BulkUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        onUpdate={handleBulkUpdate}
+        selectedCount={selectedReceipts.length}
+        isLoading={isLoading || isProcessing}
+      />
 
-          <button
-            onClick={() => setShowCategoryModal(true)}
-            disabled={isLoading}
-            className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-md text-sm font-medium transition-colors"
-          >
-            <Tag className="h-4 w-4" />
-            <span>Categorize ({selectedReceipts.length})</span>
-          </button>
-
-          <button
-            onClick={handleBulkExport}
-            disabled={isLoading}
-            className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-md text-sm font-medium transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            <span>Export ({selectedReceipts.length})</span>
-          </button>
-        </div>
+      {/* Simple Toast Notification */}
+      {notification && (
+        <SimpleToast
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
       )}
-
-      {/* Category selection modal */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                Categorize Receipts
-              </h3>
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                aria-label="Close modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Category
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select a category</option>
-                  {CATEGORIES.map(category => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Subcategory (optional)
-                </label>
-                <input
-                  type="text"
-                  value={selectedSubcategory}
-                  onChange={(e) => setSelectedSubcategory(e.target.value)}
-                  placeholder="e.g., Restaurants, Gas Stations"
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-4">
-                <button
-                  onClick={() => setShowCategoryModal(false)}
-                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBulkCategorize}
-                  disabled={!selectedCategory || isLoading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-md font-medium transition-colors"
-                >
-                  <Check className="h-4 w-4" />
-                  <span>Categorize</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 } 

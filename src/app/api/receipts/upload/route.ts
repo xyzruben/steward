@@ -8,6 +8,8 @@ import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/
 import { AnalyticsService } from '@/lib/services/analytics'
 import { realtimeService } from '@/lib/services/realtime'
 import { notificationService } from '@/lib/services/notifications'
+import { userProfileService } from '@/lib/services/userProfile'
+// Removed: import { convertCurrency } from '@/lib/services/currency'
 
 // ============================================================================
 // RECEIPT UPLOAD API ROUTE - PERFORMANCE OPTIMIZED
@@ -305,12 +307,16 @@ async function processReceiptAsync(
     const summary = aiData.summary || 'No summary generated'
     const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
 
-    // Update the receipt with processed data (see master guide: Data Persistence)
+    // Fetch user's preferred currency (for future use, but not converting)
+    const userProfile = await userProfileService.getUserProfile(userId)
+    const receiptCurrency = aiData.currency || 'USD' // Assume AI can extract currency, else default
+    // Design decision: Only store original currency, no conversion (see Steward Master System Guide, Multi-Currency section)
     await updateReceipt(receiptId, {
       merchant,
       total: new Decimal(total),
       purchaseDate,
-      summary
+      summary,
+      currency: receiptCurrency
     })
     
     console.log('Receipt processing completed and database updated:', {

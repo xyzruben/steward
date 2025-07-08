@@ -14,6 +14,7 @@ import { AnalyticsCategories } from './AnalyticsCategories'
 import { AnalyticsMerchants } from './AnalyticsMerchants'
 import { AnalyticsFilters } from './AnalyticsFilters'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import ExportButton from '@/components/export/ExportButton'
 import type { AnalyticsFilters as FiltersType } from '@/types/analytics'
 
 // ============================================================================
@@ -105,6 +106,13 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
             </div>
             
             <div className="flex items-center space-x-4">
+              <ExportButton
+                variant="outline"
+                size="md"
+                className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
+              >
+                Export Data
+              </ExportButton>
               <button
                 onClick={handleRefresh}
                 disabled={loading}

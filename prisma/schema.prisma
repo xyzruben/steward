@@ -32,6 +32,7 @@ model User {
   receipts  Receipt[]
   notifications Notification[]
   notificationPreferences NotificationPreferences?
+  userProfile UserProfile?
   savedSearches SavedSearch[]
   
   // Supabase Auth integration
@@ -39,6 +40,50 @@ model User {
   // This allows for seamless RLS integration
   
   @@map("users")
+}
+
+// ============================================================================
+// USER PROFILE MODEL
+// ============================================================================
+// User preferences and settings for personalization
+model UserProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId    String   @unique @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Personal Information
+  firstName String?
+  lastName  String?
+  phone     String?
+  timezone  String   @default("UTC")
+  
+  // Preferences
+  currency  String   @default("USD") // ISO 4217 currency code
+  locale    String   @default("en-US") // BCP 47 language tag
+  dateFormat String  @default("MM/DD/YYYY") // Date format preference
+  timeFormat String  @default("12h") // 12h or 24h time format
+  
+  // UI Preferences
+  theme     String   @default("system") // light, dark, or system
+  compactMode Boolean @default(false) // Compact UI mode
+  
+  // Export Preferences
+  defaultExportFormat String @default("csv") // csv, json, pdf
+  includeAnalyticsByDefault Boolean @default(false)
+  exportDateRange String @default("30d") // 7d, 30d, 90d, 1y, all
+  
+  // Privacy and Data
+  dataRetentionDays Int @default(2555) // 7 years default
+  allowDataAnalytics Boolean @default(true) // Allow anonymous analytics
+  shareUsageData Boolean @default(false) // Share usage data for improvements
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("user_profiles")
 }
 
 // ============================================================================
@@ -57,6 +102,9 @@ model Receipt {
   rawText      String   // OCR-extracted text
   merchant     String   // Store/merchant name
   total        Decimal  @db.Decimal(10, 2) // Currency amount with 2 decimal places
+  currency     String   @default("USD") // ISO 4217 currency code (multi-currency support)
+  convertedTotal Decimal? // Value in user's preferred currency (for analytics)
+  convertedCurrency String? // User's preferred currency at time of conversion
   purchaseDate DateTime // Date of purchase
   
   // AI-generated content

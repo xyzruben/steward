@@ -254,8 +254,34 @@ export class NotificationService {
       })
 
       if (!preferences) {
-        // Optionally: implement or remove createDefaultPreferences
-        throw new Error('Notification preferences not found')
+        // Create default preferences if none exist
+        const defaultPreferences = await prisma.notificationPreferences.create({
+          data: {
+            userId,
+            emailNotifications: true,
+            pushNotifications: true,
+            receiptUploads: true,
+            receiptProcessing: true,
+            analyticsUpdates: true,
+            searchSuggestions: true,
+            systemAlerts: true,
+            exportNotifications: true,
+            backupNotifications: true,
+          }
+        })
+
+        return {
+          userId: defaultPreferences.userId,
+          emailNotifications: defaultPreferences.emailNotifications,
+          pushNotifications: defaultPreferences.pushNotifications,
+          receiptUploads: defaultPreferences.receiptUploads,
+          receiptProcessing: defaultPreferences.receiptProcessing,
+          analyticsUpdates: defaultPreferences.analyticsUpdates,
+          searchSuggestions: defaultPreferences.searchSuggestions,
+          systemAlerts: defaultPreferences.systemAlerts,
+          exportNotifications: defaultPreferences.exportNotifications,
+          backupNotifications: defaultPreferences.backupNotifications,
+        }
       }
 
       return {
@@ -334,8 +360,103 @@ export class NotificationService {
       userId,
       type: 'receipt_uploaded',
       title: 'Receipt Uploaded',
-      message: `Your receipt from ${merchant} has been uploaded and is being processed.`,
+      message: `Receipt from ${merchant} has been uploaded and is being processed.`,
       metadata: { receiptId, merchant },
+    })
+  }
+
+  /**
+   * Create receipt processed notification
+   */
+  async notifyReceiptProcessed(userId: string, receiptId: string, merchant: string, total: any): Promise<void> {
+    const preferences = await this.getPreferences(userId)
+    
+    if (!preferences.receiptProcessing) {
+      return
+    }
+
+    await this.createNotification({
+      userId,
+      type: 'receipt_processed',
+      title: 'Receipt Processed',
+      message: `Receipt from ${merchant} has been processed. Total: $${total.toString()}`,
+      metadata: { receiptId, merchant, total: total.toString() },
+    })
+  }
+
+  /**
+   * Create receipt error notification
+   */
+  async notifyReceiptError(userId: string, receiptId: string, error: string): Promise<void> {
+    const preferences = await this.getPreferences(userId)
+    
+    if (!preferences.receiptProcessing) {
+      return
+    }
+
+    await this.createNotification({
+      userId,
+      type: 'receipt_error',
+      title: 'Receipt Processing Error',
+      message: `Failed to process receipt: ${error}`,
+      metadata: { receiptId, error },
+    })
+  }
+
+  /**
+   * Create analytics update notification
+   */
+  async notifyAnalyticsUpdated(userId: string, insights: string[]): Promise<void> {
+    const preferences = await this.getPreferences(userId)
+    
+    if (!preferences.analyticsUpdates) {
+      return
+    }
+
+    await this.createNotification({
+      userId,
+      type: 'analytics_updated',
+      title: 'Analytics Updated',
+      message: `New insights available: ${insights.join(', ')}`,
+      metadata: { insights },
+    })
+  }
+
+  /**
+   * Create search suggestion notification
+   */
+  async notifySearchSuggestion(userId: string, suggestion: string): Promise<void> {
+    const preferences = await this.getPreferences(userId)
+    
+    if (!preferences.searchSuggestions) {
+      return
+    }
+
+    await this.createNotification({
+      userId,
+      type: 'search_suggestion',
+      title: 'Search Suggestion',
+      message: `Try searching for: "${suggestion}"`,
+      metadata: { suggestion },
+    })
+  }
+
+  /**
+   * Create system alert notification
+   */
+  async notifySystemAlert(userId: string, title: string, message: string): Promise<void> {
+    const preferences = await this.getPreferences(userId)
+    
+    if (!preferences.systemAlerts) {
+      return
+    }
+
+    await this.createNotification({
+      userId,
+      type: 'system_alert',
+      title,
+      message,
+      metadata: { systemAlert: true },
     })
   }
 }

@@ -9,8 +9,9 @@ import { SearchResults } from '@/components/search/SearchResults'
 import { ReceiptFilters, ReceiptFilters as ReceiptFiltersType } from '@/components/receipts/ReceiptFilters'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { SharedNavigation } from '@/components/ui/SharedNavigation'
+import ExportButton from '@/components/export/ExportButton'
+import { useBulkOperations } from '@/hooks/useBulkOperations'
 import type { SearchFilters, SearchOptions } from '@/lib/services/search'
-
 
 export default function ReceiptsPage() {
   const { user } = useAuth()
@@ -23,6 +24,16 @@ export default function ReceiptsPage() {
   const [searchAnalytics, setSearchAnalytics] = useState<any>(null)
   const [searchMetadata, setSearchMetadata] = useState<any>(null)
   const [currentSearchFilters, setCurrentSearchFilters] = useState<any>(null)
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Initialize bulk operations hook
+  const {
+    bulkUpdate,
+    bulkDelete,
+    bulkExport,
+    isProcessing,
+    error: bulkError
+  } = useBulkOperations()
 
   const fetchReceipts = useCallback(async () => {
     if (!user) return
@@ -103,125 +114,34 @@ export default function ReceiptsPage() {
     }
   }, [fetchReceipts])
 
+  // Handle bulk operations
+  const handleBulkUpdate = async (receiptIds: string[], updates: any) => {
+    try {
+      await bulkUpdate(receiptIds, updates)
+      await fetchReceipts() // Refresh the list
+      setSelectedReceipts([]) // Clear selection
+    } catch (error) {
+      console.error('Bulk update failed:', error)
+      throw error
+    }
+  }
+
   const handleBulkDelete = async (receiptIds: string[]) => {
     try {
-      const response = await fetch('/api/receipts/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          receiptIds
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete receipts')
-      }
-
-      const result = await response.json()
-      
-      if (result.summary.failed > 0) {
-        alert(`Successfully deleted ${result.summary.successful} receipts. ${result.summary.failed} receipts could not be deleted.`)
-      } else {
-        alert(`Successfully deleted ${result.summary.successful} receipts.`)
-      }
-
-      // Refresh the receipts list
-      await fetchReceipts()
+      await bulkDelete(receiptIds)
+      await fetchReceipts() // Refresh the list
+      setSelectedReceipts([]) // Clear selection
     } catch (error) {
-      console.error('Failed to delete receipts:', error)
-      alert('Failed to delete receipts. Please try again.')
+      console.error('Bulk delete failed:', error)
       throw error
     }
   }
 
-  const handleBulkCategorize = async (receiptIds: string[], category: string, subcategory?: string) => {
+  const handleBulkExport = async (receiptIds: string[], format: string) => {
     try {
-      const response = await fetch('/api/receipts/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'categorize',
-          receiptIds,
-          category,
-          subcategory
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to categorize receipts')
-      }
-
-      const result = await response.json()
-      
-      if (result.summary.failed > 0) {
-        alert(`Successfully categorized ${result.summary.successful} receipts. ${result.summary.failed} receipts could not be categorized.`)
-      } else {
-        alert(`Successfully categorized ${result.summary.successful} receipts.`)
-      }
-
-      // Refresh the receipts list
-      await fetchReceipts()
+      await bulkExport(receiptIds, format)
     } catch (error) {
-      console.error('Failed to categorize receipts:', error)
-      alert('Failed to categorize receipts. Please try again.')
-      throw error
-    }
-  }
-
-  const handleBulkExport = async (receiptIds: string[]) => {
-    try {
-      const response = await fetch('/api/receipts/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'export',
-          receiptIds
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to export receipts')
-      }
-
-      const result = await response.json()
-      
-      // Create CSV content
-      const csvContent = [
-        ['ID', 'Merchant', 'Total', 'Purchase Date', 'Category', 'Subcategory', 'Summary', 'Created At'],
-        ...result.results.map((r: any) => [
-          r.data.id,
-          r.data.merchant,
-          r.data.total,
-          r.data.purchaseDate,
-          r.data.category || '',
-          r.data.subcategory || '',
-          r.data.summary || '',
-          r.data.createdAt
-        ])
-      ].map(row => row.map((field: any) => `"${field}"`).join(',')).join('\n')
-
-      // Create and download CSV file
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `receipts-export-${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-
-      alert(`Successfully exported ${result.summary.successful} receipts.`)
-    } catch (error) {
-      console.error('Failed to export receipts:', error)
-      alert('Failed to export receipts. Please try again.')
+      console.error('Bulk export failed:', error)
       throw error
     }
   }
@@ -311,6 +231,10 @@ export default function ReceiptsPage() {
     setFilters(newFilters)
   }
 
+  const handleShowFilters = () => {
+    setShowFilters(!showFilters)
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -339,8 +263,17 @@ export default function ReceiptsPage() {
                 showSavedSearches={true}
               />
             </div>
-            <div>
+            <div className="space-y-4">
               <ReceiptFilters onFiltersChange={handleFiltersChange} />
+              <div className="flex justify-end">
+                <ExportButton
+                  variant="outline"
+                  size="md"
+                  className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
+                >
+                  Export All
+                </ExportButton>
+              </div>
             </div>
           </div>
         </div>
@@ -364,10 +297,11 @@ export default function ReceiptsPage() {
         receipts={receipts}
         selectedReceipts={selectedReceipts}
         onSelectionChange={setSelectedReceipts}
+        onBulkUpdate={handleBulkUpdate}
         onBulkDelete={handleBulkDelete}
-        onBulkCategorize={handleBulkCategorize}
         onBulkExport={handleBulkExport}
-        onRefresh={fetchReceipts}
+        onShowFilters={handleShowFilters}
+        isLoading={loading || isProcessing}
       />
 
       {/* Main content */}

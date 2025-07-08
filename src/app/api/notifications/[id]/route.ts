@@ -14,7 +14,10 @@ import { analyticsRateLimiter } from '@/lib/rate-limiter'
 // MARK AS READ (see master guide: API Route Principles)
 // ============================================================================
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     // Rate limiting
     const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
@@ -38,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Validate notification ID
     if (!id || typeof id !== 'string') {
@@ -72,7 +75,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 // DELETE NOTIFICATION (see master guide: API Route Principles)
 // ============================================================================
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     // Rate limiting
     const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
@@ -96,7 +102,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       )
     }
 
-    const { id } = params
+    const { id } = await params
 
     // Validate notification ID
     if (!id || typeof id !== 'string') {

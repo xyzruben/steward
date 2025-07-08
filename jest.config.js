@@ -18,7 +18,19 @@ const customJestConfig = {
   // Module resolution and path mapping
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Mock external services (see master guide: Mocking Practices)
+    '^@/lib/services/cloudOcr$': '<rootDir>/src/__mocks__/cloudOcr.ts',
+    '^@/lib/services/openai$': '<rootDir>/src/__mocks__/openai.ts',
+    '^@/lib/supabase$': '<rootDir>/src/__mocks__/supabase.ts',
+    // Handle ESM modules that Jest can't process
+    '^isows$': '<rootDir>/src/__mocks__/isows.ts',
+    '^@supabase/realtime-js$': '<rootDir>/src/__mocks__/supabase-realtime.ts',
   },
+  
+  // Comprehensive transform ignore patterns for ESM modules
+  transformIgnorePatterns: [
+    'node_modules/(?!(isows|@supabase|@supabase/realtime-js|@supabase/supabase-js|@supabase/ssr|@supabase/gotrue-js|@supabase/postgrest-js|@supabase/storage-js|@supabase/functions-js|@supabase/auth-helpers-*|@supabase/auth-ui-*)/)',
+  ],
   
   // Test file patterns
   testMatch: [
@@ -37,7 +49,6 @@ const customJestConfig = {
   ],
   
   // Coverage thresholds (see master guide: 80% critical paths, 60% overall)
-  // Traditional CI/CD with quality gates - strict thresholds for production quality
   coverageThreshold: {
     global: {
       branches: 25,
@@ -62,9 +73,19 @@ const customJestConfig = {
   // Test timeout configuration
   testTimeout: 10000,
   
-  // Transform configuration for TypeScript
+  // Transform configuration for TypeScript with ESM support
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { 
+      presets: [
+        ['next/babel', {
+          'preset-env': {
+            targets: {
+              node: 'current'
+            }
+          }
+        }]
+      ]
+    }],
   },
   
   // Module file extensions
@@ -77,15 +98,6 @@ const customJestConfig = {
     '<rootDir>/out/',
   ],
   
-  // Mock configuration for external dependencies
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    // Mock external services (see master guide: Mocking Practices)
-    '^@/lib/services/cloudOcr$': '<rootDir>/src/__mocks__/cloudOcr.ts',
-    '^@/lib/services/openai$': '<rootDir>/src/__mocks__/openai.ts',
-    '^@/lib/supabase$': '<rootDir>/src/__mocks__/supabase.ts',
-  },
-  
   // Global test setup
   globalSetup: '<rootDir>/jest.global-setup.js',
   
@@ -97,6 +109,16 @@ const customJestConfig = {
   
   // Restore mocks after each test
   restoreMocks: true,
+  
+  // Extensions to treat as ES modules
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  
+  // ESM module support
+  globals: {
+    'ts-jest': {
+      useESM: true,
+    },
+  },
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
