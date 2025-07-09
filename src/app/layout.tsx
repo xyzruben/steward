@@ -33,7 +33,11 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             {children}
-            <NotificationCenter />
+            <NotificationCenter 
+              position="bottom-right" 
+              variant="subtle"
+              className="z-40"
+            />
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useAuth } from '@/context/AuthContext'
 
 export function LoginForm() {
@@ -86,6 +87,29 @@ export function LoginForm() {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6">
+      {/* Logo and Header */}
+      <div className="text-center mb-6">
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          {/* Circular Logo */}
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white dark:bg-slate-700 shadow-md border-2 border-slate-200 dark:border-slate-600">
+            <Image
+              src="/steward_logo.png"
+              alt="Steward Logo"
+              width={64}
+              height={64}
+              className="object-cover w-full h-full"
+              priority
+            />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Steward
+          </h2>
+        </div>
+        <p className="text-slate-600 dark:text-slate-400 text-sm">
+          {isSignUp ? 'Create your account' : 'Welcome back'}
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

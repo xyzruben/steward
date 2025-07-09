@@ -67,7 +67,7 @@ export function DashboardContent() {
         </div>
       </main>
       
-      {/* Real-time notifications */}
+      {/* Real-time notifications - positioned in top-right to avoid conflicts */}
       <RealtimeNotifications position="top-right" />
     </div>
   )

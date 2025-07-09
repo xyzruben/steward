@@ -20,6 +20,7 @@ interface NotificationCenterProps {
   showPreferences?: boolean
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
   className?: string
+  variant?: 'default' | 'subtle'
 }
 
 interface NotificationItemProps {
@@ -158,8 +159,9 @@ function NotificationItem({ notification, onMarkAsRead, onDelete }: Notification
 export function NotificationCenter({
   maxNotifications = 20,
   showPreferences = true,
-  position = 'top-right',
+  position = 'bottom-right',
   className = '',
+  variant = 'subtle',
 }: NotificationCenterProps) {
   const {
     notifications,
@@ -198,7 +200,6 @@ export function NotificationCenter({
     const matchesSearch = searchQuery === '' || 
       notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       notification.message.toLowerCase().includes(searchQuery.toLowerCase())
-    
     return matchesType && matchesSearch
   })
 
@@ -207,7 +208,7 @@ export function NotificationCenter({
   // ============================================================================
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead(filterType === 'all' ? undefined : filterType)
+    await markAllAsRead()
   }
 
   const handleRefresh = async () => {
@@ -237,7 +238,7 @@ export function NotificationCenter({
       case 'bottom-left':
         return 'bottom-4 left-4'
       default:
-        return 'top-4 right-4'
+        return 'bottom-4 right-4'
     }
   }
 
@@ -270,16 +271,22 @@ export function NotificationCenter({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          relative p-3 bg-white rounded-full shadow-lg
-          hover:shadow-xl transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-blue-500
+          relative transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+          ${variant === 'subtle' 
+            ? 'p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm hover:shadow-md hover:bg-white/90 dark:bg-slate-800/80 dark:hover:bg-slate-800/90' 
+            : 'p-3 bg-white rounded-full shadow-lg hover:shadow-xl'
+          }
           ${isOpen ? 'ring-2 ring-blue-500' : ''}
         `}
         aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
       >
-        <Bell className="w-6 h-6 text-gray-600" />
+        <Bell className={`${variant === 'subtle' ? 'w-4 h-4' : 'w-6 h-6'} text-gray-600 dark:text-gray-300`} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          <span className={`
+            absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center
+            ${variant === 'subtle' ? 'w-4 h-4 text-xs' : 'w-5 h-5'}
+          `}>
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -287,15 +294,20 @@ export function NotificationCenter({
 
       {/* Notification Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-hidden">
+        <div className={`
+          absolute ${position.includes('right') ? 'right-0' : 'left-0'} 
+          ${position.includes('bottom') ? 'bottom-full mb-2' : 'top-full mt-2'}
+          w-96 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 
+          max-h-96 overflow-hidden
+        `}>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
                 title="Refresh notifications"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -303,7 +315,7 @@ export function NotificationCenter({
               {showPreferences && (
                 <button
                   onClick={() => setActiveTab(activeTab === 'notifications' ? 'preferences' : 'notifications')}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   title="Notification preferences"
                 >
                   <Settings className="w-4 h-4" />
@@ -311,7 +323,7 @@ export function NotificationCenter({
               )}
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 title="Close notifications"
               >
                 <X className="w-4 h-4" />
@@ -324,7 +336,7 @@ export function NotificationCenter({
             {activeTab === 'notifications' ? (
               <>
                 {/* Filters and Search */}
-                <div className="p-4 border-b border-gray-200 space-y-3">
+                <div className="p-4 border-b border-gray-200 dark:border-slate-700 space-y-3">
                   {/* Search */}
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -333,7 +345,7 @@ export function NotificationCenter({
                       placeholder="Search notifications..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                     />
                   </div>
 
@@ -343,7 +355,7 @@ export function NotificationCenter({
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value as NotificationType | 'all')}
-                      className="flex-1 px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                     >
                       <option value="all">All Types</option>
                       <option value="receipt_uploaded">Receipt Uploads</option>
@@ -360,11 +372,11 @@ export function NotificationCenter({
                     <button
                       onClick={handleMarkAllAsRead}
                       disabled={filteredNotifications.filter(n => !n.isRead).length === 0}
-                      className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:text-gray-400 disabled:cursor-not-allowed"
                     >
                       Mark all as read
                     </button>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
                       <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
                       <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
                     </div>
@@ -374,7 +386,7 @@ export function NotificationCenter({
                 {/* Notifications List */}
                 <div className="p-4 space-y-3">
                   {error && (
-                    <div className="text-red-600 text-sm p-3 bg-red-50 rounded-lg">
+                    <div className="text-red-600 dark:text-red-400 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                       {error}
                     </div>
                   )}
@@ -384,8 +396,8 @@ export function NotificationCenter({
                       <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
                     </div>
                   ) : filteredNotifications.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                      <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                       <p>No notifications found</p>
                     </div>
                   ) : (
@@ -403,7 +415,7 @@ export function NotificationCenter({
             ) : (
               /* Preferences Tab */
               <div className="p-4">
-                <h4 className="text-lg font-semibold mb-4">Notification Preferences</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Notification Preferences</h4>
                 {preferences ? (
                   <div className="space-y-4">
                     {Object.entries(preferences).map(([key, value]) => {
@@ -411,14 +423,14 @@ export function NotificationCenter({
                       
                       return (
                         <div key={key} className="flex items-center justify-between">
-                          <label className="text-sm font-medium text-gray-700 capitalize">
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
                             {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
                           </label>
                           <button
                             onClick={() => updatePreferences({ [key]: !value })}
                             className={`
                               relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                              ${value ? 'bg-blue-600' : 'bg-gray-200'}
+                              ${value ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
                             `}
                           >
                             <span
@@ -433,8 +445,8 @@ export function NotificationCenter({
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Settings className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Settings className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                     <p>Loading preferences...</p>
                   </div>
                 )}

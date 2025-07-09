@@ -6,7 +6,7 @@
  * @see STEWARD_MASTER_SYSTEM_GUIDE.md - Scalability, Code Quality, Security
  */
 
-import fetch from 'node-fetch'
+// Using global fetch (available in Next.js 15+)
 
 // In-memory cache for rates (can be replaced with Redis/DB for production)
 const rateCache: Record<string, { rate: number, timestamp: number }> = {}
@@ -27,7 +27,7 @@ export async function getExchangeRate(from: string, to: string, date?: string): 
     return rateCache[cacheKey].rate
   }
   // Build API URL
-  let url = `https://api.exchangerate.host/${date || 'latest'}?base=${from}&symbols=${to}`
+  const url = `https://api.exchangerate.host/${date || 'latest'}?base=${from}&symbols=${to}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Failed to fetch exchange rate: ${res.status}`)
   const data = await res.json()

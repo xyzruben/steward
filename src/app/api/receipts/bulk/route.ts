@@ -16,7 +16,8 @@ import { analyticsRateLimiter } from '@/lib/rate-limiter'
 export async function GET(request: NextRequest) {
   try {
     // Rate limiting
-    const rateLimit = analyticsRateLimiter.isAllowed(request.ip || 'unknown')
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    const rateLimit = analyticsRateLimiter.isAllowed(ip)
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: 'Rate limit exceeded' },
@@ -77,7 +78,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const rateLimit = analyticsRateLimiter.isAllowed(request.ip || 'unknown')
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    const rateLimit = analyticsRateLimiter.isAllowed(ip)
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: 'Rate limit exceeded' },

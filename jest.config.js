@@ -3,6 +3,8 @@ const nextJest = require('next/jest')
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files
   dir: './',
+  // Use the renamed Babel config for tests only
+  babelConfig: './babel.config.test.js',
 })
 
 // Add any custom config to be passed to Jest

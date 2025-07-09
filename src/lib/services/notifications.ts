@@ -93,6 +93,7 @@ export class NotificationService {
       })
 
       if (!user) {
+        // User doesn't exist in our database yet, throw error
         throw new Error(`User ${params.userId} not found`)
       }
 
@@ -122,6 +123,17 @@ export class NotificationService {
    */
   async getNotifications(userId: string, filters: NotificationFilters = {}): Promise<NotificationData[]> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return empty array
+        // This prevents foreign key constraint violations
+        return []
+      }
+
       const where: {
         userId: string
         type?: NotificationType
@@ -169,6 +181,16 @@ export class NotificationService {
    */
   async markAsRead(notificationId: string, userId: string): Promise<void> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return early
+        return
+      }
+
       await prisma.notification.updateMany({
         where: {
           id: notificationId,
@@ -187,6 +209,16 @@ export class NotificationService {
    */
   async markAllAsRead(userId: string, type?: NotificationType): Promise<void> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return early
+        return
+      }
+
       const where: {
         userId: string
         isRead: boolean
@@ -211,6 +243,16 @@ export class NotificationService {
    */
   async deleteNotification(notificationId: string, userId: string): Promise<void> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return early
+        return
+      }
+
       await prisma.notification.deleteMany({
         where: {
           id: notificationId,
@@ -228,6 +270,16 @@ export class NotificationService {
    */
   async getUnreadCount(userId: string): Promise<number> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return 0
+        return 0
+      }
+
       return await prisma.notification.count({
         where: {
           userId,
@@ -249,6 +301,28 @@ export class NotificationService {
    */
   async getPreferences(userId: string): Promise<NotificationPreferences> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return default preferences
+        // This prevents foreign key constraint violations
+        return {
+          userId,
+          emailNotifications: true,
+          pushNotifications: true,
+          receiptUploads: true,
+          receiptProcessing: true,
+          analyticsUpdates: true,
+          searchSuggestions: true,
+          systemAlerts: true,
+          exportNotifications: true,
+          backupNotifications: true,
+        }
+      }
+
       const preferences = await prisma.notificationPreferences.findUnique({
         where: { userId }
       })
@@ -307,6 +381,28 @@ export class NotificationService {
    */
   async updatePreferences(userId: string, preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
     try {
+      // First, check if the user exists in our database
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        // User doesn't exist in our database yet, return default preferences
+        // This prevents foreign key constraint violations
+        return {
+          userId,
+          emailNotifications: preferences.emailNotifications ?? true,
+          pushNotifications: preferences.pushNotifications ?? true,
+          receiptUploads: preferences.receiptUploads ?? true,
+          receiptProcessing: preferences.receiptProcessing ?? true,
+          analyticsUpdates: preferences.analyticsUpdates ?? true,
+          searchSuggestions: preferences.searchSuggestions ?? true,
+          systemAlerts: preferences.systemAlerts ?? true,
+          exportNotifications: preferences.exportNotifications ?? true,
+          backupNotifications: preferences.backupNotifications ?? true,
+        }
+      }
+
       const updated = await prisma.notificationPreferences.upsert({
         where: { userId },
         update: preferences,
