@@ -31,7 +31,7 @@ const customJestConfig = {
   
   // Comprehensive transform ignore patterns for ESM modules
   transformIgnorePatterns: [
-    'node_modules/(?!(isows|@supabase|@supabase/realtime-js|@supabase/supabase-js|@supabase/ssr|@supabase/gotrue-js|@supabase/postgrest-js|@supabase/storage-js|@supabase/functions-js|@supabase/auth-helpers-*|@supabase/auth-ui-*)/)',
+    'node_modules/(?!(isows|@supabase|@supabase/realtime-js|@supabase/supabase-js|@supabase/ssr|@supabase/gotrue-js|@supabase/postgrest-js|@supabase/storage-js|@supabase/functions-js|@supabase/auth-helpers-*|@supabase/auth-ui-*|framer-motion)/)',
   ],
   
   // Test file patterns

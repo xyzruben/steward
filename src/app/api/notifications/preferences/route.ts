@@ -11,6 +11,23 @@ import { notificationService, type NotificationPreferences } from '@/lib/service
 import { analyticsRateLimiter } from '@/lib/rate-limiter'
 
 // ============================================================================
+// DEFAULT PREFERENCES (see master guide: Error Handling)
+// ============================================================================
+
+const getDefaultPreferences = (userId: string): NotificationPreferences => ({
+  userId,
+  emailNotifications: true,
+  pushNotifications: true,
+  receiptUploads: true,
+  receiptProcessing: true,
+  analyticsUpdates: true,
+  searchSuggestions: true,
+  systemAlerts: true,
+  exportNotifications: true,
+  backupNotifications: true,
+})
+
+// ============================================================================
 // GET PREFERENCES (see master guide: API Route Principles)
 // ============================================================================
 
@@ -38,16 +55,30 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get preferences
-    const preferences = await notificationService.getPreferences(user.id)
-
-    return NextResponse.json({
-      success: true,
-      data: preferences,
-      metadata: {
-        timestamp: new Date().toISOString(),
-      }
-    })
+    // Try to get preferences from database
+    try {
+      const preferences = await notificationService.getPreferences(user.id)
+      return NextResponse.json({
+        success: true,
+        data: preferences,
+        metadata: {
+          timestamp: new Date().toISOString(),
+        }
+      })
+    } catch (dbError) {
+      console.warn('Notification Preferences API: Database error, returning defaults:', dbError)
+      
+      // Return default preferences if database is unavailable
+      const defaultPreferences = getDefaultPreferences(user.id)
+      return NextResponse.json({
+        success: true,
+        data: defaultPreferences,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          note: 'Using default preferences due to database unavailability'
+        }
+      })
+    }
 
   } catch (error) {
     console.error('Notification Preferences API: GET error:', error)
@@ -131,16 +162,32 @@ export async function PUT(request: NextRequest) {
       preferences.backupNotifications = backupNotifications
     }
 
-    // Update preferences
-    const updatedPreferences = await notificationService.updatePreferences(user.id, preferences)
-
-    return NextResponse.json({
-      success: true,
-      data: updatedPreferences,
-      metadata: {
-        timestamp: new Date().toISOString(),
-      }
-    })
+    // Try to update preferences in database
+    try {
+      const updatedPreferences = await notificationService.updatePreferences(user.id, preferences)
+      return NextResponse.json({
+        success: true,
+        data: updatedPreferences,
+        metadata: {
+          timestamp: new Date().toISOString(),
+        }
+      })
+    } catch (dbError) {
+      console.warn('Notification Preferences API: Database error during update:', dbError)
+      
+      // Return merged preferences if database is unavailable
+      const defaultPreferences = getDefaultPreferences(user.id)
+      const mergedPreferences = { ...defaultPreferences, ...preferences }
+      
+      return NextResponse.json({
+        success: true,
+        data: mergedPreferences,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          note: 'Preferences merged with defaults due to database unavailability'
+        }
+      })
+    }
 
   } catch (error) {
     console.error('Notification Preferences API: PUT error:', error)

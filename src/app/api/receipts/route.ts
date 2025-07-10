@@ -88,23 +88,34 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get receipts for the user with filters
-    const receipts = await getReceiptsByUserId(user.id, {
-      skip,
-      take: limit,
-      orderBy,
-      order,
-      search,
-      category,
-      subcategory,
-      minAmount,
-      maxAmount,
-      startDate,
-      endDate,
-      minConfidence
-    })
+    // Try to get receipts from database
+    try {
+      const receipts = await getReceiptsByUserId(user.id, {
+        skip,
+        take: limit,
+        orderBy,
+        order,
+        search,
+        category,
+        subcategory,
+        minAmount,
+        maxAmount,
+        startDate,
+        endDate,
+        minConfidence
+      })
 
-    return NextResponse.json(receipts)
+      return NextResponse.json(receipts)
+    } catch (dbError) {
+      console.warn('Receipts API: Database error, returning empty array:', dbError)
+      
+      // Return empty array if database is unavailable
+      return NextResponse.json([], {
+        headers: {
+          'X-Database-Status': 'unavailable'
+        }
+      })
+    }
   } catch (error) {
     console.error('Error fetching receipts:', error)
     return NextResponse.json(
