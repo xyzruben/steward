@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { GET } from '../route'
 import { getReceiptsByUserId } from '@/lib/db'
+import { Decimal } from '@prisma/client/runtime/library'
 
 // Mock dependencies
 jest.mock('@/lib/db')
@@ -28,14 +29,14 @@ describe('GET /api/receipts', () => {
       imageUrl: 'https://example.com/receipt1.jpg',
       rawText: 'Sample receipt text',
       merchant: 'Test Store',
-      total: 25.50,
-      purchaseDate: '2024-01-15T00:00:00.000Z',
+      total: new Decimal(25.50),
+      purchaseDate: new Date('2024-01-15T00:00:00.000Z'),
       summary: 'Test purchase',
       category: 'Food & Dining',
       subcategory: 'Restaurants',
       confidenceScore: 0.95,
-      createdAt: '2024-01-15T10:00:00.000Z',
-      updatedAt: '2024-01-15T10:00:00.000Z'
+      createdAt: new Date('2024-01-15T10:00:00.000Z'),
+      updatedAt: new Date('2024-01-15T10:00:00.000Z')
     }
   ]
 

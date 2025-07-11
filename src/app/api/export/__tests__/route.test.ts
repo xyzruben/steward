@@ -5,6 +5,7 @@
 // See: Master System Guide - Testing and Quality Assurance
 
 import { POST, GET } from '../route'
+import { NextRequest } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { exportService } from '@/lib/services/export'
 import { analyticsRateLimiter } from '@/lib/rate-limiter'
@@ -45,9 +46,9 @@ const mockAnalyticsRateLimiter = analyticsRateLimiter as jest.Mocked<typeof anal
 // TEST HELPERS
 // ============================================================================
 
-// Helper function to create Request objects for testing
-function createTestRequest(url: string, method: string, body?: any): Request {
-  const requestInit: RequestInit = {
+// Helper function to create NextRequest objects for testing
+function createTestRequest(url: string, method: string, body?: any): NextRequest {
+  const requestInit: any = {
     method,
     headers: {
       'Content-Type': 'application/json'
@@ -58,7 +59,7 @@ function createTestRequest(url: string, method: string, body?: any): Request {
     requestInit.body = JSON.stringify(body)
   }
   
-  return new Request(url, requestInit)
+  return new NextRequest(url, requestInit)
 }
 
 // ============================================================================
@@ -518,7 +519,7 @@ describe('Export API Routes', () => {
         resetTime: Date.now() + 3600000
       })
 
-      const request = new Request('http://localhost:3000/api/export', {
+      const request = new NextRequest('http://localhost:3000/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'invalid json'

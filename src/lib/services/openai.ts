@@ -18,6 +18,7 @@ export interface ReceiptAIExtraction {
   tags: string[]
   confidence: number // 0-100
   summary: string | null
+  currency: string | null
 }
 
 // -----------------------------
@@ -61,6 +62,7 @@ If a field is missing, use null. Confidence is your best estimate of overall ext
     tags: [],
     confidence: 0,
     summary: null,
+    currency: null,
   }
   try {
     const json = completion.choices[0].message.content
@@ -74,6 +76,7 @@ If a field is missing, use null. Confidence is your best estimate of overall ext
         tags: Array.isArray(parsed.tags) ? parsed.tags : [],
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
         summary: parsed.summary ?? null,
+        currency: parsed.currency ?? null,
       }
     }
   } catch (err) {

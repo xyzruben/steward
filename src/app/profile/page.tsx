@@ -29,7 +29,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react'
-import { NotificationToast } from '@/components/ui/NotificationToast'
+import { SimpleToast } from '@/components/ui/SimpleToast'
 
 // ============================================================================
 // COMPONENT
@@ -584,7 +584,7 @@ export default function ProfilePage() {
 
         {/* Notification Toast */}
         {notification && (
-          <NotificationToast
+          <SimpleToast
             type={notification.type}
             message={notification.message}
             onClose={() => setNotification(null)}
