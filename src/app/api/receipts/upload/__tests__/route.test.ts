@@ -32,6 +32,33 @@ jest.mock('@/lib/db', () => ({
   getUserById: jest.fn(),
 }))
 
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    receipt: {
+      create: jest.fn(),
+    },
+    userProfile: {
+      findUnique: jest.fn(),
+    },
+  },
+}))
+
+jest.mock('@/lib/services/notifications', () => ({
+  NotificationService: {
+    notifyReceiptUploaded: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/services/userProfile', () => ({
+  UserProfileService: {
+    getUserProfile: jest.fn(),
+  },
+}))
+
 jest.mock('@/lib/services/cloudOcr', () => ({
   extractTextFromImage: jest.fn(),
   imageBufferToBase64: jest.fn(),
@@ -200,6 +227,23 @@ describe('POST /api/receipts/upload', () => {
     mockSupabase.storage.getPublicUrl.mockReturnValue({
       data: { publicUrl: 'https://supabase.co/storage/receipts/test-user-id/123.jpg' },
     })
+
+    // Setup Prisma mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require('@/lib/prisma')
+    prisma.user.findUnique.mockResolvedValue(mockDbUser)
+    prisma.user.create.mockResolvedValue(mockDbUser)
+    prisma.receipt.create.mockResolvedValue(mockReceipt)
+    prisma.userProfile.findUnique.mockResolvedValue(null)
+
+    // Setup service mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { NotificationService } = require('@/lib/services/notifications')
+    NotificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { UserProfileService } = require('@/lib/services/userProfile')
+    UserProfileService.getUserProfile.mockResolvedValue(null)
   })
 
   describe('Authentication', () => {

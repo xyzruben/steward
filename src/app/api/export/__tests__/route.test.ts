@@ -33,6 +33,23 @@ jest.mock('@/lib/rate-limiter', () => ({
   }
 }))
 
+// Mock Prisma client
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+    },
+    receipt: {
+      findMany: jest.fn(),
+      aggregate: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    userProfile: {
+      findUnique: jest.fn(),
+    },
+  },
+}))
+
 // Mock Next.js cookies
 jest.mock('next/headers', () => ({
   cookies: jest.fn(() => Promise.resolve({}))
@@ -102,6 +119,25 @@ describe('Export API Routes', () => {
     }
     
     mockCreateSupabaseServerClient.mockReturnValue(mockSupabase)
+    
+    // Setup export service mock
+    mockExportService.exportData.mockResolvedValue(mockExportResult)
+    
+    // Setup rate limiter mock
+    mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
+      allowed: true,
+      remaining: 9,
+      resetTime: Date.now() + 3600000
+    })
+    
+    // Setup Prisma mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require('@/lib/prisma')
+    prisma.user.findUnique.mockResolvedValue({ id: 'test-user-id' })
+    prisma.receipt.findMany.mockResolvedValue([])
+    prisma.receipt.aggregate.mockResolvedValue({ _sum: { total: 0 }, _count: 0 })
+    prisma.receipt.groupBy.mockResolvedValue([])
+    prisma.userProfile.findUnique.mockResolvedValue(null)
   })
 
   // ============================================================================

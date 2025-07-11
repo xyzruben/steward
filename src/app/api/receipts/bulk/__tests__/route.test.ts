@@ -12,6 +12,21 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn().mockResolvedValue({})
 }))
 
+// Mock Prisma client
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+    },
+    receipt: {
+      findMany: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+  },
+}))
+
 const mockCreateSupabaseServerClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 const mockDeleteReceipt = deleteReceipt as jest.MockedFunction<typeof deleteReceipt>
 const mockUpdateReceipt = updateReceipt as jest.MockedFunction<typeof updateReceipt>
@@ -37,6 +52,15 @@ describe('/api/receipts/bulk', () => {
       data: { user: mockUser },
       error: null
     })
+    
+    // Setup Prisma mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require('@/lib/prisma')
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-123' })
+    prisma.receipt.findMany.mockResolvedValue([])
+    prisma.receipt.updateMany.mockResolvedValue({ count: 0 })
+    prisma.receipt.deleteMany.mockResolvedValue({ count: 0 })
+    prisma.receipt.count.mockResolvedValue(0)
   })
 
   afterEach(() => {
