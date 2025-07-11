@@ -39,14 +39,35 @@ export default function ExportButton({
   ...props
 }: ExportButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const { exportData, isExporting, error } = useExport()
+  const { exportData, isExporting, error, resetState, clearError } = useExport()
 
   // ============================================================================
   // EVENT HANDLERS
   // ============================================================================
 
   const handleExport = async (options: ExportOptions) => {
-    await exportData(options)
+    try {
+      await exportData(options)
+      setIsModalOpen(false)
+    } catch (error) {
+      setIsModalOpen(false)
+    }
+  }
+
+  const handleRetry = () => {
+    resetState()
+    clearError()
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    // Do not clearError here; let the error persist for user feedback (see Master System Guide)
+  }
+
+  // Optionally, add a dismiss button for the error message for better UX
+  const handleDismissError = () => {
+    clearError()
   }
 
   // ============================================================================
@@ -115,18 +136,37 @@ export default function ExportButton({
 
       <ExportModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         availableCategories={availableCategories}
         availableMerchants={availableMerchants}
         onExport={handleExport}
       />
 
-      {/* Error Display */}
+      {/* Error Display with Retry and Dismiss Button */}
       {error && (
         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full" />
-            <span className="text-sm text-red-700">{error}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full" />
+              <span className="text-sm text-red-700">{error}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="text-sm text-red-700 hover:text-red-800 font-medium underline"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissError}
+                className="text-sm text-gray-500 hover:text-gray-700 ml-2"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
       )}

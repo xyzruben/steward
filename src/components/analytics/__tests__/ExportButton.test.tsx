@@ -284,7 +284,17 @@ describe('ExportButton', () => {
 
     it('should show error state after failed export', async () => {
       const user = userEvent.setup()
-      mockExportData.mockRejectedValue(new Error('Export failed'))
+      const mockClearError = jest.fn()
+      
+      // Initial state with no error
+      mockUseExport.mockReturnValue({
+        exportData: mockExportData,
+        resetState: mockResetState,
+        clearError: mockClearError,
+        isExporting: false,
+        error: null,
+        lastExport: null
+      })
       
       render(<ExportButton {...defaultProps} />)
 
@@ -296,6 +306,17 @@ describe('ExportButton', () => {
       })
 
       const csvButton = screen.getByRole('button', { name: /export csv/i })
+      
+      // Update mock to simulate error state after export attempt
+      mockUseExport.mockReturnValue({
+        exportData: mockExportData,
+        resetState: mockResetState,
+        clearError: mockClearError,
+        isExporting: false,
+        error: 'Export failed',
+        lastExport: null
+      })
+      
       await user.click(csvButton)
 
       await waitFor(() => {

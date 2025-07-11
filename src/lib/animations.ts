@@ -401,6 +401,44 @@ export const modalTransition: Variants = {
 }
 
 // ============================================================================
+// PAGE & ROUTE TRANSITION VARIANTS (see master guide: Component Hierarchy)
+// ============================================================================
+
+export const pageFade: Variants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: baseTransition },
+  exit: { opacity: 0, transition: fastTransition }
+}
+
+export const pageSlideUp: Variants = {
+  initial: { opacity: 0, y: 32 },
+  animate: { opacity: 1, y: 0, transition: baseTransition },
+  exit: { opacity: 0, y: -32, transition: fastTransition }
+}
+
+export const pageSlideRight: Variants = {
+  initial: { opacity: 0, x: -32 },
+  animate: { opacity: 1, x: 0, transition: baseTransition },
+  exit: { opacity: 0, x: 32, transition: fastTransition }
+}
+
+export const pageScale: Variants = {
+  initial: { opacity: 0, scale: 0.98 },
+  animate: { opacity: 1, scale: 1, transition: baseTransition },
+  exit: { opacity: 0, scale: 0.98, transition: fastTransition }
+}
+
+// Utility to select a transition style
+export const getPageTransition = (type: 'fade' | 'slide-up' | 'slide-right' | 'scale' = 'fade') => {
+  switch (type) {
+    case 'slide-up': return pageSlideUp
+    case 'slide-right': return pageSlideRight
+    case 'scale': return pageScale
+    default: return pageFade
+  }
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS (see master guide: Code Quality and Conventions)
 // ============================================================================
 

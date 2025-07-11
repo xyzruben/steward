@@ -286,7 +286,7 @@ export function ReceiptUpload({ className = '' }: ReceiptUploadProps) {
               transition={{ delay: 0.5, type: 'spring', stiffness: 500 }}
             >
               <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-            </div>
+            </motion.div>
           </motion.div>
           
           <motion.div 
