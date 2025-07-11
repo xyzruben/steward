@@ -58,19 +58,19 @@ export function SwipeableCard({
 
   const actions: SwipeAction[] = [
     ...(onSwipeLeft ? [{
-      direction: 'left',
+      direction: 'left' as const,
       action: onSwipeLeft,
       threshold: swipeThreshold,
       color: 'bg-red-500'
     }] : []),
     ...(onSwipeRight ? [{
-      direction: 'right',
+      direction: 'right' as const,
       action: onSwipeRight,
       threshold: swipeThreshold,
       color: 'bg-green-500'
     }] : []),
     ...(onDismiss ? [{
-      direction: 'left',
+      direction: 'left' as const,
       action: onDismiss,
       threshold: swipeThreshold * 1.5,
       color: 'bg-red-600'

@@ -215,7 +215,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
       title: 'Total Spent',
       value: `$${analytics.totalSpent.toLocaleString()}`,
       change: analytics.monthlyGrowth,
-      changeType: analytics.monthlyGrowth > 0 ? 'increase' : 'decrease' as const,
+      changeType: (analytics.monthlyGrowth > 0 ? 'increase' : 'decrease') as 'increase' | 'decrease',
       icon: <DollarSign className="w-6 h-6" />,
       color: 'blue' as const
     },

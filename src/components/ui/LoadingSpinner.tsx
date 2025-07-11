@@ -15,7 +15,7 @@ import { Loader2, Sparkles, Zap } from 'lucide-react'
 // ============================================================================
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg'
   variant?: 'default' | 'dots' | 'pulse' | 'gradient' | 'stepper'
   className?: string
   text?: string

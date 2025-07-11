@@ -5,7 +5,7 @@
 // See: Master System Guide - AI and Processing, Performance and Scalability
 
 import { prisma } from '../prisma'
-import { Decimal } from '@prisma/client'
+import { Decimal } from '../../generated/prisma/runtime/library'
 import Fuse from 'fuse.js'
 
 // ============================================================================

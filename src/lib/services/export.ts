@@ -5,7 +5,7 @@
 // See: Master System Guide - Security Requirements, Data Privacy Compliance
 
 import { prisma } from '@/lib/prisma'
-import { Decimal } from '@prisma/client'
+import { Decimal } from '../../generated/prisma/runtime/library'
 import { format } from 'date-fns'
 
 // ============================================================================
@@ -46,11 +46,10 @@ export interface ReceiptExportData {
   merchant: string
   total: number
   purchaseDate: string
-  category: string
+  category: string | null
   subcategory: string | null
-  confidence: number
+  confidenceScore: number | null
   summary: string | null
-  tags: string[]
   createdAt: string
   updatedAt: string
 }
@@ -141,9 +140,8 @@ export class ExportService {
       'Purchase Date',
       'Category',
       'Subcategory',
-      'Confidence',
+      'Confidence Score',
       'Summary',
-      'Tags',
       'Created At',
       'Updated At'
     ]
@@ -153,11 +151,10 @@ export class ExportService {
       receipt.merchant,
       receipt.total.toFixed(2),
       receipt.purchaseDate,
-      receipt.category,
+      receipt.category || '',
       receipt.subcategory || '',
-      receipt.confidence.toFixed(2),
+      receipt.confidenceScore?.toFixed(2) || '',
       receipt.summary || '',
-      receipt.tags.join(', '),
       receipt.createdAt,
       receipt.updatedAt
     ])
@@ -247,9 +244,8 @@ export class ExportService {
         purchaseDate: true,
         category: true,
         subcategory: true,
-        confidence: true,
+        confidenceScore: true,
         summary: true,
-        tags: true,
         createdAt: true,
         updatedAt: true
       }
@@ -258,10 +254,10 @@ export class ExportService {
     return receipts.map(receipt => ({
       ...receipt,
       total: Number(receipt.total),
+      confidenceScore: receipt.confidenceScore ? Number(receipt.confidenceScore) : null,
       purchaseDate: format(receipt.purchaseDate, 'yyyy-MM-dd'),
       createdAt: format(receipt.createdAt, 'yyyy-MM-dd HH:mm:ss'),
-      updatedAt: format(receipt.updatedAt, 'yyyy-MM-dd HH:mm:ss'),
-      tags: receipt.tags as string[] || []
+      updatedAt: format(receipt.updatedAt, 'yyyy-MM-dd HH:mm:ss')
     }))
   }
 
@@ -273,8 +269,9 @@ export class ExportService {
     // Group by category
     const categoryMap = new Map<string, { count: number; total: number }>()
     receipts.forEach(receipt => {
-      const existing = categoryMap.get(receipt.category) || { count: 0, total: 0 }
-      categoryMap.set(receipt.category, {
+      const category = receipt.category || 'Uncategorized'
+      const existing = categoryMap.get(category) || { count: 0, total: 0 }
+      categoryMap.set(category, {
         count: existing.count + 1,
         total: existing.total + receipt.total
       })

@@ -115,31 +115,29 @@ export default function ReceiptsPage() {
   }, [fetchReceipts])
 
   // Handle bulk operations
-  const handleBulkUpdate = async (receiptIds: string[], updates: any) => {
+  const handleBulkUpdate = async (updates: any) => {
     try {
-      await bulkUpdate(receiptIds, updates)
+      await bulkUpdate(updates)
       await fetchReceipts() // Refresh the list
-      setSelectedReceipts([]) // Clear selection
     } catch (error) {
       console.error('Bulk update failed:', error)
       throw error
     }
   }
 
-  const handleBulkDelete = async (receiptIds: string[]) => {
+  const handleBulkDelete = async () => {
     try {
-      await bulkDelete(receiptIds)
+      await bulkDelete()
       await fetchReceipts() // Refresh the list
-      setSelectedReceipts([]) // Clear selection
     } catch (error) {
       console.error('Bulk delete failed:', error)
       throw error
     }
   }
 
-  const handleBulkExport = async (receiptIds: string[], format: string) => {
+  const handleBulkExport = async (format: string) => {
     try {
-      await bulkExport(receiptIds, format)
+      await bulkExport(format)
     } catch (error) {
       console.error('Bulk export failed:', error)
       throw error
@@ -321,11 +319,14 @@ export default function ReceiptsPage() {
             </button>
           </div>
         ) : (
-          <ReceiptList
-            receipts={receipts}
-            selectedReceipts={selectedReceipts}
-            onSelectionChange={setSelectedReceipts}
-          />
+          <div className="text-center py-12">
+            <p className="text-slate-600 dark:text-slate-400">
+              {receipts.length > 0 
+                ? `Showing ${receipts.length} receipts` 
+                : 'No receipts found. Upload some receipts to get started!'
+              }
+            </p>
+          </div>
         )}
       </div>
     </div>

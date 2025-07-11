@@ -44,9 +44,9 @@ export interface BulkOperationsToolbarProps {
   receipts: Receipt[]
   selectedReceipts: string[]
   onSelectionChange: (selectedIds: string[]) => void
-  onBulkUpdate: (receiptIds: string[], updates: any) => Promise<void>
-  onBulkDelete: (receiptIds: string[]) => Promise<void>
-  onBulkExport: (receiptIds: string[], format: string) => Promise<void>
+  onBulkUpdate: (updates: any) => Promise<void>
+  onBulkDelete: () => Promise<void>
+  onBulkExport: (format: string) => Promise<void>
   onShowFilters: () => void
   isLoading?: boolean
 }
@@ -105,7 +105,7 @@ export function BulkOperationsToolbar({
 
     setIsProcessing(true)
     try {
-      await onBulkUpdate(selectedReceipts, updates)
+      await onBulkUpdate(updates)
       setNotification({ type: 'success', message: `Updated ${selectedReceipts.length} receipts` })
       onSelectionChange([]) // Clear selection after successful update
     } catch (error) {
@@ -127,7 +127,7 @@ export function BulkOperationsToolbar({
 
     setIsProcessing(true)
     try {
-      await onBulkDelete(selectedReceipts)
+      await onBulkDelete()
       setNotification({ type: 'success', message: `Deleted ${selectedReceipts.length} receipts` })
       onSelectionChange([]) // Clear selection after successful delete
     } catch (error) {
@@ -142,7 +142,7 @@ export function BulkOperationsToolbar({
 
     setIsProcessing(true)
     try {
-      await onBulkExport(selectedReceipts, 'csv')
+      await onBulkExport('csv')
       setNotification({ type: 'success', message: `Exported ${selectedReceipts.length} receipts` })
     } catch (error) {
       setNotification({ type: 'error', message: 'Failed to export receipts' })

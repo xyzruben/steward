@@ -147,7 +147,7 @@ export function ErrorToast({
       const errorData = {
         timestamp: new Date().toISOString(),
         errorId,
-        message: error.message,
+        errorMessage: error.message,
         stack: error.stack,
         type,
         title,
@@ -330,7 +330,7 @@ export function ErrorToastManager({ children }: ErrorToastManagerProps) {
   }
 
   const showError = (title: string, message?: string, error?: Error) => {
-    return addToast({
+    const id = addToast({
       type: 'error',
       title,
       message,
@@ -339,36 +339,40 @@ export function ErrorToastManager({ children }: ErrorToastManagerProps) {
       autoDismiss: true,
       showErrorDetails: process.env.NODE_ENV === 'development'
     })
+    return id
   }
 
   const showWarning = (title: string, message?: string) => {
-    return addToast({
+    const id = addToast({
       type: 'warning',
       title,
       message,
       onDismiss: () => removeToast(id),
       autoDismiss: true
     })
+    return id
   }
 
   const showInfo = (title: string, message?: string) => {
-    return addToast({
+    const id = addToast({
       type: 'info',
       title,
       message,
       onDismiss: () => removeToast(id),
       autoDismiss: true
     })
+    return id
   }
 
   const showSuccess = (title: string, message?: string) => {
-    return addToast({
+    const id = addToast({
       type: 'success',
       title,
       message,
       onDismiss: () => removeToast(id),
       autoDismiss: true
     })
+    return id
   }
 
   return (

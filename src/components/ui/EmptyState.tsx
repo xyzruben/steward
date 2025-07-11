@@ -282,7 +282,7 @@ export function EmptyState({
   // RENDER LOGIC (see master guide: Component Hierarchy)
   // ============================================================================
 
-  const config = variantConfigs[variant] || variantConfigs.general
+  const config = variantConfigs[variant as keyof typeof variantConfigs] || variantConfigs.general
   const finalTitle = title || config.title
   const finalDescription = description || config.description
   const finalActions = actions.length > 0 ? actions : config.defaultActions
@@ -319,7 +319,7 @@ export function EmptyState({
                 <Button
                   key={index}
                   onClick={action.onClick}
-                  variant={action.variant || (action.primary ? 'default' : 'outline')}
+                  variant={(action as any).variant || (action.primary ? 'default' : 'outline')}
                   className={cn(
                     'w-full',
                     action.primary && 'bg-blue-600 hover:bg-blue-700 text-white'
