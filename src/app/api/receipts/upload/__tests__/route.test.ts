@@ -47,18 +47,6 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
-jest.mock('@/lib/services/notifications', () => ({
-  NotificationService: {
-    notifyReceiptUploaded: jest.fn(),
-  },
-}))
-
-jest.mock('@/lib/services/userProfile', () => ({
-  UserProfileService: {
-    getUserProfile: jest.fn(),
-  },
-}))
-
 jest.mock('@/lib/services/cloudOcr', () => ({
   extractTextFromImage: jest.fn(),
   imageBufferToBase64: jest.fn(),
@@ -71,6 +59,24 @@ jest.mock('@/lib/services/openai', () => ({
 
 jest.mock('next/headers', () => ({
   cookies: jest.fn(),
+}))
+
+// Fix: Mock notificationService as an instance with all used methods
+jest.mock('@/lib/services/notifications', () => ({
+  notificationService: {
+    notifyReceiptUploaded: jest.fn(),
+    notifyReceiptProcessed: jest.fn(),
+    notifyReceiptError: jest.fn(),
+    getPreferences: jest.fn(),
+    createNotification: jest.fn(),
+  },
+}))
+
+// Fix: Mock userProfileService as a static class with all used methods
+jest.mock('@/lib/services/userProfile', () => ({
+  userProfileService: {
+    getUserProfile: jest.fn(),
+  },
 }))
 
 // ============================================================================
@@ -236,14 +242,29 @@ describe('POST /api/receipts/upload', () => {
     prisma.receipt.create.mockResolvedValue(mockReceipt)
     prisma.userProfile.findUnique.mockResolvedValue(null)
 
-    // Setup service mocks
+    // Setup service mocks (fix: use correct export names)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { NotificationService } = require('@/lib/services/notifications')
-    NotificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
+    const { notificationService } = require('@/lib/services/notifications')
+    notificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
+    notificationService.notifyReceiptProcessed.mockResolvedValue(undefined)
+    notificationService.notifyReceiptError.mockResolvedValue(undefined)
+    notificationService.getPreferences.mockResolvedValue({
+      userId: mockUser.id,
+      emailNotifications: true,
+      pushNotifications: true,
+      receiptUploads: true,
+      receiptProcessing: true,
+      analyticsUpdates: true,
+      searchSuggestions: true,
+      systemAlerts: true,
+      exportNotifications: true,
+      backupNotifications: true,
+    })
+    notificationService.createNotification.mockResolvedValue({})
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { UserProfileService } = require('@/lib/services/userProfile')
-    UserProfileService.getUserProfile.mockResolvedValue(null)
+    const { userProfileService } = require('@/lib/services/userProfile')
+    userProfileService.getUserProfile.mockResolvedValue(null)
   })
 
   describe('Authentication', () => {
