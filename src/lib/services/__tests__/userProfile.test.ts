@@ -539,8 +539,8 @@ describe('UserProfileService', () => {
       const validData = {
         firstName: 'John',
         lastName: 'Doe',
-        currency: 'USD',
-        theme: 'dark',
+        currency: 'USD' as const,
+        theme: 'dark' as const,
         dataRetentionDays: 365
       }
       mockPrisma.userProfile.upsert.mockResolvedValue(mockUserProfile)
@@ -555,7 +555,7 @@ describe('UserProfileService', () => {
     it('should reject invalid currency', async () => {
       // Arrange
       const invalidData = {
-        currency: 'INVALID'
+        currency: 'INVALID' as any
       }
 
       // Act & Assert
@@ -565,7 +565,7 @@ describe('UserProfileService', () => {
     it('should reject invalid theme', async () => {
       // Arrange
       const invalidData = {
-        theme: 'INVALID'
+        theme: 'INVALID' as any
       }
 
       // Act & Assert
