@@ -26,6 +26,10 @@ jest.mock('@/lib/prisma', () => ({
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>
 
+// Type the mock methods properly for TypeScript
+const mockUserFindUnique = mockPrisma.user.findUnique as jest.MockedFunction<typeof mockPrisma.user.findUnique>
+const mockReceiptFindMany = mockPrisma.receipt.findMany as jest.MockedFunction<typeof mockPrisma.receipt.findMany>
+
 // ============================================================================
 // TEST DATA
 // ============================================================================
@@ -89,8 +93,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -111,8 +115,8 @@ describe('ExportService', () => {
         includeAnalytics: true
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -133,8 +137,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -155,7 +159,7 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
 
       // Act & Assert
       await expect(exportService.exportData(mockUser.id, options))
@@ -169,7 +173,7 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(null)
+      mockUserFindUnique.mockResolvedValue(null)
 
       // Act & Assert
       await expect(exportService.exportData('invalid-user-id', options))
@@ -186,14 +190,14 @@ describe('ExportService', () => {
         }
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       await exportService.exportData(mockUser.id, options)
 
       // Assert
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith(
+      expect(mockReceiptFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             userId: mockUser.id,
@@ -213,14 +217,14 @@ describe('ExportService', () => {
         categories: ['Groceries']
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       await exportService.exportData(mockUser.id, options)
 
       // Assert
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith(
+      expect(mockReceiptFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             userId: mockUser.id,
@@ -238,14 +242,14 @@ describe('ExportService', () => {
         maxAmount: 50
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       await exportService.exportData(mockUser.id, options)
 
       // Assert
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith(
+      expect(mockReceiptFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             userId: mockUser.id,
@@ -271,8 +275,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -291,8 +295,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue([])
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue([])
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -316,8 +320,8 @@ describe('ExportService', () => {
         includeAnalytics: true
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -339,8 +343,8 @@ describe('ExportService', () => {
         includeAnalytics: true
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -361,8 +365,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -385,8 +389,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -412,8 +416,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -432,8 +436,8 @@ describe('ExportService', () => {
         }
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -455,8 +459,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -476,8 +480,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockResolvedValue([])
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockResolvedValue([])
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)
@@ -502,8 +506,8 @@ describe('ExportService', () => {
         includeAnalytics: false
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.receipt.findMany.mockRejectedValue(new Error('Database error'))
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
+      mockReceiptFindMany.mockRejectedValue(new Error('Database error'))
 
       // Act & Assert
       await expect(exportService.exportData(mockUser.id, options))
@@ -520,7 +524,7 @@ describe('ExportService', () => {
         }
       }
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
+      mockUserFindUnique.mockResolvedValue(mockUser as any)
 
       // Act
       const result = await exportService.exportData(mockUser.id, options)

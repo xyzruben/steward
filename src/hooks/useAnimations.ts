@@ -5,7 +5,7 @@
 // Follows master guide: React State Patterns, Component Hierarchy, Performance
 
 import { useState, useCallback } from 'react'
-import { useMotionValue, useTransform, useSpring } from 'framer-motion'
+import { useMotionValue, useTransform, useSpring, MotionValue } from 'framer-motion'
 import { ANIMATION_DURATION, ANIMATION_EASING } from '@/lib/animations'
 
 // ============================================================================
@@ -97,8 +97,8 @@ export function useFocus(): UseFocusReturn {
 // ============================================================================
 
 interface UseScrollProgressReturn {
-  scrollYProgress: ReturnType<typeof useMotionValue>
-  scrollY: ReturnType<typeof useMotionValue>
+  scrollYProgress: MotionValue<number>
+  scrollY: MotionValue<number>
 }
 
 export function useScrollProgress(): UseScrollProgressReturn {
@@ -121,7 +121,7 @@ interface UseParallaxOptions {
 }
 
 interface UseParallaxReturn {
-  y: ReturnType<typeof useTransform>
+  y: MotionValue<number>
 }
 
 export function useParallax({ 

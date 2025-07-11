@@ -96,7 +96,18 @@ export class UserProfileService {
         }
       })
 
-      return profile
+      if (!profile) return null;
+      return {
+        ...profile,
+        firstName: profile.firstName || undefined,
+        lastName: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+        user: {
+          ...profile.user,
+          name: profile.user.name || undefined,
+          avatarUrl: profile.user.avatarUrl || undefined
+        }
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error)
       throw new Error('Failed to fetch user profile')
@@ -133,13 +144,27 @@ export class UserProfileService {
         }
       })
 
-      return profile
+      return {
+        ...profile,
+        firstName: profile.firstName || undefined,
+        lastName: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+        user: {
+          ...profile.user,
+          name: profile.user.name || undefined,
+          avatarUrl: profile.user.avatarUrl || undefined
+        }
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error('Validation error:', error.errors)
         throw new Error(`Invalid profile data: ${error.errors.map(e => e.message).join(', ')}`)
       }
-      console.error('Error upserting user profile:', error)
+      if (error instanceof Error) {
+        console.error('Error upserting user profile:', error.message)
+      } else {
+        console.error('Error upserting user profile:', error)
+      }
       throw new Error('Failed to update user profile')
     }
   }
@@ -170,16 +195,30 @@ export class UserProfileService {
         }
       })
 
-      return profile
+      return {
+        ...profile,
+        firstName: profile.firstName || undefined,
+        lastName: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+        user: {
+          ...profile.user,
+          name: profile.user.name || undefined,
+          avatarUrl: profile.user.avatarUrl || undefined
+        }
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error('Validation error:', error.errors)
         throw new Error(`Invalid profile data: ${error.errors.map(e => e.message).join(', ')}`)
       }
-      if (error.code === 'P2025') {
+      if (error instanceof Error && (error as any).code === 'P2025') {
         throw new Error('User profile not found')
       }
-      console.error('Error updating user profile:', error)
+      if (error instanceof Error) {
+        console.error('Error updating user profile:', error.message)
+      } else {
+        console.error('Error updating user profile:', error)
+      }
       throw new Error('Failed to update user profile')
     }
   }
@@ -193,10 +232,14 @@ export class UserProfileService {
         where: { userId }
       })
     } catch (error) {
-      if (error.code === 'P2025') {
+      if (error instanceof Error && (error as any).code === 'P2025') {
         throw new Error('User profile not found')
       }
-      console.error('Error deleting user profile:', error)
+      if (error instanceof Error) {
+        console.error('Error deleting user profile:', error.message)
+      } else {
+        console.error('Error deleting user profile:', error)
+      }
       throw new Error('Failed to delete user profile')
     }
   }
@@ -348,7 +391,17 @@ export class UserProfileService {
         }
       })
 
-      return profiles
+      return profiles.map(profile => ({
+        ...profile,
+        firstName: profile.firstName || undefined,
+        lastName: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+        user: {
+          ...profile.user,
+          name: profile.user.name || undefined,
+          avatarUrl: profile.user.avatarUrl || undefined
+        }
+      }))
     } catch (error) {
       console.error('Error fetching multiple user profiles:', error)
       throw new Error('Failed to fetch user profiles')
@@ -376,7 +429,17 @@ export class UserProfileService {
         }
       })
 
-      return profiles
+      return profiles.map(profile => ({
+        ...profile,
+        firstName: profile.firstName || undefined,
+        lastName: profile.lastName || undefined,
+        phone: profile.phone || undefined,
+        user: {
+          ...profile.user,
+          name: profile.user.name || undefined,
+          avatarUrl: profile.user.avatarUrl || undefined
+        }
+      }))
     } catch (error) {
       console.error('Error fetching users by preference:', error)
       throw new Error('Failed to fetch users by preference')

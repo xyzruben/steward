@@ -13,24 +13,26 @@ import { Decimal } from '@prisma/client/runtime/library'
 // MOCKS (see master guide: Mocking Practices)
 // ============================================================================
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: jest.fn(),
-    },
-    notification: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      updateMany: jest.fn(),
-      deleteMany: jest.fn(),
-      count: jest.fn(),
-    },
-    notificationPreferences: {
-      findUnique: jest.fn(),
-      upsert: jest.fn(),
-      create: jest.fn(),
-    },
+const mockPrisma = {
+  user: {
+    findUnique: jest.fn() as jest.MockedFunction<any>,
   },
+  notification: {
+    create: jest.fn() as jest.MockedFunction<any>,
+    findMany: jest.fn() as jest.MockedFunction<any>,
+    updateMany: jest.fn() as jest.MockedFunction<any>,
+    deleteMany: jest.fn() as jest.MockedFunction<any>,
+    count: jest.fn() as jest.MockedFunction<any>,
+  },
+  notificationPreferences: {
+    findUnique: jest.fn() as jest.MockedFunction<any>,
+    upsert: jest.fn() as jest.MockedFunction<any>,
+    create: jest.fn() as jest.MockedFunction<any>,
+  },
+}
+
+jest.mock('@/lib/prisma', () => ({
+  prisma: mockPrisma,
 }))
 
 jest.mock('@/lib/supabase', () => ({
@@ -44,8 +46,6 @@ jest.mock('@/lib/supabase', () => ({
 // ============================================================================
 // TEST SETUP (see master guide: Unit Testing Strategy)
 // ============================================================================
-
-const mockPrisma = prisma as jest.Mocked<typeof prisma>
 const mockSupabase = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 
 describe('NotificationService', () => {

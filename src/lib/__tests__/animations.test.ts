@@ -188,9 +188,9 @@ describe('Animation Utilities', () => {
     it('staggerContainer has correct properties', () => {
       expect(staggerContainer).toHaveProperty('animate')
       expect(staggerContainer.animate).toHaveProperty('transition')
-      expect(staggerContainer.animate.transition).toHaveProperty('staggerChildren')
-      expect(staggerContainer.animate.transition.staggerChildren).toBe(0.1)
-      expect(staggerContainer.animate.transition).toHaveProperty('delayChildren')
+      expect((staggerContainer.animate as any).transition).toHaveProperty('staggerChildren')
+      expect((staggerContainer.animate as any).transition.staggerChildren).toBe(0.1)
+      expect((staggerContainer.animate as any).transition).toHaveProperty('delayChildren')
     })
 
     it('staggerItem has correct properties', () => {

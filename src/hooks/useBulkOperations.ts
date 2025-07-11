@@ -9,9 +9,16 @@ import type {
   BulkFilter, 
   BulkUpdate, 
   BulkFilterResult, 
-  BulkOperationResult,
-  FilterOptions 
+  BulkOperationResult
 } from '@/lib/services/bulkOperations'
+
+// Define FilterOptions type inline since it's not exported from the service
+type FilterOptions = {
+  categories: string[]
+  merchants: string[]
+  dateRange: { min: Date; max: Date }
+  amountRange: { min: number; max: number }
+}
 
 // ============================================================================
 // TYPES
@@ -398,8 +405,8 @@ export function useBulkOperations(userId?: string): UseBulkOperationsReturn {
     const totalAmount = selectedReceiptsData.reduce((sum, receipt) => sum + receipt.total, 0)
     const averageAmount = selectedReceiptsData.length > 0 ? totalAmount / selectedReceiptsData.length : 0
     
-    const categories = [...new Set(selectedReceiptsData.map(r => r.category).filter(Boolean))]
-    const merchants = [...new Set(selectedReceiptsData.map(r => r.merchant).filter(Boolean))]
+    const categories = [...new Set(selectedReceiptsData.map(r => r.category).filter(Boolean))] as string[]
+    const merchants = [...new Set(selectedReceiptsData.map(r => r.merchant).filter(Boolean))] as string[]
 
     return {
       count: selectedReceiptsData.length,

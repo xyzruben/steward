@@ -134,7 +134,17 @@ export class BulkOperationsService {
       const filteredCount = receipts.length
 
       return {
-        receipts,
+        receipts: receipts.map(receipt => ({
+          id: receipt.id,
+          merchant: receipt.merchant,
+          total: receipt.total.toNumber(),
+          purchaseDate: receipt.purchaseDate,
+          category: receipt.category || undefined,
+          subcategory: receipt.subcategory || undefined,
+          confidenceScore: receipt.confidenceScore?.toNumber(),
+          summary: receipt.summary || undefined,
+          imageUrl: receipt.imageUrl
+        })),
         totalCount,
         filteredCount,
         appliedFilters: validatedFilters
@@ -249,7 +259,7 @@ export class BulkOperationsService {
         errorCount: receiptIds.length,
         errors: receiptIds.map(id => ({
           receiptId: id,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         })),
         operationId,
         duration
@@ -326,7 +336,7 @@ export class BulkOperationsService {
         errorCount: receiptIds.length,
         errors: receiptIds.map(id => ({
           receiptId: id,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         })),
         operationId,
         duration
@@ -381,10 +391,20 @@ export class BulkOperationsService {
       }
 
       return {
-        receipts: userReceipts,
+        receipts: userReceipts.map(receipt => ({
+          id: receipt.id,
+          merchant: receipt.merchant,
+          total: receipt.total.toNumber(),
+          purchaseDate: receipt.purchaseDate,
+          category: receipt.category || undefined,
+          subcategory: receipt.subcategory || undefined,
+          confidenceScore: receipt.confidenceScore?.toNumber(),
+          summary: receipt.summary || undefined,
+          imageUrl: receipt.imageUrl
+        })),
         totalCount: userReceipts.length,
         filteredCount: userReceipts.length,
-        appliedFilters: { receiptIds }
+        appliedFilters: {}
       }
 
     } catch (error) {
@@ -524,8 +544,8 @@ export class BulkOperationsService {
           max: dateRange._max.purchaseDate || new Date()
         },
         amountRange: {
-          min: Number(dateRange._min.total) || 0,
-          max: Number(dateRange._max.total) || 0
+          min: Number(amountRange._min.total) || 0,
+          max: Number(amountRange._max.total) || 0
         }
       }
 

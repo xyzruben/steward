@@ -11,19 +11,19 @@ import { prisma } from '@/lib/prisma'
 // MOCK SETUP
 // ============================================================================
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    userProfile: {
-      findUnique: jest.fn(),
-      upsert: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      findMany: jest.fn()
-    }
+const mockPrisma = {
+  userProfile: {
+    findUnique: jest.fn() as jest.MockedFunction<any>,
+    upsert: jest.fn() as jest.MockedFunction<any>,
+    update: jest.fn() as jest.MockedFunction<any>,
+    delete: jest.fn() as jest.MockedFunction<any>,
+    findMany: jest.fn() as jest.MockedFunction<any>
   }
-}))
+}
 
-const mockPrisma = prisma as jest.Mocked<typeof prisma>
+jest.mock('@/lib/prisma', () => ({
+  prisma: mockPrisma
+}))
 
 // ============================================================================
 // TEST DATA
@@ -124,7 +124,7 @@ describe('UserProfileService', () => {
       const profileData = {
         firstName: 'Jane',
         lastName: 'Smith',
-        currency: 'EUR'
+        currency: 'EUR' as const
       }
       mockPrisma.userProfile.upsert.mockResolvedValue({
         ...mockUserProfile,
@@ -187,7 +187,7 @@ describe('UserProfileService', () => {
       // Arrange
       const invalidData = {
         firstName: 'A'.repeat(51), // Too long
-        currency: 'INVALID' // Invalid currency
+        currency: 'INVALID' as any // Invalid currency
       }
 
       // Act & Assert
@@ -253,7 +253,7 @@ describe('UserProfileService', () => {
     it('should throw validation error for invalid data', async () => {
       // Arrange
       const invalidData = {
-        currency: 'INVALID'
+        currency: 'INVALID' as any
       }
 
       // Act & Assert

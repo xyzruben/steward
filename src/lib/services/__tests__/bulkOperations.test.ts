@@ -6,6 +6,7 @@
 
 import { BulkOperationsService, bulkOperationsService } from '../bulkOperations'
 import { prisma } from '@/lib/prisma'
+import { Decimal } from '@prisma/client/runtime/library'
 
 // ============================================================================
 // MOCK SETUP
@@ -26,6 +27,14 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>
+
+// Type the mock methods properly for TypeScript
+const mockReceiptFindMany = mockPrisma.receipt.findMany as jest.MockedFunction<typeof mockPrisma.receipt.findMany>
+const mockReceiptCount = mockPrisma.receipt.count as jest.MockedFunction<typeof mockPrisma.receipt.count>
+const mockReceiptUpdateMany = mockPrisma.receipt.updateMany as jest.MockedFunction<typeof mockPrisma.receipt.updateMany>
+const mockReceiptDeleteMany = mockPrisma.receipt.deleteMany as jest.MockedFunction<typeof mockPrisma.receipt.deleteMany>
+const mockReceiptAggregate = mockPrisma.receipt.aggregate as jest.MockedFunction<typeof mockPrisma.receipt.aggregate>
+const mockReceiptGroupBy = mockPrisma.receipt.groupBy as jest.MockedFunction<typeof mockPrisma.receipt.groupBy>
 
 // ============================================================================
 // TEST DATA
@@ -90,8 +99,8 @@ describe('BulkOperationsService', () => {
         }
       }
       
-      mockPrisma.receipt.count.mockResolvedValue(3)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts.slice(0, 2))
+      mockReceiptCount.mockResolvedValue(3)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts.slice(0, 2) as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', filters)
@@ -101,7 +110,7 @@ describe('BulkOperationsService', () => {
       expect(result.totalCount).toBe(3)
       expect(result.filteredCount).toBe(2)
       expect(result.appliedFilters).toEqual(filters)
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           purchaseDate: {
@@ -133,15 +142,15 @@ describe('BulkOperationsService', () => {
         }
       }
       
-      mockPrisma.receipt.count.mockResolvedValue(3)
-      mockPrisma.receipt.findMany.mockResolvedValue([mockReceipts[0], mockReceipts[1]])
+      mockReceiptCount.mockResolvedValue(3)
+      mockReceiptFindMany.mockResolvedValue([mockReceipts[0], mockReceipts[1]] as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', filters)
 
       // Assert
       expect(result.receipts).toHaveLength(2)
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           total: {
@@ -160,15 +169,15 @@ describe('BulkOperationsService', () => {
         categories: ['Groceries', 'Transportation']
       }
       
-      mockPrisma.receipt.count.mockResolvedValue(3)
-      mockPrisma.receipt.findMany.mockResolvedValue([mockReceipts[0], mockReceipts[1]])
+      mockReceiptCount.mockResolvedValue(3)
+      mockReceiptFindMany.mockResolvedValue([mockReceipts[0], mockReceipts[1]] as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', filters)
 
       // Assert
       expect(result.receipts).toHaveLength(2)
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           category: {
@@ -186,15 +195,15 @@ describe('BulkOperationsService', () => {
         searchQuery: 'Walmart'
       }
       
-      mockPrisma.receipt.count.mockResolvedValue(3)
-      mockPrisma.receipt.findMany.mockResolvedValue([mockReceipts[0]])
+      mockReceiptCount.mockResolvedValue(3)
+      mockReceiptFindMany.mockResolvedValue([mockReceipts[0]] as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', filters)
 
       // Assert
       expect(result.receipts).toHaveLength(1)
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           OR: [
@@ -214,15 +223,15 @@ describe('BulkOperationsService', () => {
       // Arrange
       const filters = {}
       
-      mockPrisma.receipt.count.mockResolvedValue(3)
-      mockPrisma.receipt.findMany.mockResolvedValue(mockReceipts)
+      mockReceiptCount.mockResolvedValue(3)
+      mockReceiptFindMany.mockResolvedValue(mockReceipts as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', filters)
 
       // Assert
       expect(result.receipts).toHaveLength(3)
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: { userId: 'user-123' },
         select: expect.any(Object),
         orderBy: { purchaseDate: 'desc' }
@@ -231,7 +240,7 @@ describe('BulkOperationsService', () => {
 
     it('should throw error on database error', async () => {
       // Arrange
-      mockPrisma.receipt.count.mockRejectedValue(new Error('Database error'))
+      mockReceiptCount.mockRejectedValue(new Error('Database error'))
 
       // Act & Assert
       await expect(BulkOperationsService.filterReceipts('user-123', {})).rejects.toThrow('Failed to filter receipts')
@@ -242,17 +251,17 @@ describe('BulkOperationsService', () => {
     it('should return receipt IDs that match filters', async () => {
       // Arrange
       const filters = { categories: ['Groceries'] }
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         { id: 'receipt-1' },
         { id: 'receipt-2' }
-      ])
+      ] as any)
 
       // Act
       const result = await BulkOperationsService.getFilteredReceiptIds('user-123', filters)
 
       // Assert
       expect(result).toEqual(['receipt-1', 'receipt-2'])
-      expect(mockPrisma.receipt.findMany).toHaveBeenCalledWith({
+      expect(mockReceiptFindMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           category: { in: ['Groceries'] }
@@ -275,11 +284,11 @@ describe('BulkOperationsService', () => {
         subcategory: 'Updated Subcategory'
       }
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         { id: 'receipt-1' },
         { id: 'receipt-2' }
-      ])
-      mockPrisma.receipt.updateMany.mockResolvedValue({ count: 2 })
+      ] as any)
+      mockReceiptUpdateMany.mockResolvedValue({ count: 2 })
 
       // Act
       const result = await BulkOperationsService.bulkUpdate('user-123', receiptIds, updates)
@@ -290,7 +299,7 @@ describe('BulkOperationsService', () => {
       expect(result.successCount).toBe(2)
       expect(result.errorCount).toBe(0)
       expect(result.errors).toHaveLength(0)
-      expect(mockPrisma.receipt.updateMany).toHaveBeenCalledWith({
+      expect(mockReceiptUpdateMany).toHaveBeenCalledWith({
         where: {
           id: { in: receiptIds },
           userId: 'user-123'
@@ -307,9 +316,9 @@ describe('BulkOperationsService', () => {
       const receiptIds = ['receipt-1', 'invalid-id']
       const updates = { category: 'Updated' }
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         { id: 'receipt-1' }
-      ])
+      ] as any)
 
       // Act & Assert
       await expect(BulkOperationsService.bulkUpdate('user-123', receiptIds, updates)).rejects.toThrow('Invalid receipt IDs')
@@ -343,11 +352,11 @@ describe('BulkOperationsService', () => {
       // Arrange
       const receiptIds = ['receipt-1', 'receipt-2']
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         { id: 'receipt-1', imageUrl: 'url1' },
         { id: 'receipt-2', imageUrl: 'url2' }
-      ])
-      mockPrisma.receipt.deleteMany.mockResolvedValue({ count: 2 })
+      ] as any)
+      mockReceiptDeleteMany.mockResolvedValue({ count: 2 })
 
       // Act
       const result = await BulkOperationsService.bulkDelete('user-123', receiptIds)
@@ -357,7 +366,7 @@ describe('BulkOperationsService', () => {
       expect(result.processedCount).toBe(2)
       expect(result.successCount).toBe(2)
       expect(result.errorCount).toBe(0)
-      expect(mockPrisma.receipt.deleteMany).toHaveBeenCalledWith({
+      expect(mockReceiptDeleteMany).toHaveBeenCalledWith({
         where: {
           id: { in: receiptIds },
           userId: 'user-123'
@@ -369,9 +378,9 @@ describe('BulkOperationsService', () => {
       // Arrange
       const receiptIds = ['receipt-1', 'invalid-id']
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         { id: 'receipt-1', imageUrl: 'url1' }
-      ])
+      ] as any)
 
       // Act & Assert
       await expect(BulkOperationsService.bulkDelete('user-123', receiptIds)).rejects.toThrow('Invalid receipt IDs')
@@ -387,10 +396,10 @@ describe('BulkOperationsService', () => {
       // Arrange
       const receiptIds = ['receipt-1', 'receipt-2']
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         mockReceipts[0],
         mockReceipts[1]
-      ])
+      ] as any)
 
       // Act
       const result = await BulkOperationsService.prepareBulkExport('user-123', receiptIds)
@@ -406,9 +415,9 @@ describe('BulkOperationsService', () => {
       // Arrange
       const receiptIds = ['receipt-1', 'invalid-id']
       
-      mockPrisma.receipt.findMany.mockResolvedValue([
+      mockReceiptFindMany.mockResolvedValue([
         mockReceipts[0]
-      ])
+      ] as any)
 
       // Act & Assert
       await expect(BulkOperationsService.prepareBulkExport('user-123', receiptIds)).rejects.toThrow('Invalid receipt IDs')
@@ -422,25 +431,31 @@ describe('BulkOperationsService', () => {
   describe('getFilterOptions', () => {
     it('should return filter options for user', async () => {
       // Arrange
-      mockPrisma.receipt.findMany
+      mockReceiptFindMany
         .mockResolvedValueOnce([
           { category: 'Groceries' },
           { category: 'Transportation' }
-        ])
+        ] as any)
         .mockResolvedValueOnce([
           { merchant: 'Walmart' },
           { merchant: 'Shell' }
-        ])
+        ] as any)
       
-      mockPrisma.receipt.aggregate
+      mockReceiptAggregate
         .mockResolvedValueOnce({
+          _count: { id: 2 },
           _min: { purchaseDate: new Date('2024-01-01') },
-          _max: { purchaseDate: new Date('2024-12-31') }
-        })
+          _max: { purchaseDate: new Date('2024-12-31') },
+          _sum: { total: new Decimal(80.67) },
+          _avg: { total: new Decimal(40.335) }
+        } as any)
         .mockResolvedValueOnce({
-          _min: { total: 10.00 },
-          _max: { total: 100.00 }
-        })
+          _count: { id: 2 },
+          _min: { total: new Decimal(10.00) },
+          _max: { total: new Decimal(100.00) },
+          _sum: { total: new Decimal(80.67) },
+          _avg: { total: new Decimal(40.335) }
+        } as any)
 
       // Act
       const result = await BulkOperationsService.getFilterOptions('user-123')
@@ -458,14 +473,16 @@ describe('BulkOperationsService', () => {
   describe('getReceiptStats', () => {
     it('should return receipt statistics', async () => {
       // Arrange
-      mockPrisma.receipt.aggregate
+      mockReceiptAggregate
         .mockResolvedValueOnce({
           _count: { id: 3 },
-          _sum: { total: 93.17 },
-          _avg: { total: 31.06 }
+          _min: { total: new Decimal(10.00) },
+          _max: { total: new Decimal(100.00) },
+          _sum: { total: new Decimal(93.17) },
+          _avg: { total: new Decimal(31.06) }
         })
       
-      mockPrisma.receipt.groupBy.mockResolvedValue([
+      mockReceiptGroupBy.mockResolvedValue([
         {
           category: 'Groceries',
           _count: { id: 1 },
@@ -476,7 +493,7 @@ describe('BulkOperationsService', () => {
           _count: { id: 1 },
           _sum: { total: 35.00 }
         }
-      ])
+      ] as any)
 
       mockPrisma.$queryRaw.mockResolvedValue([
         {
@@ -484,7 +501,7 @@ describe('BulkOperationsService', () => {
           count: 3,
           total: 93.17
         }
-      ])
+      ] as any)
 
       // Act
       const result = await BulkOperationsService.getReceiptStats('user-123')
@@ -524,8 +541,8 @@ describe('BulkOperationsService', () => {
         searchQuery: 'test'
       }
       
-      mockPrisma.receipt.count.mockResolvedValue(0)
-      mockPrisma.receipt.findMany.mockResolvedValue([])
+      mockReceiptCount.mockResolvedValue(0)
+      mockReceiptFindMany.mockResolvedValue([] as any)
 
       // Act
       const result = await BulkOperationsService.filterReceipts('user-123', validFilters)
