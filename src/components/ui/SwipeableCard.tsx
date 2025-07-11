@@ -52,6 +52,10 @@ export function SwipeableCard({
   const rotate = useTransform(x, [-200, 200], [-15, 15])
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0])
 
+  // Create transform hooks for action opacity - these must be at the top level
+  const leftActionOpacity = useTransform(x, [-200, -100, 0], [0, 0.8, 0])
+  const rightActionOpacity = useTransform(x, [0, 100, 200], [0, 0.8, 0])
+
   const actions: SwipeAction[] = [
     ...(onSwipeLeft ? [{
       direction: 'left',
@@ -146,12 +150,7 @@ export function SwipeableCard({
               action.color
             )}
             style={{
-              opacity: useTransform(x, 
-                action.direction === 'left' 
-                  ? [-200, -100, 0] 
-                  : [0, 100, 200],
-                [0, 0.8, 0]
-              )
+              opacity: action.direction === 'left' ? leftActionOpacity : rightActionOpacity
             }}
           >
             {action.icon || (
@@ -215,6 +214,10 @@ export function SwipeableListItem({
   const [isDragging, setIsDragging] = useState(false)
   const x = useMotionValue(0)
   const opacity = useTransform(x, [-200, -100, 0], [0, 1, 1])
+  
+  // Create transform hooks for background actions - these must be at the top level
+  const backgroundWidth = useTransform(x, [-200, -100], [120, 60])
+  const backgroundOpacity = useTransform(x, [-200, -50], [1, 0])
 
   const handleDragEnd = (event: any, info: PanInfo) => {
     if (disabled) return
@@ -252,8 +255,8 @@ export function SwipeableListItem({
       <motion.div 
         className="absolute right-0 top-0 bottom-0 flex items-center bg-red-500"
         style={{
-          width: useTransform(x, [-200, -100], [120, 60]),
-          opacity: useTransform(x, [-200, -50], [1, 0])
+          width: backgroundWidth,
+          opacity: backgroundOpacity
         }}
       >
         <div className="flex space-x-2 px-4">

@@ -25,6 +25,8 @@ import { isMobileDevice } from '@/lib/utils'
 export default function HomePage() {
   const { user, loading } = useAuth()
   const [isInitialized, setIsInitialized] = useState(false)
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Simulate initial app loading
   useEffect(() => {
@@ -82,8 +84,6 @@ export default function HomePage() {
   }
 
   // Show authenticated dashboard
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const isMobile = isMobileDevice()
 
   const handleRefresh = async () => {
