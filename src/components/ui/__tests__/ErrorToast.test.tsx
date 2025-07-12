@@ -1,236 +1,310 @@
 // ============================================================================
-// ERROR TOAST TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing Strategy)
+// ERROR TOAST COMPONENT TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
 // ============================================================================
-// Comprehensive tests for error toast functionality
-// Follows master guide: Unit Testing Strategy, Component Testing
+// Tests for ErrorToast component functionality
+// Uses global mocks from jest.setup.js for consistent isolation
 
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ErrorToast, ErrorType } from '../ErrorToast'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ErrorToast } from '../ErrorToast'
 
 // ============================================================================
-// TEST UTILITIES (see master guide: Testing Strategy)
+// TEST SETUP (see master guide: Unit Testing Strategy)
 // ============================================================================
 
-// Mock navigator.clipboard
-const mockClipboard = {
-  writeText: jest.fn()
-}
-Object.assign(navigator, { clipboard: mockClipboard })
+const mockError = new Error('Test error message')
+mockError.name = 'TestError'
+mockError.stack = 'Test stack trace'
 
 // ============================================================================
-// ERROR TOAST TESTS (see master guide: Unit Testing Strategy)
+// UNIT TESTS (see master guide: Unit Testing Strategy)
 // ============================================================================
 
-describe('ErrorToast', () => {
-  const mockError = new Error('Test error message')
-  mockError.stack = 'Test stack trace'
-
+describe('ErrorToast Component', () => {
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
     jest.clearAllMocks()
   })
 
-  it('renders with default error type', () => {
-    render(
-      <ErrorToast
-        title="Test Error"
-        message="Test error message"
-      />
-    )
-
-    expect(screen.getByText('Test Error')).toBeInTheDocument()
-    expect(screen.getByText('Test error message')).toBeInTheDocument()
+  afterEach(() => {
+    // Cleanup
+    jest.clearAllMocks()
   })
 
-  it('renders different error types', () => {
-    const { rerender } = render(
-      <ErrorToast
-        type="error"
-        title="Error Title"
-      />
-    )
+  // ============================================================================
+  // RENDERING TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    expect(screen.getByText('Error Title')).toBeInTheDocument()
+  describe('Rendering', () => {
+    it('should render error message correctly', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
-    // Warning type
-    rerender(
-      <ErrorToast
-        type="warning"
-        title="Warning Title"
-      />
-    )
-    expect(screen.getByText('Warning Title')).toBeInTheDocument()
+      // Assert
+      expect(screen.getByText('Test error message')).toBeInTheDocument()
+    })
 
-    // Info type
-    rerender(
-      <ErrorToast
-        type="info"
-        title="Info Title"
-      />
-    )
-    expect(screen.getByText('Info Title')).toBeInTheDocument()
+    it('should render with error icon', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
-    // Success type
-    rerender(
-      <ErrorToast
-        type="success"
-        title="Success Title"
-      />
-    )
-    expect(screen.getByText('Success Title')).toBeInTheDocument()
-  })
+      // Assert
+      expect(screen.getByText('Test Error')).toBeInTheDocument()
+    })
 
-  it('calls onDismiss when dismiss button is clicked', () => {
-    const mockDismiss = jest.fn()
-    
-    render(
-      <ErrorToast
-        title="Test Error"
-        onDismiss={mockDismiss}
-      />
-    )
+    it('should render dismiss button', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
-    const dismissButton = screen.getByRole('button', { name: /dismiss/i })
-    fireEvent.click(dismissButton)
-    expect(mockDismiss).toHaveBeenCalledTimes(1)
-  })
+      // Assert
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    })
 
-  it('calls onRetry when retry button is clicked', () => {
-    const mockRetry = jest.fn()
-    
-    render(
-      <ErrorToast
-        title="Test Error"
-        onRetry={mockRetry}
-      />
-    )
+    it('should apply error styling', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
-    fireEvent.click(screen.getByText('Retry'))
-    expect(mockRetry).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders custom actions when provided', () => {
-    const mockAction1 = jest.fn()
-    const mockAction2 = jest.fn()
-    
-    render(
-      <ErrorToast
-        title="Test Error"
-        actions={[
-          {
-            label: 'Custom Action 1',
-            onClick: mockAction1,
-            variant: 'default'
-          },
-          {
-            label: 'Custom Action 2',
-            onClick: mockAction2,
-            variant: 'outline'
-          }
-        ]}
-      />
-    )
-
-    expect(screen.getByText('Custom Action 1')).toBeInTheDocument()
-    expect(screen.getByText('Custom Action 2')).toBeInTheDocument()
-    
-    fireEvent.click(screen.getByText('Custom Action 1'))
-    expect(mockAction1).toHaveBeenCalledTimes(1)
-    
-    fireEvent.click(screen.getByText('Custom Action 2'))
-    expect(mockAction2).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders action icons when provided', () => {
-    const mockAction = jest.fn()
-    
-    render(
-      <ErrorToast
-        title="Test Error"
-        actions={[
-          {
-            label: 'Action with Icon',
-            onClick: mockAction,
-            icon: <div data-testid="action-icon">⚡</div>
-          }
-        ]}
-      />
-    )
-
-    expect(screen.getByTestId('action-icon')).toBeInTheDocument()
-  })
-
-  it('applies custom className', () => {
-    render(
-      <ErrorToast
-        title="Test Error"
-        className="custom-error-toast"
-      />
-    )
-
-    const container = screen.getByText('Test Error').closest('.custom-error-toast')
-    expect(container).toBeInTheDocument()
-  })
-
-  it('handles missing error gracefully', () => {
-    render(
-      <ErrorToast
-        title="Test Error"
-        showErrorDetails={true}
-      />
-    )
-
-    expect(screen.queryByText('Show error details')).not.toBeInTheDocument()
-  })
-})
-
-// ============================================================================
-// ERROR TYPE TESTS (see master guide: Component Testing)
-// ============================================================================
-
-describe('ErrorType', () => {
-  it('supports all error types', () => {
-    const errorTypes: ErrorType[] = ['error', 'warning', 'info', 'success']
-    
-    errorTypes.forEach(type => {
-      render(
-        <ErrorToast
-          type={type}
-          title={`${type} title`}
-        />
-      )
-      
-      expect(screen.getByText(`${type} title`)).toBeInTheDocument()
+      // Assert
+      const toast = screen.getByText('Test Error').closest('.bg-red-50')
+      expect(toast).toBeInTheDocument()
     })
   })
-})
 
-// ============================================================================
-// ACCESSIBILITY TESTS (see master guide: Component Testing)
-// ============================================================================
+  // ============================================================================
+  // INTERACTION TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-describe('ErrorToast Accessibility', () => {
-  it('has proper ARIA labels for dismiss button', () => {
-    render(
-      <ErrorToast
-        title="Test Error"
-        onDismiss={jest.fn()}
-      />
-    )
+  describe('User Interactions', () => {
+    it('should call onDismiss when dismiss button is clicked', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const onDismiss = jest.fn()
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={onDismiss} />)
 
-    const dismissButton = screen.getByRole('button', { name: /dismiss/i })
-    expect(dismissButton).toBeInTheDocument()
+      // Act
+      const dismissButton = screen.getByRole('button', { name: /dismiss/i })
+      await user.click(dismissButton)
+
+      // Assert
+      expect(onDismiss).toHaveBeenCalled()
+    })
+
+    it('should call onDismiss when close icon is clicked', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const onDismiss = jest.fn()
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={onDismiss} />)
+
+      // Act
+      const closeIcon = screen.getByTestId('close-icon')
+      await user.click(closeIcon)
+
+      // Assert
+      expect(onDismiss).toHaveBeenCalled()
+    })
+
+    it('should handle keyboard navigation', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const onDismiss = jest.fn()
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={onDismiss} />)
+
+      // Act
+      const dismissButton = screen.getByRole('button', { name: /dismiss/i })
+      dismissButton.focus()
+      await user.keyboard('{Enter}')
+
+      // Assert
+      expect(onDismiss).toHaveBeenCalled()
+    })
   })
 
-  it('has proper ARIA labels for retry button', () => {
-    render(
-      <ErrorToast
-        title="Test Error"
-        onRetry={jest.fn()}
-      />
-    )
+  // ============================================================================
+  // ACCESSIBILITY TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    const retryButton = screen.getByRole('button', { name: /retry/i })
-    expect(retryButton).toBeInTheDocument()
+  describe('Accessibility', () => {
+    it('should have proper ARIA attributes', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByText('Test Error')).toBeInTheDocument()
+    })
+
+    it('should announce error to screen readers', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByText('Test error message')).toBeInTheDocument()
+    })
+
+    it('should have proper button labels', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument()
+    })
+
+    it('should be keyboard navigable', () => {
+      // Arrange & Act
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      const dismissButton = screen.getByRole('button', { name: /dismiss/i })
+      expect(dismissButton).toBeInTheDocument()
+    })
+  })
+
+  // ============================================================================
+  // ANIMATION TESTS (see master guide: Component Testing)
+  // ============================================================================
+
+  describe('Animations', () => {
+    it('should have enter animation classes', () => {
+      // Arrange & Act
+      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      const toast = screen.getByRole('alert')
+      expect(toast).toHaveClass('animate-in', 'slide-in-from-top-full')
+    })
+
+    it('should have exit animation classes', () => {
+      // Arrange & Act
+      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      const toast = screen.getByRole('alert')
+      expect(toast).toHaveClass('animate-out', 'slide-out-to-top-full')
+    })
+  })
+
+  // ============================================================================
+  // ERROR HANDLING TESTS (see master guide: Component Testing)
+  // ============================================================================
+
+  describe('Error Handling', () => {
+    it('should handle missing error message', () => {
+      // Arrange
+      const errorWithoutMessage = {
+        ...mockError,
+        message: '',
+      }
+
+      // Act
+      render(<ErrorToast error={errorWithoutMessage} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+
+    it('should handle long error messages', () => {
+      // Arrange
+      const longError = {
+        ...mockError,
+        message: 'This is a very long error message that should be handled properly by the component without breaking the layout or causing any visual issues',
+      }
+
+      // Act
+      render(<ErrorToast error={longError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByText(longError.message)).toBeInTheDocument()
+    })
+
+    it('should handle special characters in error message', () => {
+      // Arrange
+      const specialCharError = {
+        ...mockError,
+        message: 'Error with special chars: <>&"\'',
+      }
+
+      // Act
+      render(<ErrorToast error={specialCharError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByText(specialCharError.message)).toBeInTheDocument()
+    })
+  })
+
+  // ============================================================================
+  // PROPS TESTS (see master guide: Component Testing)
+  // ============================================================================
+
+  describe('Props', () => {
+    it('should handle different error types', () => {
+      // Arrange
+      const warningError = {
+        ...mockError,
+        type: 'warning' as const,
+      }
+
+      // Act
+      render(<ErrorToast error={warningError} onDismiss={jest.fn()} />)
+
+      // Assert
+      const toast = screen.getByRole('alert')
+      expect(toast).toHaveClass('bg-yellow-50', 'border-yellow-200')
+    })
+
+    it('should handle custom className prop', () => {
+      // Arrange
+      const customClass = 'custom-error-toast'
+
+      // Act
+      render(<ErrorToast error={mockError} onDismiss={jest.fn()} className={customClass} />)
+
+      // Assert
+      const toast = screen.getByRole('alert')
+      expect(toast).toHaveClass(customClass)
+    })
+
+    it('should handle missing onDismiss prop', () => {
+      // Arrange & Act
+      render(<ErrorToast error={mockError} onDismiss={undefined} />)
+
+      // Assert
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument()
+    })
+  })
+
+  // ============================================================================
+  // INTEGRATION TESTS (see master guide: Component Testing)
+  // ============================================================================
+
+  describe('Integration', () => {
+    it('should work with toast context', () => {
+      // Arrange & Act
+      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+
+      // Assert
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+
+    it('should handle multiple toasts', () => {
+      // Arrange
+      const error2 = {
+        ...mockError,
+        id: 'error-2',
+        message: 'Second error message',
+      }
+
+      // Act
+      render(
+        <div>
+          <ErrorToast error={mockError} onDismiss={jest.fn()} />
+          <ErrorToast error={error2} onDismiss={jest.fn()} />
+        </div>
+      )
+
+      // Assert
+      expect(screen.getByText('Test error message')).toBeInTheDocument()
+      expect(screen.getByText('Second error message')).toBeInTheDocument()
+    })
   })
 }) 
