@@ -92,7 +92,11 @@ describe('useExport', () => {
       })
       
       // Patch the mockResponse.headers.get to return 'text/csv' for 'content-type'
-      mockResponse.headers.get = (name: string) => name.toLowerCase() === 'content-type' ? 'text/csv' : null
+      mockResponse.headers.get = (name: string) => {
+        if (name.toLowerCase() === 'content-type') return 'text/csv'
+        if (name.toLowerCase() === 'content-disposition') return 'attachment; filename="steward_receipts_2024-01-15_10-00-00.csv"'
+        return null
+      }
 
       mockFetch.mockResolvedValue(mockResponse)
       const { result } = renderHook(() => useExport())

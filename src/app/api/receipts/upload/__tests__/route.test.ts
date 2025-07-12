@@ -401,9 +401,10 @@ describe('POST /api/receipts/upload', () => {
   describe('File Upload', () => {
     it('should return 500 when Supabase upload fails', async () => {
       // Arrange
+      // Override the mock for this specific test
       mockSupabase.storage.upload.mockResolvedValue({
         data: null,
-        error: new Error('Upload failed'),
+        error: { message: 'Upload failed' },
       })
 
       const formData = new FormData()
