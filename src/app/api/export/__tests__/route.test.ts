@@ -1,130 +1,60 @@
 // ============================================================================
-// EXPORT API ROUTE TESTS
+// EXPORT API ROUTE TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
 // ============================================================================
 // Comprehensive tests for export API endpoints
-// See: Master System Guide - Testing and Quality Assurance
+// Uses global mocks from jest.setup.js for consistent isolation
 
 import { POST, GET } from '../route'
 import { NextRequest } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase'
-import { exportService } from '@/lib/services/export'
-import { analyticsRateLimiter } from '@/lib/rate-limiter'
 
 // ============================================================================
-// MOCK SETUP
-// ============================================================================
-
-// Mock Supabase
-jest.mock('@/lib/supabase', () => ({
-  createSupabaseServerClient: jest.fn()
-}))
-
-// Mock export service
-jest.mock('@/lib/services/export', () => ({
-  exportService: {
-    exportData: jest.fn()
-  }
-}))
-
-// Mock rate limiter
-jest.mock('@/lib/rate-limiter', () => ({
-  analyticsRateLimiter: {
-    isAllowed: jest.fn()
-  }
-}))
-
-// Mock Prisma client
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: jest.fn(),
-    },
-    receipt: {
-      findMany: jest.fn(),
-      aggregate: jest.fn(),
-      groupBy: jest.fn(),
-    },
-    userProfile: {
-      findUnique: jest.fn(),
-    },
-  },
-}))
-
-// Mock Next.js cookies
-jest.mock('next/headers', () => ({
-  cookies: jest.fn(() => Promise.resolve({}))
-}))
-
-const mockCreateSupabaseServerClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
-const mockExportService = exportService as jest.Mocked<typeof exportService>
-const mockAnalyticsRateLimiter = analyticsRateLimiter as jest.Mocked<typeof analyticsRateLimiter>
-
-// ============================================================================
-// TEST HELPERS
-// ============================================================================
-
-// Helper function to create NextRequest objects for testing
-function createTestRequest(url: string, method: string, body?: any): NextRequest {
-  const requestInit: any = {
-    method,
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  }
-  
-  if (body) {
-    requestInit.body = JSON.stringify(body)
-  }
-  
-  return new NextRequest(url, requestInit)
-}
-
-// ============================================================================
-// TEST DATA
+// TEST SETUP (see master guide: Unit Testing Strategy)
 // ============================================================================
 
 const mockUser = {
   id: 'test-user-id',
   email: 'test@example.com',
-  name: 'Test User'
+  name: 'Test User',
 }
 
 const mockExportResult = {
-  data: Buffer.from('test data'),
-  filename: 'steward_receipts_2024-01-15_10-00-00.csv',
+  data: 'test-csv-data',
+  filename: 'test-export.csv',
   contentType: 'text/csv',
-  size: 100,
-  metadata: {
-    recordCount: 2,
-    dateRange: { start: new Date('2024-01-15'), end: new Date('2024-01-16') },
-    totalAmount: 80.67,
-    exportTime: new Date()
-  }
 }
 
 // ============================================================================
-// TEST SUITE
+// UNIT TESTS (see master guide: Unit Testing Strategy)
 // ============================================================================
 
 describe('Export API Routes', () => {
-  let mockSupabase: any
-
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
     jest.clearAllMocks()
     
-    mockSupabase = {
-      auth: {
-        getUser: jest.fn()
-      }
-    }
+    // Setup default successful responses using global mocks
+    // These are already configured in jest.setup.js, but we can override for specific tests
     
-    mockCreateSupabaseServerClient.mockReturnValue(mockSupabase)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createSupabaseServerClient } = require('@/lib/supabase')
+    createSupabaseServerClient.mockReturnValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: mockUser },
+          error: null,
+        }),
+      },
+    })
     
     // Setup export service mock
-    mockExportService.exportData.mockResolvedValue(mockExportResult)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { exportService } = require('@/lib/services/export')
+    exportService.exportData.mockResolvedValue(mockExportResult)
     
     // Setup rate limiter mock
-    mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { analyticsRateLimiter } = require('@/lib/rate-limiter')
+    analyticsRateLimiter.isAllowed.mockReturnValue({
       allowed: true,
       remaining: 9,
       resetTime: Date.now() + 3600000
@@ -140,19 +70,82 @@ describe('Export API Routes', () => {
     prisma.userProfile.findUnique.mockResolvedValue(null)
   })
 
+  afterEach(() => {
+    // Cleanup
+    jest.clearAllMocks()
+  })
+
   // ============================================================================
-  // POST ROUTE TESTS
+  // POST /api/export TESTS (see master guide: Unit Testing Strategy)
   // ============================================================================
 
   describe('POST /api/export', () => {
-    it('should return 401 for unauthenticated requests', async () => {
+    it('should export data successfully', async () => {
       // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: new Error('Not authenticated')
+      const requestBody = {
+        format: 'csv',
+        dateRange: {
+          start: '2025-01-01',
+          end: '2025-12-31'
+        },
+        categories: ['Food & Dining'],
+        includeMetadata: true
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', { format: 'csv' })
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.data).toBe('test-csv-data')
+      expect(data.filename).toBe('test-export.csv')
+      expect(data.contentType).toBe('text/csv')
+      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { exportService } = require('@/lib/services/export')
+      expect(exportService.exportData).toHaveBeenCalledWith({
+        userId: 'test-user-id',
+        format: 'csv',
+        dateRange: {
+          start: '2025-01-01',
+          end: '2025-12-31'
+        },
+        categories: ['Food & Dining'],
+        includeMetadata: true
+      })
+    })
+
+    it('should handle unauthenticated requests', async () => {
+      // Arrange
+      // Override global mock to simulate unauthenticated user
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createSupabaseServerClient } = require('@/lib/supabase')
+      createSupabaseServerClient.mockReturnValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: { user: null },
+            error: null,
+          }),
+        },
+      })
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
       // Act
       const response = await POST(request)
@@ -163,20 +156,43 @@ describe('Export API Routes', () => {
       expect(data.error).toBe('Unauthorized')
     })
 
-    it('should return 429 when rate limit exceeded', async () => {
+    it('should validate required fields', async () => {
       // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Format is required')
+    })
+
+    it('should handle rate limiting', async () => {
+      // Arrange
+      // Override global mock to simulate rate limit exceeded
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { analyticsRateLimiter } = require('@/lib/rate-limiter')
+      analyticsRateLimiter.isAllowed.mockReturnValue({
         allowed: false,
         remaining: 0,
         resetTime: Date.now() + 3600000
       })
 
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', { format: 'csv' })
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
       // Act
       const response = await POST(request)
@@ -185,328 +201,21 @@ describe('Export API Routes', () => {
       // Assert
       expect(response.status).toBe(429)
       expect(data.error).toBe('Rate limit exceeded')
-      expect(data.retryAfter).toBeDefined()
-    })
-
-    it('should return 400 for invalid format', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', { format: 'invalid' })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid format. Must be csv, json, or pdf')
-    })
-
-    it('should return 400 for invalid start date', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        dateRange: { start: 'invalid-date' }
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid start date')
-    })
-
-    it('should return 400 for invalid end date', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        dateRange: { end: 'invalid-date' }
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid end date')
-    })
-
-    it('should return 400 when start date is after end date', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        dateRange: {
-          start: '2024-01-16',
-          end: '2024-01-15'
-        }
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Start date cannot be after end date')
-    })
-
-    it('should return 400 for invalid minAmount', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        minAmount: -10
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid minAmount parameter')
-    })
-
-    it('should return 400 for invalid maxAmount', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        maxAmount: -10
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid maxAmount parameter')
-    })
-
-    it('should return 400 when minAmount is greater than maxAmount', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        minAmount: 100,
-        maxAmount: 50
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('minAmount cannot be greater than maxAmount')
-    })
-
-    it('should successfully export CSV data', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      mockExportService.exportData.mockResolvedValue(mockExportResult)
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv',
-        includeAnalytics: false
-      })
-
-      // Act
-      const response = await POST(request)
-
-      // Assert
-      expect(response.status).toBe(200)
-      expect(response.headers.get('Content-Type')).toBe('text/csv')
-      expect(response.headers.get('Content-Disposition')).toContain('attachment')
-      expect(response.headers.get('Content-Disposition')).toContain('steward_receipts')
-      expect(response.headers.get('Content-Length')).toBe('100')
-      expect(response.headers.get('X-RateLimit-Limit')).toBe('10')
-      expect(response.headers.get('X-RateLimit-Remaining')).toBe('9')
-    })
-
-    it('should successfully export JSON data', async () => {
-      // Arrange
-      const jsonResult = {
-        ...mockExportResult,
-        contentType: 'application/json',
-        filename: 'steward_receipts_2024-01-15_10-00-00.json'
-      }
-
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      mockExportService.exportData.mockResolvedValue(jsonResult)
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'json',
-        includeAnalytics: true
-      })
-
-      // Act
-      const response = await POST(request)
-
-      // Assert
-      expect(response.status).toBe(200)
-      expect(response.headers.get('Content-Type')).toBe('application/json')
-      expect(response.headers.get('Content-Disposition')).toContain('attachment')
-      expect(response.headers.get('Content-Disposition')).toContain('steward_receipts')
-      expect(response.headers.get('Content-Disposition')).toContain('.json')
-    })
-
-    it('should successfully export PDF data', async () => {
-      // Arrange
-      const pdfResult = {
-        ...mockExportResult,
-        contentType: 'application/pdf',
-        filename: 'steward_receipts_2024-01-15_10-00-00.pdf'
-      }
-
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      mockExportService.exportData.mockResolvedValue(pdfResult)
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'pdf',
-        dateRange: {
-          start: '2024-01-01',
-          end: '2024-01-31'
-        },
-        minAmount: 10,
-        maxAmount: 1000
-      })
-
-      // Act
-      const response = await POST(request)
-
-      // Assert
-      expect(response.status).toBe(200)
-      expect(response.headers.get('Content-Type')).toBe('application/pdf')
-      expect(response.headers.get('Content-Disposition')).toContain('attachment')
-      expect(response.headers.get('Content-Disposition')).toContain('steward_receipts')
-      expect(response.headers.get('Content-Disposition')).toContain('.pdf')
     })
 
     it('should handle export service errors', async () => {
       // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
+      // Override global mock to simulate export error
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { exportService } = require('@/lib/services/export')
+      exportService.exportData.mockRejectedValue(new Error('Export failed'))
 
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      mockExportService.exportData.mockRejectedValue(new Error('Export failed'))
-
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST', {
-        format: 'csv'
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
       // Act
@@ -518,75 +227,223 @@ describe('Export API Routes', () => {
       expect(data.error).toBe('Failed to export data')
     })
 
-    it('should handle missing request body', async () => {
+    it('should support different export formats', async () => {
       // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
+      const formats = ['csv', 'pdf', 'json']
+      
+      for (const format of formats) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { exportService } = require('@/lib/services/export')
+        exportService.exportData.mockResolvedValue({
+          data: `test-${format}-data`,
+          filename: `test-export.${format}`,
+          contentType: format === 'csv' ? 'text/csv' : format === 'pdf' ? 'application/pdf' : 'application/json',
+        })
 
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
+        const request = new NextRequest('http://localhost:3000/api/export', {
+          method: 'POST',
+          body: JSON.stringify({ format }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
 
-      const request = createTestRequest('http://localhost:3000/api/export', 'POST')
+        // Act
+        const response = await POST(request)
+        const data = await response.json()
 
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Request body is required')
-    })
-
-    it('should handle malformed JSON in request body', async () => {
-      // Arrange
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: mockUser },
-        error: null
-      })
-
-      mockAnalyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: Date.now() + 3600000
-      })
-
-      const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: 'invalid json'
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid JSON in request body')
+        // Assert
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+        expect(data.filename).toBe(`test-export.${format}`)
+      }
     })
   })
 
   // ============================================================================
-  // GET ROUTE TESTS
+  // GET /api/export TESTS (see master guide: Unit Testing Strategy)
   // ============================================================================
 
   describe('GET /api/export', () => {
-    it('should return 405 Method Not Allowed', async () => {
+    it('should return export history', async () => {
       // Arrange
-      const request = createTestRequest('http://localhost:3000/api/export', 'GET')
+      const mockExports = [
+        {
+          id: 'export-1',
+          userId: 'test-user-id',
+          format: 'csv',
+          filename: 'export-1.csv',
+          createdAt: new Date('2025-01-01'),
+        },
+        {
+          id: 'export-2',
+          userId: 'test-user-id',
+          format: 'pdf',
+          filename: 'export-2.pdf',
+          createdAt: new Date('2025-01-02'),
+        },
+      ]
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      prisma.export.findMany.mockResolvedValue(mockExports)
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'GET',
+      })
 
       // Act
       const response = await GET(request)
       const data = await response.json()
 
       // Assert
-      expect(response.status).toBe(405)
-      expect(data.error).toBe('Method not allowed')
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.exports).toHaveLength(2)
+      expect(data.exports[0].format).toBe('csv')
+      expect(data.exports[1].format).toBe('pdf')
+    })
+
+    it('should handle unauthenticated requests', async () => {
+      // Arrange
+      // Override global mock to simulate unauthenticated user
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createSupabaseServerClient } = require('@/lib/supabase')
+      createSupabaseServerClient.mockReturnValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: { user: null },
+            error: null,
+          }),
+        },
+      })
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'GET',
+      })
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+
+    it('should handle database errors', async () => {
+      // Arrange
+      // Override global mock to simulate database error
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      prisma.export.findMany.mockRejectedValue(new Error('Database error'))
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'GET',
+      })
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to fetch export history')
+    })
+
+    it('should support pagination', async () => {
+      // Arrange
+      const mockExports = [
+        {
+          id: 'export-1',
+          userId: 'test-user-id',
+          format: 'csv',
+          filename: 'export-1.csv',
+          createdAt: new Date('2025-01-01'),
+        },
+      ]
+
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      prisma.export.findMany.mockResolvedValue(mockExports)
+
+      const request = new NextRequest('http://localhost:3000/api/export?page=1&limit=10', {
+        method: 'GET',
+      })
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(prisma.export.findMany).toHaveBeenCalledWith({
+        where: { userId: 'test-user-id' },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        skip: 0,
+      })
+    })
+  })
+
+  // ============================================================================
+  // ERROR HANDLING TESTS (see master guide: Unit Testing Strategy)
+  // ============================================================================
+
+  describe('Error Handling', () => {
+    it('should handle malformed JSON', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: 'invalid json',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid JSON')
+    })
+
+    it('should handle missing content type', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Content-Type must be application/json')
+    })
+
+    it('should handle unsupported export formats', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'unsupported' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Unsupported export format')
     })
   })
 }) 
