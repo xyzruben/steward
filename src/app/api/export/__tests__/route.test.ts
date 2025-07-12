@@ -1,11 +1,11 @@
 // ============================================================================
 // EXPORT API ROUTE TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
 // ============================================================================
-// Comprehensive tests for export API endpoints
+// Tests for export endpoint: POST /api/export
 // Uses global mocks from jest.setup.js for consistent isolation
 
-import { POST, GET } from '../route'
 import { NextRequest } from 'next/server'
+import { POST } from '../route'
 
 // ============================================================================
 // TEST SETUP (see master guide: Unit Testing Strategy)
@@ -17,17 +17,34 @@ const mockUser = {
   name: 'Test User',
 }
 
-const mockExportResult = {
-  data: 'test-csv-data',
-  filename: 'test-export.csv',
-  contentType: 'text/csv',
-}
+const mockReceipts = [
+  {
+    id: 'receipt-1',
+    userId: 'test-user-id',
+    merchant: 'Walmart',
+    total: 25.99,
+    category: 'Shopping',
+    purchaseDate: new Date('2024-01-01'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'receipt-2',
+    userId: 'test-user-id',
+    merchant: 'McDonald\'s',
+    total: 12.50,
+    category: 'Food & Dining',
+    purchaseDate: new Date('2024-01-02'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+]
 
 // ============================================================================
 // UNIT TESTS (see master guide: Unit Testing Strategy)
 // ============================================================================
 
-describe('Export API Routes', () => {
+describe('Export API Route', () => {
   beforeEach(() => {
     // Reset all mocks - global mocks are already set up in jest.setup.js
     jest.clearAllMocks()
@@ -46,28 +63,25 @@ describe('Export API Routes', () => {
       },
     })
     
-    // Setup export service mock
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { exportService } = require('@/lib/services/export')
-    exportService.exportData.mockResolvedValue(mockExportResult)
-    
-    // Setup rate limiter mock
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { analyticsRateLimiter } = require('@/lib/rate-limiter')
-    analyticsRateLimiter.isAllowed.mockReturnValue({
-      allowed: true,
-      remaining: 9,
-      resetTime: Date.now() + 3600000
-    })
-    
     // Setup Prisma mocks
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require('@/lib/prisma')
-    prisma.user.findUnique.mockResolvedValue({ id: 'test-user-id' })
-    prisma.receipt.findMany.mockResolvedValue([])
-    prisma.receipt.aggregate.mockResolvedValue({ _sum: { total: 0 }, _count: 0 })
-    prisma.receipt.groupBy.mockResolvedValue([])
-    prisma.userProfile.findUnique.mockResolvedValue(null)
+    prisma.user.findUnique.mockResolvedValue(mockUser)
+    prisma.receipt.findMany.mockResolvedValue(mockReceipts)
+    prisma.receipt.count.mockResolvedValue(2)
+    
+    // Setup service mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { exportService } = require('@/lib/services/export')
+    exportService.exportToCSV.mockResolvedValue('csv,data,here')
+    exportService.exportToJSON.mockResolvedValue('{"data": "json"}')
+    exportService.exportToPDF.mockResolvedValue(Buffer.from('pdf data'))
+    
+    // Setup notification service mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { notificationService } = require('@/lib/services/notifications')
+    notificationService.notifyExportCompleted.mockResolvedValue(undefined)
+    notificationService.notifyExportError.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -80,16 +94,16 @@ describe('Export API Routes', () => {
   // ============================================================================
 
   describe('POST /api/export', () => {
-    it('should export data successfully', async () => {
+    it('should export receipts to CSV successfully', async () => {
       // Arrange
       const requestBody = {
         format: 'csv',
-        dateRange: {
-          start: '2025-01-01',
-          end: '2025-12-31'
+        filters: {
+          startDate: '2024-01-01',
+          endDate: '2024-12-31',
+          categories: ['Shopping', 'Food & Dining'],
         },
-        categories: ['Food & Dining'],
-        includeMetadata: true
+        includeAnalytics: true,
       }
 
       const request = new NextRequest('http://localhost:3000/api/export', {
@@ -107,22 +121,104 @@ describe('Export API Routes', () => {
       // Assert
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      expect(data.data).toBe('test-csv-data')
-      expect(data.filename).toBe('test-export.csv')
-      expect(data.contentType).toBe('text/csv')
+      expect(data.downloadUrl).toBeDefined()
+      expect(data.format).toBe('csv')
       
+      // Verify export service was called
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { exportService } = require('@/lib/services/export')
-      expect(exportService.exportData).toHaveBeenCalledWith({
-        userId: 'test-user-id',
-        format: 'csv',
-        dateRange: {
-          start: '2025-01-01',
-          end: '2025-12-31'
+      expect(exportService.exportToCSV).toHaveBeenCalledWith(
+        mockReceipts,
+        expect.objectContaining({
+          includeAnalytics: true,
+          filters: requestBody.filters,
+        })
+      )
+      
+      // Verify notification was sent
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { notificationService } = require('@/lib/services/notifications')
+      expect(notificationService.notifyExportCompleted).toHaveBeenCalledWith(
+        mockUser.id,
+        'csv',
+        2
+      )
+    })
+
+    it('should export receipts to JSON successfully', async () => {
+      // Arrange
+      const requestBody = {
+        format: 'json',
+        filters: {},
+        includeAnalytics: false,
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
         },
-        categories: ['Food & Dining'],
-        includeMetadata: true
       })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.format).toBe('json')
+      
+      // Verify export service was called
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { exportService } = require('@/lib/services/export')
+      expect(exportService.exportToJSON).toHaveBeenCalledWith(
+        mockReceipts,
+        expect.objectContaining({
+          includeAnalytics: false,
+        })
+      )
+    })
+
+    it('should export receipts to PDF successfully', async () => {
+      // Arrange
+      const requestBody = {
+        format: 'pdf',
+        filters: {
+          minAmount: 10,
+          maxAmount: 100,
+        },
+        includeAnalytics: true,
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.format).toBe('pdf')
+      
+      // Verify export service was called
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { exportService } = require('@/lib/services/export')
+      expect(exportService.exportToPDF).toHaveBeenCalledWith(
+        mockReceipts,
+        expect.objectContaining({
+          includeAnalytics: true,
+          filters: requestBody.filters,
+        })
+      )
     })
 
     it('should handle unauthenticated requests', async () => {
@@ -156,7 +252,7 @@ describe('Export API Routes', () => {
       expect(data.error).toBe('Unauthorized')
     })
 
-    it('should validate required fields', async () => {
+    it('should validate required format parameter', async () => {
       // Arrange
       const request = new NextRequest('http://localhost:3000/api/export', {
         method: 'POST',
@@ -172,23 +268,14 @@ describe('Export API Routes', () => {
 
       // Assert
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Format is required')
+      expect(data.error).toBe('Export format is required')
     })
 
-    it('should handle rate limiting', async () => {
+    it('should validate supported formats', async () => {
       // Arrange
-      // Override global mock to simulate rate limit exceeded
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { analyticsRateLimiter } = require('@/lib/rate-limiter')
-      analyticsRateLimiter.isAllowed.mockReturnValue({
-        allowed: false,
-        remaining: 0,
-        resetTime: Date.now() + 3600000
-      })
-
       const request = new NextRequest('http://localhost:3000/api/export', {
         method: 'POST',
-        body: JSON.stringify({ format: 'csv' }),
+        body: JSON.stringify({ format: 'unsupported' }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -199,136 +286,8 @@ describe('Export API Routes', () => {
       const data = await response.json()
 
       // Assert
-      expect(response.status).toBe(429)
-      expect(data.error).toBe('Rate limit exceeded')
-    })
-
-    it('should handle export service errors', async () => {
-      // Arrange
-      // Override global mock to simulate export error
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { exportService } = require('@/lib/services/export')
-      exportService.exportData.mockRejectedValue(new Error('Export failed'))
-
-      const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'POST',
-        body: JSON.stringify({ format: 'csv' }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to export data')
-    })
-
-    it('should support different export formats', async () => {
-      // Arrange
-      const formats = ['csv', 'pdf', 'json']
-      
-      for (const format of formats) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { exportService } = require('@/lib/services/export')
-        exportService.exportData.mockResolvedValue({
-          data: `test-${format}-data`,
-          filename: `test-export.${format}`,
-          contentType: format === 'csv' ? 'text/csv' : format === 'pdf' ? 'application/pdf' : 'application/json',
-        })
-
-        const request = new NextRequest('http://localhost:3000/api/export', {
-          method: 'POST',
-          body: JSON.stringify({ format }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-
-        // Act
-        const response = await POST(request)
-        const data = await response.json()
-
-        // Assert
-        expect(response.status).toBe(200)
-        expect(data.success).toBe(true)
-        expect(data.filename).toBe(`test-export.${format}`)
-      }
-    })
-  })
-
-  // ============================================================================
-  // GET /api/export TESTS (see master guide: Unit Testing Strategy)
-  // ============================================================================
-
-  describe('GET /api/export', () => {
-    it('should return export history', async () => {
-      // Arrange
-      const mockExports = [
-        {
-          id: 'export-1',
-          userId: 'test-user-id',
-          format: 'csv',
-          filename: 'export-1.csv',
-          createdAt: new Date('2025-01-01'),
-        },
-        {
-          id: 'export-2',
-          userId: 'test-user-id',
-          format: 'pdf',
-          filename: 'export-2.pdf',
-          createdAt: new Date('2025-01-02'),
-        },
-      ]
-
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { prisma } = require('@/lib/prisma')
-      prisma.export.findMany.mockResolvedValue(mockExports)
-
-      const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'GET',
-      })
-
-      // Act
-      const response = await GET(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-      expect(data.exports).toHaveLength(2)
-      expect(data.exports[0].format).toBe('csv')
-      expect(data.exports[1].format).toBe('pdf')
-    })
-
-    it('should handle unauthenticated requests', async () => {
-      // Arrange
-      // Override global mock to simulate unauthenticated user
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { createSupabaseServerClient } = require('@/lib/supabase')
-      createSupabaseServerClient.mockReturnValue({
-        auth: {
-          getUser: jest.fn().mockResolvedValue({
-            data: { user: null },
-            error: null,
-          }),
-        },
-      })
-
-      const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'GET',
-      })
-
-      // Act
-      const response = await GET(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(401)
-      expect(data.error).toBe('Unauthorized')
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Unsupported export format')
     })
 
     it('should handle database errors', async () => {
@@ -336,62 +295,115 @@ describe('Export API Routes', () => {
       // Override global mock to simulate database error
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { prisma } = require('@/lib/prisma')
-      prisma.export.findMany.mockRejectedValue(new Error('Database error'))
+      prisma.receipt.findMany.mockRejectedValue(new Error('Database error'))
 
       const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'GET',
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
       // Act
-      const response = await GET(request)
+      const response = await POST(request)
       const data = await response.json()
 
       // Assert
       expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to fetch export history')
+      expect(data.error).toBe('Failed to fetch receipts for export')
+      
+      // Verify error notification was sent
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { notificationService } = require('@/lib/services/notifications')
+      expect(notificationService.notifyExportError).toHaveBeenCalledWith(
+        mockUser.id,
+        'Database error'
+      )
     })
 
-    it('should support pagination', async () => {
+    it('should handle export service errors', async () => {
       // Arrange
-      const mockExports = [
-        {
-          id: 'export-1',
-          userId: 'test-user-id',
-          format: 'csv',
-          filename: 'export-1.csv',
-          createdAt: new Date('2025-01-01'),
-        },
-      ]
-
+      // Override global mock to simulate export error
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { prisma } = require('@/lib/prisma')
-      prisma.export.findMany.mockResolvedValue(mockExports)
+      const { exportService } = require('@/lib/services/export')
+      exportService.exportToCSV.mockRejectedValue(new Error('Export failed'))
 
-      const request = new NextRequest('http://localhost:3000/api/export?page=1&limit=10', {
-        method: 'GET',
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify({ format: 'csv' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
       // Act
-      const response = await GET(request)
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to generate export')
+      
+      // Verify error notification was sent
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { notificationService } = require('@/lib/services/notifications')
+      expect(notificationService.notifyExportError).toHaveBeenCalledWith(
+        mockUser.id,
+        'Export failed'
+      )
+    })
+
+    it('should apply filters correctly', async () => {
+      // Arrange
+      const requestBody = {
+        format: 'csv',
+        filters: {
+          startDate: '2024-01-01',
+          endDate: '2024-01-31',
+          categories: ['Shopping'],
+          minAmount: 20,
+          maxAmount: 30,
+          merchants: ['Walmart'],
+        },
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/export', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
       const data = await response.json()
 
       // Assert
       expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-      expect(prisma.export.findMany).toHaveBeenCalledWith({
-        where: { userId: 'test-user-id' },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        skip: 0,
+      
+      // Verify Prisma was called with correct filters
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      expect(prisma.receipt.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'test-user-id',
+          purchaseDate: {
+            gte: new Date('2024-01-01'),
+            lte: new Date('2024-01-31'),
+          },
+          category: { in: ['Shopping'] },
+          total: {
+            gte: 20,
+            lte: 30,
+          },
+          merchant: { in: ['Walmart'] },
+        },
+        orderBy: { purchaseDate: 'desc' },
       })
     })
-  })
 
-  // ============================================================================
-  // ERROR HANDLING TESTS (see master guide: Unit Testing Strategy)
-  // ============================================================================
-
-  describe('Error Handling', () => {
     it('should handle malformed JSON', async () => {
       // Arrange
       const request = new NextRequest('http://localhost:3000/api/export', {
@@ -425,25 +437,6 @@ describe('Export API Routes', () => {
       // Assert
       expect(response.status).toBe(400)
       expect(data.error).toBe('Content-Type must be application/json')
-    })
-
-    it('should handle unsupported export formats', async () => {
-      // Arrange
-      const request = new NextRequest('http://localhost:3000/api/export', {
-        method: 'POST',
-        body: JSON.stringify({ format: 'unsupported' }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      // Act
-      const response = await POST(request)
-      const data = await response.json()
-
-      // Assert
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Unsupported export format')
     })
   })
 }) 

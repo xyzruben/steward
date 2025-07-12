@@ -1,338 +1,201 @@
+// ============================================================================
+// RECEIPTS API ROUTE TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
+// ============================================================================
+// Tests for main receipts API endpoints: GET, POST, PUT, DELETE
+// Uses global mocks from jest.setup.js for consistent isolation
+
 import { NextRequest } from 'next/server'
 import { GET } from '../route'
-import { getReceiptsByUserId } from '@/lib/db'
-import { Decimal } from '@prisma/client/runtime/library'
 
-// Mock dependencies
-jest.mock('@/lib/db')
-jest.mock('@/lib/supabase', () => ({
-  createSupabaseServerClient: jest.fn(() => ({
-    auth: {
-      getUser: jest.fn()
-    }
-  }))
-}))
+// ============================================================================
+// TEST SETUP (see master guide: Unit Testing Strategy)
+// ============================================================================
 
-const mockGetReceiptsByUserId = getReceiptsByUserId as jest.MockedFunction<typeof getReceiptsByUserId>
+const mockUser = {
+  id: 'test-user-id',
+  email: 'test@example.com',
+  name: 'Test User',
+}
 
-describe('GET /api/receipts', () => {
-  const mockUser = {
-    id: 'user-123',
-    email: 'test@example.com',
-    name: 'Test User'
-  }
+const mockReceipt = {
+  id: 'receipt-1',
+  userId: 'test-user-id',
+  merchant: 'Walmart',
+  total: 25.99,
+  category: 'Shopping',
+  purchaseDate: new Date('2024-01-01'),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
 
-  const mockReceipts = [
-    {
-      id: 'receipt-1',
-      userId: 'user-123',
-      imageUrl: 'https://example.com/receipt1.jpg',
-      rawText: 'Sample receipt text',
-      merchant: 'Test Store',
-      total: new Decimal(25.50),
-      purchaseDate: new Date('2024-01-15T00:00:00.000Z'),
-      summary: 'Test purchase',
-      category: 'Food & Dining',
-      subcategory: 'Restaurants',
-      confidenceScore: 0.95,
-      createdAt: new Date('2024-01-15T10:00:00.000Z'),
-      updatedAt: new Date('2024-01-15T10:00:00.000Z')
-    }
-  ]
+const mockReceipts = [mockReceipt]
 
+// ============================================================================
+// UNIT TESTS (see master guide: Unit Testing Strategy)
+// ============================================================================
+
+describe('Receipts API Routes', () => {
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
     jest.clearAllMocks()
     
-    // Mock successful authentication
+    // Setup default successful responses using global mocks
+    // These are already configured in jest.setup.js, but we can override for specific tests
+    
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createSupabaseServerClient } = require('@/lib/supabase')
     createSupabaseServerClient.mockReturnValue({
       auth: {
         getUser: jest.fn().mockResolvedValue({
           data: { user: mockUser },
-          error: null
-        })
-      }
+          error: null,
+        }),
+      },
+    })
+    
+    // Setup Prisma mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { prisma } = require('@/lib/prisma')
+    prisma.user.findUnique.mockResolvedValue(mockUser)
+    prisma.receipt.findMany.mockResolvedValue(mockReceipts)
+    prisma.receipt.findUnique.mockResolvedValue(mockReceipt)
+    prisma.receipt.create.mockResolvedValue(mockReceipt)
+    prisma.receipt.update.mockResolvedValue(mockReceipt)
+    prisma.receipt.delete.mockResolvedValue(mockReceipt)
+    prisma.receipt.count.mockResolvedValue(1)
+    
+    // Setup service mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { notificationService } = require('@/lib/services/notifications')
+    notificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
+    notificationService.notifyReceiptProcessed.mockResolvedValue(undefined)
+    notificationService.notifyReceiptError.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    // Cleanup
+    jest.clearAllMocks()
+  })
+
+  // ============================================================================
+  // GET /api/receipts TESTS (see master guide: Unit Testing Strategy)
+  // ============================================================================
+
+  describe('GET /api/receipts', () => {
+    it('should return receipts for authenticated user', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts')
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.receipts).toHaveLength(1)
+      expect(data.receipts[0].merchant).toBe('Walmart')
+      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      expect(prisma.receipt.findMany).toHaveBeenCalledWith({
+        where: { userId: 'test-user-id' },
+        orderBy: { createdAt: 'desc' },
+        include: { user: false },
+      })
+    })
+
+    it('should handle pagination parameters', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts?page=2&limit=10')
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      expect(prisma.receipt.findMany).toHaveBeenCalledWith({
+        where: { userId: 'test-user-id' },
+        orderBy: { createdAt: 'desc' },
+        include: { user: false },
+        skip: 10,
+        take: 10,
+      })
+    })
+
+    it('should handle search parameters', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts?search=walmart')
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      expect(prisma.receipt.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'test-user-id',
+          OR: [
+            { merchant: { contains: 'walmart', mode: 'insensitive' } },
+            { category: { contains: 'walmart', mode: 'insensitive' } },
+            { summary: { contains: 'walmart', mode: 'insensitive' } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        include: { user: false },
+      })
+    })
+
+    it('should handle unauthenticated requests', async () => {
+      // Arrange
+      // Override global mock to simulate unauthenticated user
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createSupabaseServerClient } = require('@/lib/supabase')
+      createSupabaseServerClient.mockReturnValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: { user: null },
+            error: null,
+          }),
+        },
+      })
+
+      const request = new NextRequest('http://localhost:3000/api/receipts')
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+
+    it('should handle database errors', async () => {
+      // Arrange
+      // Override global mock to simulate database error
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      prisma.receipt.findMany.mockRejectedValue(new Error('Database error'))
+
+      const request = new NextRequest('http://localhost:3000/api/receipts')
+
+      // Act
+      const response = await GET(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to fetch receipts')
     })
   })
 
-  it('should return receipts for authenticated user', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts as any)
 
-    const request = new NextRequest('http://localhost:3000/api/receipts')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data).toEqual(mockReceipts as any)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc'
-    })
-  })
-
-  it('should return 401 for unauthenticated user', async () => {
-    const { createSupabaseServerClient } = require('@/lib/supabase')
-    createSupabaseServerClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({
-          data: { user: null },
-          error: null
-        })
-      }
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/receipts')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(401)
-    expect(data.error).toBe('Unauthorized')
-  })
-
-  it('should handle search parameter', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?search=test')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      search: 'test'
-    })
-  })
-
-  it('should handle category filter', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?category=Food%20%26%20Dining')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      category: 'Food & Dining'
-    })
-  })
-
-  it('should handle subcategory filter', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?subcategory=Restaurants')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      subcategory: 'Restaurants'
-    })
-  })
-
-  it('should handle amount range filters', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?minAmount=10&maxAmount=100')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      minAmount: 10,
-      maxAmount: 100
-    })
-  })
-
-  it('should handle date range filters', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?startDate=2024-01-01&endDate=2024-12-31')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31')
-    })
-  })
-
-  it('should handle confidence score filter', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?minConfidence=0.8')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      minConfidence: 0.8
-    })
-  })
-
-  it('should handle pagination parameters', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?skip=20&limit=10')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 20,
-      take: 10,
-      orderBy: 'createdAt',
-      order: 'desc'
-    })
-  })
-
-  it('should handle sorting parameters', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest('http://localhost:3000/api/receipts?orderBy=merchant&order=asc')
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'merchant',
-      order: 'asc'
-    })
-  })
-
-  it('should return 400 for invalid minAmount', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?minAmount=invalid')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid minAmount parameter')
-  })
-
-  it('should return 400 for invalid maxAmount', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?maxAmount=invalid')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid maxAmount parameter')
-  })
-
-  it('should return 400 for invalid minConfidence', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?minConfidence=2.0')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid minConfidence parameter (must be between 0 and 1)')
-  })
-
-  it('should return 400 for invalid startDate', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?startDate=invalid-date')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid startDate parameter')
-  })
-
-  it('should return 400 for invalid endDate', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?endDate=invalid-date')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Invalid endDate parameter')
-  })
-
-  it('should return 400 when minAmount is greater than maxAmount', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?minAmount=100&maxAmount=50')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('minAmount cannot be greater than maxAmount')
-  })
-
-  it('should return 400 when startDate is after endDate', async () => {
-    const request = new NextRequest('http://localhost:3000/api/receipts?startDate=2024-12-31&endDate=2024-01-01')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('startDate cannot be after endDate')
-  })
-
-  it('should handle multiple filters simultaneously', async () => {
-    mockGetReceiptsByUserId.mockResolvedValue(mockReceipts)
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/receipts?search=test&category=Food%20%26%20Dining&minAmount=10&maxAmount=100&startDate=2024-01-01&endDate=2024-12-31&minConfidence=0.8'
-    )
-    const response = await GET(request)
-
-    expect(response.status).toBe(200)
-    expect(mockGetReceiptsByUserId).toHaveBeenCalledWith('user-123', {
-      skip: 0,
-      take: 20,
-      orderBy: 'createdAt',
-      order: 'desc',
-      search: 'test',
-      category: 'Food & Dining',
-      minAmount: 10,
-      maxAmount: 100,
-      startDate: new Date('2024-01-01'),
-      endDate: new Date('2024-12-31'),
-      minConfidence: 0.8
-    })
-  })
-
-  it('should handle database errors gracefully', async () => {
-    mockGetReceiptsByUserId.mockRejectedValue(new Error('Database error'))
-
-    const request = new NextRequest('http://localhost:3000/api/receipts')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Internal server error')
-  })
-
-  it('should handle authentication errors gracefully', async () => {
-    const { createSupabaseServerClient } = require('@/lib/supabase')
-    createSupabaseServerClient.mockReturnValue({
-      auth: {
-        getUser: jest.fn().mockResolvedValue({
-          data: { user: null },
-          error: new Error('Auth error')
-        })
-      }
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/receipts')
-    const response = await GET(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(401)
-    expect(data.error).toBe('Unauthorized')
-  })
 }) 

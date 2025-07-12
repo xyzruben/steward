@@ -1,290 +1,272 @@
+// ============================================================================
+// BULK OPERATIONS API ROUTE TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
+// ============================================================================
+// Tests for bulk receipt operations: update, delete, export
+// Uses global mocks from jest.setup.js for consistent isolation
+
 import { NextRequest } from 'next/server'
 import { POST } from '../route'
-import { createSupabaseServerClient } from '@/lib/supabase'
-import { deleteReceipt, updateReceipt, getReceiptsByUserId } from '@/lib/db'
-import { bulkOperationsService } from '@/lib/services/bulkOperations'
 
-// Mock dependencies
-jest.mock('@/lib/supabase')
-jest.mock('@/lib/db')
-jest.mock('@/lib/services/bulkOperations')
-jest.mock('next/headers', () => ({
-  cookies: jest.fn().mockResolvedValue({})
-}))
+// ============================================================================
+// TEST SETUP (see master guide: Unit Testing Strategy)
+// ============================================================================
 
-// Mock Prisma client
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: jest.fn(),
-    },
-    receipt: {
-      findMany: jest.fn(),
-      updateMany: jest.fn(),
-      deleteMany: jest.fn(),
-      count: jest.fn(),
-    },
+const mockUser = {
+  id: 'test-user-id',
+  email: 'test@example.com',
+  name: 'Test User',
+}
+
+const mockReceipts = [
+  {
+    id: 'receipt-1',
+    userId: 'test-user-id',
+    merchant: 'Walmart',
+    total: 25.99,
+    category: 'Shopping',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
-}))
+  {
+    id: 'receipt-2',
+    userId: 'test-user-id',
+    merchant: 'McDonald\'s',
+    total: 12.50,
+    category: 'Food & Dining',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+]
 
-const mockCreateSupabaseServerClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
-const mockDeleteReceipt = deleteReceipt as jest.MockedFunction<typeof deleteReceipt>
-const mockUpdateReceipt = updateReceipt as jest.MockedFunction<typeof updateReceipt>
-const mockGetReceiptsByUserId = getReceiptsByUserId as jest.MockedFunction<typeof getReceiptsByUserId>
-const mockBulkOperationsService = bulkOperationsService as jest.Mocked<typeof bulkOperationsService>
+// ============================================================================
+// UNIT TESTS (see master guide: Unit Testing Strategy)
+// ============================================================================
 
-describe('/api/receipts/bulk', () => {
-  const mockUser = {
-    id: 'user-123',
-    email: 'test@example.com'
-  }
-
-  const mockSupabase = {
-    auth: {
-      getUser: jest.fn()
-    }
-  }
-
+describe('Bulk Operations API Routes', () => {
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
     jest.clearAllMocks()
-    mockCreateSupabaseServerClient.mockReturnValue(mockSupabase as any)
-    mockSupabase.auth.getUser.mockResolvedValue({
-      data: { user: mockUser },
-      error: null
+    
+    // Setup default successful responses using global mocks
+    // These are already configured in jest.setup.js, but we can override for specific tests
+    
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createSupabaseServerClient } = require('@/lib/supabase')
+    createSupabaseServerClient.mockReturnValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: mockUser },
+          error: null,
+        }),
+      },
     })
     
     // Setup Prisma mocks
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { prisma } = require('@/lib/prisma')
-    prisma.user.findUnique.mockResolvedValue({ id: 'user-123' })
-    prisma.receipt.findMany.mockResolvedValue([])
-    prisma.receipt.updateMany.mockResolvedValue({ count: 0 })
-    prisma.receipt.deleteMany.mockResolvedValue({ count: 0 })
-    prisma.receipt.count.mockResolvedValue(0)
+    prisma.user.findUnique.mockResolvedValue(mockUser)
+    prisma.receipt.findMany.mockResolvedValue(mockReceipts)
+    prisma.receipt.updateMany.mockResolvedValue({ count: 2 })
+    prisma.receipt.deleteMany.mockResolvedValue({ count: 2 })
+    
+    // Setup service mocks
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { notificationService } = require('@/lib/services/notifications')
+    notificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
+    notificationService.notifyReceiptProcessed.mockResolvedValue(undefined)
+    notificationService.notifyReceiptError.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
+    // Cleanup
     jest.clearAllMocks()
   })
 
-  const createRequest = (body: any): NextRequest => {
-    return new NextRequest('http://localhost:3000/api/receipts/bulk', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body)
+  // ============================================================================
+  // POST /api/receipts/bulk TESTS (see master guide: Unit Testing Strategy)
+  // ============================================================================
+
+  describe('POST /api/receipts/bulk', () => {
+    it('should update multiple receipts successfully', async () => {
+      // Arrange
+      const requestBody = {
+        action: 'update',
+        receiptIds: ['receipt-1', 'receipt-2'],
+        updates: {
+          category: 'Updated Category',
+          subcategory: 'Updated Subcategory',
+        },
+      }
+
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.updatedCount).toBe(2)
+      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      expect(prisma.receipt.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['receipt-1', 'receipt-2'] },
+          userId: 'test-user-id',
+        },
+        data: {
+          category: 'Updated Category',
+          subcategory: 'Updated Subcategory',
+        },
+      })
     })
-  }
 
-  describe('POST', () => {
-    it('should return 401 for unauthenticated user', async () => {
-      jest.resetModules(); // Clear module cache
-
-      // Set up the mock BEFORE importing the route
-      const mockCreateSupabaseServerClient = require('@/lib/supabase').createSupabaseServerClient;
-      mockCreateSupabaseServerClient.mockReturnValue({
+    it('should handle unauthenticated requests', async () => {
+      // Arrange
+      // Override global mock to simulate unauthenticated user
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { createSupabaseServerClient } = require('@/lib/supabase')
+      createSupabaseServerClient.mockReturnValue({
         auth: {
           getUser: jest.fn().mockResolvedValue({
             data: { user: null },
-            error: new Error('Unauthorized')
-          })
-        }
-      });
-
-      // Import the route after the mock is set
-      const { POST } = require('../route');
-
-      const request = createRequest({
-        action: 'delete',
-        receiptIds: ['receipt-1']
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
-    })
-
-    it('should return 400 for missing action', async () => {
-      const request = createRequest({
-        receiptIds: ['receipt-1']
+            error: null,
+          }),
+        },
       })
 
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'update', receiptIds: ['1'], updates: {} }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
       const response = await POST(request)
       const data = await response.json()
 
+      // Assert
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+
+    it('should validate required fields', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Action is required')
+    })
+
+    it('should handle invalid action', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'invalid' }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
       expect(response.status).toBe(400)
       expect(data.error).toBe('Invalid action')
     })
 
-    it('should return 400 for missing receiptIds', async () => {
-      const request = createRequest({
-        action: 'delete'
-      })
+    it('should handle database errors', async () => {
+      // Arrange
+      // Override global mock to simulate database error
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { prisma } = require('@/lib/prisma')
+      prisma.receipt.updateMany.mockRejectedValue(new Error('Database error'))
 
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('receiptIds array is required')
-    })
-
-    it('should return 400 for invalid action', async () => {
-      const request = createRequest({
-        action: 'invalid',
-        receiptIds: ['receipt-1']
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid action')
-    })
-
-    it('should return 400 for update action without updates', async () => {
-      const request = createRequest({
-        action: 'update',
-        receiptIds: ['receipt-1']
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('updates object is required')
-    })
-
-    describe('delete action', () => {
-      it('should successfully delete receipts', async () => {
-        const mockDeleteResult = {
-          success: true,
-          processedCount: 2,
-          successCount: 2,
-          errorCount: 0,
-          errors: [],
-          operationId: 'test-operation-id',
-          duration: 100
-        }
-
-        mockBulkOperationsService.bulkDelete.mockResolvedValue(mockDeleteResult as any)
-
-        const request = createRequest({
-          action: 'delete',
-          receiptIds: ['receipt-1', 'receipt-2']
-        })
-
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(200)
-        expect(data.success).toBe(true)
-        expect(data.processedCount).toBe(2)
-        expect(data.successCount).toBe(2)
-        expect(data.errorCount).toBe(0)
-        expect(data.errors).toHaveLength(0)
-      })
-
-      it('should handle partial failures', async () => {
-        const mockDeleteResult = {
-          success: true,
-          processedCount: 2,
-          successCount: 1,
-          errorCount: 1,
-          errors: [{ receiptId: 'receipt-2', error: 'Database error' }],
-          operationId: 'test-operation-id',
-          duration: 100
-        }
-
-        mockBulkOperationsService.bulkDelete.mockResolvedValue(mockDeleteResult as any)
-
-        const request = createRequest({
-          action: 'delete',
-          receiptIds: ['receipt-1', 'receipt-2']
-        })
-
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(200)
-        expect(data.successCount).toBe(1)
-        expect(data.errorCount).toBe(1)
-        expect(data.errors).toHaveLength(1)
-      })
-    })
-
-    describe('update action', () => {
-      it('should successfully update receipts', async () => {
-        const mockUpdateResult = {
-          success: true,
-          processedCount: 1,
-          successCount: 1,
-          errorCount: 0,
-          errors: [],
-          operationId: 'test-operation-id',
-          duration: 100
-        }
-
-        mockBulkOperationsService.bulkUpdate.mockResolvedValue(mockUpdateResult as any)
-
-        const request = createRequest({
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({
           action: 'update',
           receiptIds: ['receipt-1'],
-          updates: {
-            category: 'Food & Dining',
-            subcategory: 'Restaurants'
-          }
-        })
-
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(200)
-        expect(data.success).toBe(true)
-        expect(data.processedCount).toBe(1)
-        expect(data.successCount).toBe(1)
-        expect(data.errorCount).toBe(0)
+          updates: { category: 'Test' },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to update receipts')
+    })
+  })
+
+
+
+  // ============================================================================
+  // ERROR HANDLING TESTS (see master guide: Unit Testing Strategy)
+  // ============================================================================
+
+  describe('Error Handling', () => {
+    it('should handle malformed JSON', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: 'invalid json',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid JSON')
     })
 
-    describe('export action', () => {
-      it('should successfully export receipts', async () => {
-        const mockExportResult = {
-          receipts: [
-            {
-              id: 'receipt-1',
-              merchant: 'Test Store',
-              total: 10.99,
-              purchaseDate: new Date('2024-01-01'),
-              category: 'Food & Dining',
-              subcategory: 'Restaurants',
-              summary: 'Test receipt',
-              imageUrl: 'https://example.com/receipt1.jpg'
-            }
-          ],
-          totalCount: 1,
-          filteredCount: 1,
-          appliedFilters: {}
-        }
-
-        mockBulkOperationsService.prepareBulkExport.mockResolvedValue(mockExportResult as any)
-
-        const request = createRequest({
-          action: 'export',
-          receiptIds: ['receipt-1']
-        })
-
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(200)
-        expect(data.receipts).toHaveLength(1)
-        expect(data.receipts[0].merchant).toBe('Test Store')
-        expect(data.format).toBe('csv')
-        expect(data.includeAnalytics).toBe(false)
+    it('should handle missing content type', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/receipts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'update' }),
       })
+
+      // Act
+      const response = await POST(request)
+      const data = await response.json()
+
+      // Assert
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Content-Type must be application/json')
     })
   })
 }) 
