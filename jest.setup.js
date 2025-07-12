@@ -7,6 +7,137 @@
 import '@testing-library/jest-dom'
 
 // ============================================================================
+// WEB API POLYFILLS (see master guide: Testing and Quality Assurance)
+// ============================================================================
+
+// Polyfill Web APIs for Node.js test environment
+global.Request = class Request {
+  constructor(url, options = {}) {
+    this.url = url
+    this.method = options.method || 'GET'
+    this.headers = new Headers(options.headers || {})
+    this.body = options.body
+  }
+}
+
+global.Response = class Response {
+  constructor(body, options = {}) {
+    this.body = body
+    this.status = options.status || 200
+    this.statusText = options.statusText || 'OK'
+    this.headers = new Headers(options.headers || {})
+  }
+
+  json() {
+    return Promise.resolve(this.body)
+  }
+
+  text() {
+    return Promise.resolve(JSON.stringify(this.body))
+  }
+}
+
+global.Headers = class Headers {
+  constructor(init = {}) {
+    this._headers = new Map()
+    Object.entries(init).forEach(([key, value]) => {
+      this.set(key, value)
+    })
+  }
+
+  set(name, value) {
+    this._headers.set(name.toLowerCase(), value)
+  }
+
+  get(name) {
+    return this._headers.get(name.toLowerCase()) || null
+  }
+
+  has(name) {
+    return this._headers.has(name.toLowerCase())
+  }
+
+  append(name, value) {
+    const existing = this.get(name)
+    if (existing) {
+      this.set(name, `${existing}, ${value}`)
+    } else {
+      this.set(name, value)
+    }
+  }
+
+  delete(name) {
+    this._headers.delete(name.toLowerCase())
+  }
+
+  forEach(callback) {
+    this._headers.forEach((value, key) => callback(value, key))
+  }
+}
+
+global.Blob = class Blob {
+  constructor(content, options = {}) {
+    this.content = content
+    this.type = options.type || 'application/octet-stream'
+    this.size = content ? content.length : 0
+  }
+
+  arrayBuffer() {
+    return Promise.resolve(new ArrayBuffer(this.size))
+  }
+
+  text() {
+    return Promise.resolve(this.content || '')
+  }
+}
+
+global.File = class File extends Blob {
+  constructor(content, filename, options = {}) {
+    super(content, options)
+    this.name = filename
+    this.lastModified = Date.now()
+  }
+}
+
+global.FormData = class FormData {
+  constructor() {
+    this._data = new Map()
+  }
+
+  append(name, value) {
+    this._data.set(name, value)
+  }
+
+  get(name) {
+    return this._data.get(name)
+  }
+
+  has(name) {
+    return this._data.has(name)
+  }
+
+  delete(name) {
+    this._data.delete(name)
+  }
+
+  forEach(callback) {
+    this._data.forEach((value, key) => callback(value, key))
+  }
+
+  entries() {
+    return this._data.entries()
+  }
+
+  keys() {
+    return this._data.keys()
+  }
+
+  values() {
+    return this._data.values()
+  }
+}
+
+// ============================================================================
 // GLOBAL MOCKS (see master guide: Mocking Practices)
 // ============================================================================
 

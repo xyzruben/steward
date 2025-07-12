@@ -175,11 +175,15 @@ export function ErrorToast({
   }
 
   return (
-    <div className={cn(
-      'fixed top-4 right-4 z-50 w-full max-w-md transform transition-all duration-300 ease-in-out',
-      isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
-      className
-    )}>
+    <div 
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      className={cn(
+        'fixed top-4 right-4 z-50 w-full max-w-md transform transition-all duration-300 ease-in-out',
+        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
+        className
+      )}>
       <Card className={cn(
         'border shadow-lg',
         config.bgColor,

@@ -240,7 +240,7 @@ export function SkeletonList({
   ...props 
 }: SkeletonListProps) {
   return (
-    <div className={cn('space-y-4', className)} {...props}>
+    <div className={cn('space-y-4', className)} data-testid="skeleton-list" {...props}>
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonCard 
           key={i} 
@@ -288,6 +288,7 @@ export function SkeletonGrid({
         gridCols[columns as keyof typeof gridCols] || gridCols[2],
         className
       )} 
+      data-testid="skeleton-grid"
       {...props}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -324,7 +325,7 @@ export function SkeletonTable({
   ...props 
 }: SkeletonTableProps) {
   return (
-    <div className={cn('space-y-2', className)} {...props}>
+    <div className={cn('space-y-2', className)} data-testid="skeleton-table" {...props}>
       {showHeader && (
         <div className="grid grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
           {Array.from({ length: columns }).map((_, i) => (
@@ -374,10 +375,10 @@ export function SkeletonDashboard({
   ...props 
 }: SkeletonDashboardProps) {
   return (
-    <div className={cn('space-y-8', className)} {...props}>
+    <div className={cn('space-y-8', className)} data-testid="skeleton-dashboard" {...props}>
       {/* Stats Section */}
       {showStats && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="skeleton-stats">
           <div className="flex items-center justify-between">
             <Skeleton width={200} height={28} />
             <Skeleton width={100} height={20} />
@@ -391,7 +392,7 @@ export function SkeletonDashboard({
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
           {showReceipts && (
-            <div className="space-y-4">
+            <div className="space-y-4" data-testid="skeleton-receipts">
               <Skeleton width={150} height={24} />
               <SkeletonList count={3} variant="receipt" />
             </div>
@@ -401,7 +402,9 @@ export function SkeletonDashboard({
         {/* Sidebar */}
         <div className="space-y-8">
           {showUpload && (
-            <SkeletonCard variant="upload" />
+            <div data-testid="skeleton-upload">
+              <SkeletonCard variant="upload" />
+            </div>
           )}
         </div>
       </div>

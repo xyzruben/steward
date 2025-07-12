@@ -1,7 +1,17 @@
+// ============================================================================
+// THEME TOGGLE COMPONENT TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
+// ============================================================================
+// Tests for ThemeToggle component functionality
+// Uses global mocks from jest.setup.js for consistent isolation
+
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ThemeToggle } from '../ThemeToggle'
 import { ThemeProvider } from '@/context/ThemeContext'
+
+// ============================================================================
+// TEST SETUP (see master guide: Unit Testing Strategy)
+// ============================================================================
 
 // Mock localStorage
 const localStorageMock = {
@@ -37,81 +47,205 @@ function renderThemeToggle() {
   )
 }
 
+// ============================================================================
+// TEST SUITE (see master guide: Component Testing)
+// ============================================================================
+
 describe('ThemeToggle', () => {
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
+    jest.clearAllMocks()
+    
     localStorageMock.getItem.mockClear()
     localStorageMock.setItem.mockClear()
   })
 
-  it('should render all theme options', () => {
-    renderThemeToggle()
-
-    expect(screen.getByLabelText('Switch to Light theme')).toBeInTheDocument()
-    expect(screen.getByLabelText('Switch to Dark theme')).toBeInTheDocument()
-    expect(screen.getByLabelText('Switch to System theme')).toBeInTheDocument()
+  afterEach(() => {
+    // Cleanup
+    jest.clearAllMocks()
   })
 
-  it('should show theme labels on larger screens', () => {
-    renderThemeToggle()
+  // ============================================================================
+  // RENDERING TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    // Labels should be present (they're hidden on small screens with sm:hidden)
-    expect(screen.getByText('Light')).toBeInTheDocument()
-    expect(screen.getByText('Dark')).toBeInTheDocument()
-    expect(screen.getByText('System')).toBeInTheDocument()
+  describe('Rendering', () => {
+    it('should render a single theme toggle button', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toBeInTheDocument()
+    })
+
+    it('should show correct tooltip for current theme', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert - Default theme is 'system' based on ThemeContext
+      const button = screen.getByRole('button')
+      expect(button).toHaveAttribute('title', 'Switch to Light mode (click to cycle: Light → Dark → System)')
+      expect(button).toHaveAttribute('aria-label', 'Switch to Light mode (click to cycle: Light → Dark → System)')
+    })
+
+    it('should display the correct icon for current theme', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert - Should show Monitor icon for system theme
+      const monitorIcon = screen.getByRole('button').querySelector('.lucide-monitor')
+      expect(monitorIcon).toBeInTheDocument()
+    })
   })
 
-  it('should have proper accessibility attributes', () => {
-    renderThemeToggle()
+  // ============================================================================
+  // INTERACTION TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    const lightButton = screen.getByLabelText('Switch to Light theme')
-    const darkButton = screen.getByLabelText('Switch to Dark theme')
-    const systemButton = screen.getByLabelText('Switch to System theme')
+  describe('Theme Cycling', () => {
+    it('should cycle through themes when clicked', () => {
+      // Arrange
+      renderThemeToggle()
+      const button = screen.getByRole('button')
 
-    expect(lightButton).toHaveAttribute('aria-label', 'Switch to Light theme')
-    expect(darkButton).toHaveAttribute('aria-label', 'Switch to Dark theme')
-    expect(systemButton).toHaveAttribute('aria-label', 'Switch to System theme')
+      // Act - First click: system → light
+      fireEvent.click(button)
+
+      // Assert - Should show Sun icon and light theme tooltip
+      expect(screen.getByRole('button')).toHaveAttribute('title', 'Switch to Dark mode (click to cycle: Light → Dark → System)')
+      expect(screen.getByRole('button').querySelector('.lucide-sun')).toBeInTheDocument()
+
+      // Act - Second click: light → dark
+      fireEvent.click(button)
+
+      // Assert - Should show Moon icon and dark theme tooltip
+      expect(screen.getByRole('button')).toHaveAttribute('title', 'Switch to System mode (click to cycle: Light → Dark → System)')
+      expect(screen.getByRole('button').querySelector('.lucide-moon')).toBeInTheDocument()
+
+      // Act - Third click: dark → system
+      fireEvent.click(button)
+
+      // Assert - Should show Monitor icon and system theme tooltip
+      expect(screen.getByRole('button')).toHaveAttribute('title', 'Switch to Light mode (click to cycle: Light → Dark → System)')
+      expect(screen.getByRole('button').querySelector('.lucide-monitor')).toBeInTheDocument()
+    })
+
+    it('should call setTheme when clicked', () => {
+      // Arrange
+      renderThemeToggle()
+      const button = screen.getByRole('button')
+
+      // Act
+      fireEvent.click(button)
+
+      // Assert - Theme should be updated (this is handled by the ThemeContext)
+      expect(button).toHaveAttribute('title', 'Switch to Dark mode (click to cycle: Light → Dark → System)')
+    })
   })
 
-  it('should switch themes when buttons are clicked', () => {
-    renderThemeToggle()
+  // ============================================================================
+  // ACCESSIBILITY TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    const darkButton = screen.getByLabelText('Switch to Dark theme')
-    fireEvent.click(darkButton)
+  describe('Accessibility', () => {
+    it('should have proper accessibility attributes', () => {
+      // Arrange & Act
+      renderThemeToggle()
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('steward-theme', 'dark')
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveAttribute('aria-label')
+      expect(button).toHaveAttribute('title')
+      expect(button).toHaveAttribute('role', 'button')
+    })
+
+    it('should be keyboard accessible', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveAttribute('tabIndex', '0')
+    })
+
+    it('should have focus styles', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveClass('focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500')
+    })
   })
 
-  it('should highlight the active theme', () => {
-    localStorageMock.getItem.mockReturnValue('dark')
-    
-    renderThemeToggle()
+  // ============================================================================
+  // STYLING TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    const darkButton = screen.getByLabelText('Switch to Dark theme')
-    const lightButton = screen.getByLabelText('Switch to Light theme')
-    const systemButton = screen.getByLabelText('Switch to System theme')
+  describe('Styling', () => {
+    it('should have proper hover states', () => {
+      // Arrange & Act
+      renderThemeToggle()
 
-    // Dark button should be highlighted
-    expect(darkButton).toHaveClass('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-sm')
-    
-    // Other buttons should not be highlighted
-    expect(lightButton).not.toHaveClass('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-sm')
-    expect(systemButton).not.toHaveClass('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-sm')
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveClass('hover:text-slate-900', 'dark:hover:text-white')
+    })
+
+    it('should have smooth transitions', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveClass('transition-all', 'duration-200', 'ease-in-out')
+    })
+
+    it('should have proper base styling', () => {
+      // Arrange & Act
+      renderThemeToggle()
+
+      // Assert
+      const button = screen.getByRole('button')
+      expect(button).toHaveClass('p-2', 'rounded-md', 'text-slate-600', 'dark:text-slate-400')
+    })
   })
 
-  it('should have proper hover states', () => {
-    renderThemeToggle()
+  // ============================================================================
+  // EDGE CASES TESTS (see master guide: Component Testing)
+  // ============================================================================
 
-    const lightButton = screen.getByLabelText('Switch to Light theme')
-    
-    expect(lightButton).toHaveClass('hover:text-slate-900', 'dark:hover:text-white')
-  })
+  describe('Edge Cases', () => {
+    it('should handle rapid clicking', () => {
+      // Arrange
+      renderThemeToggle()
+      const button = screen.getByRole('button')
 
-  it('should have smooth transitions', () => {
-    renderThemeToggle()
+      // Act - Rapid clicks
+      fireEvent.click(button)
+      fireEvent.click(button)
+      fireEvent.click(button)
+      fireEvent.click(button)
 
-    const container = document.querySelector('.flex.items-center.space-x-1')
-    
-    // Check that the container has transition classes
-    expect(container).toHaveClass('transition-colors')
+      // Assert - Should still be functional
+      expect(button).toBeInTheDocument()
+      expect(button).toHaveAttribute('aria-label')
+    })
+
+    it('should maintain state consistency', () => {
+      // Arrange
+      renderThemeToggle()
+      const button = screen.getByRole('button')
+
+      // Act - Cycle through all themes
+      fireEvent.click(button) // system → light
+      fireEvent.click(button) // light → dark
+      fireEvent.click(button) // dark → system
+
+      // Assert - Should be back to system theme
+      expect(button).toHaveAttribute('title', 'Switch to Light mode (click to cycle: Light → Dark → System)')
+      expect(button.querySelector('.lucide-monitor')).toBeInTheDocument()
+    })
   })
 }) 

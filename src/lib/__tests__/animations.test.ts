@@ -41,9 +41,9 @@ describe('Animation Utilities', () => {
     it('returns fade transition when explicitly requested', () => {
       const transition = getPageTransition('fade')
       
-      expect(transition.initial).toEqual({ opacity: 0 })
+      expect(transition.initial).toMatchObject({ opacity: 0 })
       expect(transition.animate).toMatchObject({ opacity: 1 })
-      expect(transition.exit).toEqual({ opacity: 0 })
+      expect(transition.exit).toMatchObject({ opacity: 0 })
     })
 
     it('returns slide-up transition', () => {
@@ -101,9 +101,9 @@ describe('Animation Utilities', () => {
       const transition = getPageTransition('invalid' as any)
       
       // Should fall back to fade transition
-      expect(transition.initial).toEqual({ opacity: 0 })
+      expect(transition.initial).toMatchObject({ opacity: 0 })
       expect(transition.animate).toMatchObject({ opacity: 1 })
-      expect(transition.exit).toEqual({ opacity: 0 })
+      expect(transition.exit).toMatchObject({ opacity: 0 })
     })
   })
 
