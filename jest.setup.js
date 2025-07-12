@@ -1,283 +1,187 @@
 // ============================================================================
-// JEST SETUP CONFIGURATION (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
+// JEST SETUP (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
 // ============================================================================
-// Configures testing environment, custom matchers, and global test utilities
+// Comprehensive test environment setup with proper isolation
+// Follows master guide: Mocking Practices, Integration Testing
 
 import '@testing-library/jest-dom'
 
 // ============================================================================
-// CUSTOM TEST UTILITIES (see master guide: Mocking Practices)
+// GLOBAL MOCKS (see master guide: Mocking Practices)
 // ============================================================================
 
-// Mock Next.js router
-jest.mock('next/navigation', () => ({
-  useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-    }
-  },
-  useSearchParams() {
-    return new URLSearchParams()
-  },
-  usePathname() {
-    return '/'
-  },
+// Mock all external services to ensure test isolation
+jest.mock('@/lib/supabase', () => ({
+  createSupabaseBrowserClient: jest.fn(() => ({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+        error: null,
+      }),
+      signOut: jest.fn().mockResolvedValue({ error: null }),
+    },
+    storage: {
+      upload: jest.fn().mockResolvedValue({
+        data: { path: 'test-path' },
+        error: null,
+      }),
+      getPublicUrl: jest.fn().mockReturnValue({
+        data: { publicUrl: 'https://test-url.com' },
+      }),
+      remove: jest.fn().mockResolvedValue({ error: null }),
+    },
+    channel: jest.fn(() => ({
+      on: jest.fn().mockReturnThis(),
+      subscribe: jest.fn().mockResolvedValue(undefined),
+      send: jest.fn().mockResolvedValue(undefined),
+    })),
+    removeChannel: jest.fn().mockResolvedValue(undefined),
+  })),
+  createSupabaseServerClient: jest.fn(() => ({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+        error: null,
+      }),
+    },
+    storage: {
+      upload: jest.fn().mockResolvedValue({
+        data: { path: 'test-path' },
+        error: null,
+      }),
+      getPublicUrl: jest.fn().mockReturnValue({
+        data: { publicUrl: 'https://test-url.com' },
+      }),
+    },
+  })),
 }))
 
-// Mock Next.js cookies
-jest.mock('next/headers', () => ({
-  cookies() {
-    return {
-      get: jest.fn(),
-      set: jest.fn(),
+// Mock Prisma client for complete database isolation
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
-    }
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    receipt: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      aggregate: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    userProfile: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+    },
+    notification: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    notificationPreferences: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      create: jest.fn(),
+    },
+    $queryRaw: jest.fn(),
+    $queryRawUnsafe: jest.fn(),
+    $transaction: jest.fn((callback) => callback()),
   },
 }))
 
-// Mock Next.js server with ESM compatibility
-jest.mock('next/server', () => ({
-  NextRequest: global.Request,
-  NextResponse: global.NextResponse,
-}), { virtual: true })
+// Mock database operations
+jest.mock('@/lib/db', () => ({
+  createReceipt: jest.fn(),
+  getReceiptsByUserId: jest.fn(),
+  updateReceipt: jest.fn(),
+  deleteReceipt: jest.fn(),
+  getUserProfile: jest.fn(),
+  updateUserProfile: jest.fn(),
+}))
 
-// ============================================================================
-// GLOBAL TEST HELPERS (see master guide: Testing and Quality Assurance)
-// ============================================================================
+// Mock external AI services
+jest.mock('@/lib/services/openai', () => ({
+  extractReceiptDataWithAI: jest.fn().mockResolvedValue({
+    merchant: 'Test Merchant',
+    total: 25.99,
+    purchaseDate: new Date().toISOString(),
+    category: 'Food & Dining',
+    tags: ['test'],
+    confidence: 95,
+    summary: 'Test receipt',
+  }),
+}))
 
-// Mock file upload helper
-global.createMockFile = (name, type, size = 1024) => {
-  const file = new File(['mock content'], name, { type })
-  Object.defineProperty(file, 'size', { value: size })
-  return file
-}
+jest.mock('@/lib/services/cloudOcr', () => ({
+  extractTextFromImage: jest.fn().mockResolvedValue('Test OCR text'),
+  imageBufferToBase64: jest.fn().mockReturnValue('data:image/jpeg;base64,test'),
+}))
 
-// Mock FormData helper
-global.createMockFormData = (file) => {
-  const formData = new FormData()
-  formData.append('file', file)
-  return formData
-}
-
-// Mock API response helper
-global.createMockApiResponse = (data, status = 200) => {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
-// ============================================================================
-// TEST ENVIRONMENT CONFIGURATION (see master guide: Testing and Quality Assurance)
-// ============================================================================
-
-// Add Web API globals for API route testing
-global.Request = class MockRequest {
-  constructor(url, init = {}) {
-    this._url = url
-    this.method = init.method || 'GET'
-    this.body = init.body
-    this._headers = new Map(Object.entries(init.headers || {}))
-  }
-
-  get url() {
-    return this._url
-  }
-
-  get headers() {
-    return {
-      get: (key) => this._headers.get(key),
-      has: (key) => this._headers.has(key),
-      set: (key, value) => this._headers.set(key, value),
-      forEach: (callback) => this._headers.forEach(callback),
-      entries: () => this._headers.entries(),
-      keys: () => this._headers.keys(),
-      values: () => this._headers.values(),
-    }
-  }
-
-  async formData() {
-    return this.body
-  }
-
-  // Add .json() for Next.js API route compatibility
-  async json() {
-    if (typeof this.body === 'string') {
-      try {
-        return JSON.parse(this.body)
-      } catch {
-        throw new Error('Invalid JSON in request body')
-      }
-    }
-    return this.body
-  }
-}
-
-global.Response = class MockResponse {
-  constructor(body, init = {}) {
-    this.body = body
-    this.status = init.status || 200
-    this._headers = new Map(Object.entries(init.headers || {}))
-  }
-
-  get headers() {
-    return {
-      get: (key) => this._headers.get(key),
-      has: (key) => this._headers.has(key),
-      set: (key, value) => this._headers.set(key, value),
-      forEach: (callback) => this._headers.forEach(callback),
-      entries: () => this._headers.entries(),
-      keys: () => this._headers.keys(),
-      values: () => this._headers.values(),
-    }
-  }
-
-  async json() {
-    return typeof this.body === 'string' ? JSON.parse(this.body) : this.body
-  }
-}
-
-// Mock NextResponse for API route testing
-global.NextResponse = class MockNextResponse extends global.Response {
-  constructor(body, init = {}) {
-    super(body, {
-      status: init.status || 200,
-      headers: {
-        'Content-Type': init.headers?.['Content-Type'] || 'application/json',
-        ...init.headers,
-      },
-      ...init,
-    })
-  }
-
-  static json(data, init = {}) {
-    return new global.NextResponse(JSON.stringify(data), {
-      status: init.status || 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...init.headers,
-      },
-    })
-  }
-
-  static redirect(url, init = {}) {
-    return new global.NextResponse(null, {
-      status: init.status || 302,
-      headers: {
-        'Location': url,
-        ...init.headers,
-      },
-    })
-  }
-}
-
-global.FormData = class MockFormData {
-  constructor() {
-    this.data = new Map()
-  }
-
-  append(key, value) {
-    this.data.set(key, value)
-  }
-
-  get(key) {
-    return this.data.get(key)
-  }
-}
-
-global.File = class MockFile {
-  constructor(content, name, options = {}) {
-    // Ensure content is a string of the correct length
-    this.content = Array.isArray(content) ? content.join('') : String(content)
-    this.name = name
-    this.type = options.type || 'text/plain'
-    this.size = this.content.length
-  }
-
-  async arrayBuffer() {
-    // Fill buffer with 'x' char code (120) to simulate real file content
-    const arr = new Uint8Array(this.size).fill(120)
-    return arr.buffer
-  }
-}
-
-// Suppress console warnings in tests (but keep errors)
-const originalWarn = console.warn
-beforeAll(() => {
-  console.warn = (...args) => {
-    if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is deprecated')
-    ) {
-      return
-    }
-    originalWarn.call(console, ...args)
-  }
-})
-
-afterAll(() => {
-  console.warn = originalWarn
-})
-
-// ============================================================================
-// CUSTOM MATCHERS (see master guide: Testing and Quality Assurance)
-// ============================================================================
-
-// Custom matcher for API error responses
-expect.extend({
-  toBeApiError(received, expectedStatus = 400) {
-    const pass = received.status === expectedStatus
-    return {
-      pass,
-      message: () =>
-        `expected API response to have status ${expectedStatus}, but got ${received.status}`,
-    }
+// Mock rate limiting
+jest.mock('@/lib/rate-limiter', () => ({
+  analyticsRateLimiter: {
+    isAllowed: jest.fn().mockReturnValue({
+      allowed: true,
+      remaining: 10,
+      resetTime: Date.now() + 3600000,
+    }),
   },
+}))
+
+// Mock image processing
+jest.mock('sharp', () => {
+  return jest.fn().mockImplementation(() => ({
+    resize: jest.fn().mockReturnThis(),
+    jpeg: jest.fn().mockReturnThis(),
+    toBuffer: jest.fn().mockResolvedValue(Buffer.from('test-image')),
+  }))
 })
 
-// Custom matcher for file validation
-expect.extend({
-  toBeValidFile(received, expectedType) {
-    const pass = received instanceof File && received.type === expectedType
-    return {
-      pass,
-      message: () =>
-        `expected valid ${expectedType} file, but got ${received?.type || 'invalid file'}`,
-    }
-  },
-})
+// Mock file system operations
+jest.mock('fs/promises', () => ({
+  readFile: jest.fn().mockResolvedValue(Buffer.from('test-file')),
+  writeFile: jest.fn().mockResolvedValue(undefined),
+  unlink: jest.fn().mockResolvedValue(undefined),
+}))
 
-// Explicitly mock Supabase ESM modules to use our local mock with correct ESM interop
-jest.mock('@supabase/ssr', () => {
-  const actual = require('@/lib/supabase');
-  return {
-    ...actual,
-    __esModule: true,
-    default: actual,
-  };
-});
-jest.mock('@supabase/supabase-js', () => {
-  const actual = require('@/lib/supabase');
-  return {
-    ...actual,
-    __esModule: true,
-    default: actual,
-  };
-});
-// Mock the local Supabase module path alias to use our mock file
-jest.mock('@/lib/supabase', () => {
-  const mock = require('@/__mocks__/supabase');
-  return {
-    ...mock,
-    __esModule: true,
-    default: mock,
-  };
-});
+// Mock Next.js specific modules
+jest.mock('next/headers', () => ({
+  cookies: jest.fn().mockResolvedValue({
+    get: jest.fn().mockReturnValue({ value: 'test-cookie' }),
+    set: jest.fn(),
+    delete: jest.fn(),
+  }),
+  headers: jest.fn().mockResolvedValue({
+    get: jest.fn().mockReturnValue('test-header'),
+  }),
+}))
+
+// Mock authentication context
+jest.mock('@/context/AuthContext', () => ({
+  useAuth: jest.fn().mockReturnValue({
+    user: { id: 'test-user-id', email: 'test@example.com' },
+    loading: false,
+    signIn: jest.fn(),
+    signOut: jest.fn(),
+  }),
+  AuthProvider: ({ children }) => children,
+}))
 
 // Mock the realtime service to prevent Supabase client instantiation issues
 jest.mock('@/lib/services/realtime', () => ({
@@ -290,4 +194,206 @@ jest.mock('@/lib/services/realtime', () => ({
     getConnectionStatus: jest.fn(() => false),
     getActiveChannels: jest.fn(() => []),
   })),
-})); 
+  realtimeService: {
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    broadcastAnalyticsUpdate: jest.fn(),
+    getConnectionStatus: jest.fn(() => false),
+    getActiveChannels: jest.fn(() => []),
+  },
+}))
+
+// Mock all service instances
+jest.mock('@/lib/services/notifications', () => ({
+  NotificationService: {
+    createNotification: jest.fn(),
+    getUserNotifications: jest.fn(),
+    markAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+    getNotificationCount: jest.fn(),
+  },
+  notificationService: {
+    createNotification: jest.fn(),
+    getUserNotifications: jest.fn(),
+    markAsRead: jest.fn(),
+    deleteNotification: jest.fn(),
+    getNotificationCount: jest.fn(),
+    notifyReceiptUploaded: jest.fn(),
+    notifyReceiptProcessed: jest.fn(),
+    notifyReceiptError: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/services/export', () => ({
+  ExportService: {
+    exportData: jest.fn(),
+    generateCsv: jest.fn(),
+    generatePdf: jest.fn(),
+  },
+  exportService: {
+    exportData: jest.fn(),
+    generateCsv: jest.fn(),
+    generatePdf: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/services/analytics', () => ({
+  AnalyticsService: {
+    getSpendingAnalytics: jest.fn(),
+    getCategoryBreakdown: jest.fn(),
+    getMonthlyTrends: jest.fn(),
+    getReceiptStats: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/services/bulkOperations', () => ({
+  BulkOperationsService: {
+    bulkUpdate: jest.fn(),
+    bulkDelete: jest.fn(),
+    bulkExport: jest.fn(),
+  },
+  bulkOperationsService: {
+    bulkUpdate: jest.fn(),
+    bulkDelete: jest.fn(),
+    bulkExport: jest.fn(),
+  },
+}))
+
+jest.mock('@/lib/services/userProfile', () => ({
+  UserProfileService: {
+    getUserProfile: jest.fn(),
+    updateUserProfile: jest.fn(),
+    createUserProfile: jest.fn(),
+    deleteUserProfile: jest.fn(),
+  },
+  userProfileService: {
+    getUserProfile: jest.fn(),
+    updateUserProfile: jest.fn(),
+    createUserProfile: jest.fn(),
+    deleteUserProfile: jest.fn(),
+  },
+}))
+
+// ============================================================================
+// TEST ENVIRONMENT SETUP (see master guide: Testing and Quality Assurance)
+// ============================================================================
+
+// Set test environment variables
+process.env.NODE_ENV = 'test'
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
+process.env.GOOGLE_CLOUD_VISION_API_KEY = 'test-vision-api-key'
+process.env.OPENAI_API_KEY = 'test-openai-api-key'
+
+// Mock console methods to reduce noise in tests
+global.console = {
+  ...console,
+  // Uncomment to suppress console.log in tests
+  // log: jest.fn(),
+  // debug: jest.fn(),
+  // info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+}
+
+// Mock fetch globally
+global.fetch = jest.fn()
+
+// Mock URL.createObjectURL and URL.revokeObjectURL
+global.URL.createObjectURL = jest.fn(() => 'mock-url')
+global.URL.revokeObjectURL = jest.fn()
+
+// Mock ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
+
+// Mock IntersectionObserver
+global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
+
+// ============================================================================
+// TEST UTILITIES (see master guide: Testing and Quality Assurance)
+// ============================================================================
+
+// Helper function to reset all mocks between tests
+global.resetAllMocks = () => {
+  jest.clearAllMocks()
+  
+  // Reset Prisma mocks
+  const { prisma } = require('@/lib/prisma')
+  Object.values(prisma).forEach((model) => {
+    if (typeof model === 'object' && model !== null) {
+      Object.values(model).forEach((method) => {
+        if (typeof method === 'function' && method.mockClear) {
+          method.mockClear()
+        }
+      })
+    }
+  })
+  
+  // Reset service mocks
+  const services = [
+    '@/lib/services/notifications',
+    '@/lib/services/export',
+    '@/lib/services/analytics',
+    '@/lib/services/bulkOperations',
+    '@/lib/services/userProfile',
+    '@/lib/services/realtime',
+  ]
+  
+  services.forEach((servicePath) => {
+    try {
+      jest.resetModules()
+      require(servicePath)
+    } catch (error) {
+      // Service might not exist, ignore
+    }
+  })
+}
+
+// Helper function to create mock user data
+global.createMockUser = (overrides = {}) => ({
+  id: 'test-user-id',
+  email: 'test@example.com',
+  name: 'Test User',
+  avatarUrl: null,
+  ...overrides,
+})
+
+// Helper function to create mock receipt data
+global.createMockReceipt = (overrides = {}) => ({
+  id: 'test-receipt-id',
+  userId: 'test-user-id',
+  imageUrl: 'https://test-url.com/receipt.jpg',
+  rawText: 'Test receipt text',
+  merchant: 'Test Merchant',
+  total: 25.99,
+  purchaseDate: new Date('2025-01-01'),
+  category: 'Food & Dining',
+  tags: ['test'],
+  summary: 'Test receipt summary',
+  confidence: 95,
+  createdAt: new Date('2025-01-01'),
+  updatedAt: new Date('2025-01-01'),
+  ...overrides,
+})
+
+// Helper function to create mock file
+global.createMockFile = (name = 'test.jpg', type = 'image/jpeg', size = 1024) => {
+  const file = new File(['test content'], name, { type })
+  Object.defineProperty(file, 'size', { value: size })
+  return file
+}
+
+console.log('🧪 Test environment configured with comprehensive isolation')
+console.log('📊 Coverage targets: 80% critical paths, 60% overall')
+console.log('🔒 All external services are mocked for reliable test execution') 

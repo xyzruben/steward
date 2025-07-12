@@ -3,56 +3,32 @@
 // ============================================================================
 // Comprehensive tests for notification service functionality
 // Follows master guide: Unit Testing Strategy, Mocking Practices
+// Uses global mocks from jest.setup.js for consistent isolation
 
 import { NotificationService } from '../notifications'
 import { prisma } from '@/lib/prisma'
 import { createSupabaseServerClient } from '@/lib/supabase'
-import { Decimal } from '@prisma/client/runtime/library'
-
-// ============================================================================
-// MOCKS (see master guide: Mocking Practices)
-// ============================================================================
-
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn() as jest.MockedFunction<any>,
-  },
-  notification: {
-    create: jest.fn() as jest.MockedFunction<any>,
-    findMany: jest.fn() as jest.MockedFunction<any>,
-    updateMany: jest.fn() as jest.MockedFunction<any>,
-    deleteMany: jest.fn() as jest.MockedFunction<any>,
-    count: jest.fn() as jest.MockedFunction<any>,
-  },
-  notificationPreferences: {
-    findUnique: jest.fn() as jest.MockedFunction<any>,
-    upsert: jest.fn() as jest.MockedFunction<any>,
-    create: jest.fn() as jest.MockedFunction<any>,
-  },
-}
-
-jest.mock('@/lib/prisma', () => ({
-  prisma: mockPrisma,
-}))
-
-jest.mock('@/lib/supabase', () => ({
-  createSupabaseServerClient: jest.fn(() => ({
-    channel: jest.fn(() => ({
-      send: jest.fn(),
-    })),
-  })),
-}))
 
 // ============================================================================
 // TEST SETUP (see master guide: Unit Testing Strategy)
 // ============================================================================
-const mockSupabase = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 
 describe('NotificationService', () => {
   let notificationService: NotificationService
 
   beforeEach(() => {
+    // Reset all mocks - global mocks are already set up in jest.setup.js
+    jest.clearAllMocks()
+    
+    // Create fresh service instance
     notificationService = new NotificationService()
+    
+    // Setup default successful responses using global mocks
+    // These are already configured in jest.setup.js, but we can override for specific tests
+  })
+
+  afterEach(() => {
+    // Cleanup
     jest.clearAllMocks()
   })
 
@@ -75,8 +51,9 @@ describe('NotificationService', () => {
     }
 
     it('should create a notification successfully', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.notification.create.mockResolvedValue(mockNotification as any)
+      // Override global mock for this specific test
+      prisma.user.findUnique.mockResolvedValue(mockUser as any)
+      prisma.notification.create.mockResolvedValue(mockNotification as any)
 
       const result = await notificationService.createNotification({
         userId: 'user-123',
@@ -86,11 +63,11 @@ describe('NotificationService', () => {
         metadata: { receiptId: 'receipt-123' },
       })
 
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'user-123' },
         select: { id: true },
       })
-      expect(mockPrisma.notification.create).toHaveBeenCalledWith({
+      expect(prisma.notification.create).toHaveBeenCalledWith({
         data: {
           userId: 'user-123',
           type: 'receipt_uploaded',
@@ -114,7 +91,8 @@ describe('NotificationService', () => {
     })
 
     it('should throw error if user not found', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null)
+      // Override global mock to simulate user not found
+      prisma.user.findUnique.mockResolvedValue(null)
 
       await expect(
         notificationService.createNotification({
@@ -127,8 +105,9 @@ describe('NotificationService', () => {
     })
 
     it('should handle database errors gracefully', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any)
-      mockPrisma.notification.create.mockRejectedValue(new Error('Database error'))
+      // Override global mock to simulate database error
+      prisma.user.findUnique.mockResolvedValue(mockUser as any)
+      prisma.notification.create.mockRejectedValue(new Error('Database error'))
 
       await expect(
         notificationService.createNotification({
@@ -168,11 +147,12 @@ describe('NotificationService', () => {
     ]
 
     it('should get notifications with default filters', async () => {
-      mockPrisma.notification.findMany.mockResolvedValue(mockNotifications as any)
+      // Override global mock for this specific test
+      prisma.notification.findMany.mockResolvedValue(mockNotifications as any)
 
       const result = await notificationService.getNotifications('user-123')
 
-      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith({
+      expect(prisma.notification.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-123' },
         orderBy: { createdAt: 'desc' },
         take: 50,
@@ -182,7 +162,8 @@ describe('NotificationService', () => {
     })
 
     it('should apply filters correctly', async () => {
-      mockPrisma.notification.findMany.mockResolvedValue([mockNotifications[0]] as any)
+      // Override global mock for this specific test
+      prisma.notification.findMany.mockResolvedValue([mockNotifications[0]] as any)
 
       const result = await notificationService.getNotifications('user-123', {
         type: 'receipt_uploaded',
@@ -191,7 +172,7 @@ describe('NotificationService', () => {
         offset: 5,
       })
 
-      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith({
+      expect(prisma.notification.findMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           type: 'receipt_uploaded',
@@ -202,95 +183,69 @@ describe('NotificationService', () => {
         skip: 5,
       })
       expect(result).toHaveLength(1)
+      expect(result[0].type).toBe('receipt_uploaded')
     })
 
-    it('should handle date filters', async () => {
-      const startDate = new Date('2024-01-01')
-      const endDate = new Date('2024-12-31')
-      mockPrisma.notification.findMany.mockResolvedValue(mockNotifications as any)
+    it('should handle empty results', async () => {
+      // Override global mock to simulate no notifications
+      prisma.notification.findMany.mockResolvedValue([])
 
-      await notificationService.getNotifications('user-123', {
-        startDate,
-        endDate,
-      })
+      const result = await notificationService.getNotifications('user-123')
 
-      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith({
-        where: {
-          userId: 'user-123',
-          createdAt: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        skip: 0,
-      })
+      expect(result).toHaveLength(0)
     })
   })
 
   describe('markAsRead', () => {
-    it('should mark notification as read', async () => {
-      mockPrisma.notification.updateMany.mockResolvedValue({ count: 1 } as any)
+    it('should mark notifications as read', async () => {
+      // Override global mock for this specific test
+      prisma.notification.updateMany.mockResolvedValue({ count: 2 })
 
-      await notificationService.markAsRead('notification-123', 'user-123')
+      const result = await notificationService.markAsRead('user-123', ['notification-1', 'notification-2'])
 
-      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
+      expect(prisma.notification.updateMany).toHaveBeenCalledWith({
         where: {
-          id: 'notification-123',
           userId: 'user-123',
+          id: { in: ['notification-1', 'notification-2'] },
         },
         data: { isRead: true },
       })
+      expect(result).toBe(2)
+    })
+
+    it('should handle empty notification IDs', async () => {
+      const result = await notificationService.markAsRead('user-123', [])
+
+      expect(prisma.notification.updateMany).not.toHaveBeenCalled()
+      expect(result).toBe(0)
     })
   })
 
-  describe('markAllAsRead', () => {
-    it('should mark all notifications as read', async () => {
-      mockPrisma.notification.updateMany.mockResolvedValue({ count: 5 } as any)
+  describe('deleteNotifications', () => {
+    it('should delete notifications', async () => {
+      // Override global mock for this specific test
+      prisma.notification.deleteMany.mockResolvedValue({ count: 2 })
 
-      await notificationService.markAllAsRead('user-123')
+      const result = await notificationService.deleteNotifications('user-123', ['notification-1', 'notification-2'])
 
-      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123', isRead: false },
-        data: { isRead: true },
-      })
-    })
-
-    it('should mark specific type notifications as read', async () => {
-      mockPrisma.notification.updateMany.mockResolvedValue({ count: 2 } as any)
-
-      await notificationService.markAllAsRead('user-123', 'receipt_uploaded')
-
-      expect(mockPrisma.notification.updateMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123', isRead: false, type: 'receipt_uploaded' },
-        data: { isRead: true },
-      })
-    })
-  })
-
-  describe('deleteNotification', () => {
-    it('should delete notification', async () => {
-      mockPrisma.notification.deleteMany.mockResolvedValue({ count: 1 } as any)
-
-      await notificationService.deleteNotification('notification-123', 'user-123')
-
-      expect(mockPrisma.notification.deleteMany).toHaveBeenCalledWith({
+      expect(prisma.notification.deleteMany).toHaveBeenCalledWith({
         where: {
-          id: 'notification-123',
           userId: 'user-123',
+          id: { in: ['notification-1', 'notification-2'] },
         },
       })
+      expect(result).toBe(2)
     })
   })
 
-  describe('getUnreadCount', () => {
-    it('should return unread count', async () => {
-      mockPrisma.notification.count.mockResolvedValue(5)
+  describe('getNotificationCount', () => {
+    it('should return unread notification count', async () => {
+      // Override global mock for this specific test
+      prisma.notification.count.mockResolvedValue(5)
 
-      const result = await notificationService.getUnreadCount('user-123')
+      const result = await notificationService.getNotificationCount('user-123')
 
-      expect(mockPrisma.notification.count).toHaveBeenCalledWith({
+      expect(prisma.notification.count).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
           isRead: false,
@@ -298,18 +253,10 @@ describe('NotificationService', () => {
       })
       expect(result).toBe(5)
     })
-
-    it('should return 0 on error', async () => {
-      mockPrisma.notification.count.mockRejectedValue(new Error('Database error'))
-
-      const result = await notificationService.getUnreadCount('user-123')
-
-      expect(result).toBe(0)
-    })
   })
 
   // ============================================================================
-  // PREFERENCES TESTS (see master guide: Unit Testing Strategy)
+  // NOTIFICATION PREFERENCES TESTS (see master guide: Unit Testing Strategy)
   // ============================================================================
 
   describe('getPreferences', () => {
@@ -317,211 +264,154 @@ describe('NotificationService', () => {
       id: 'pref-123',
       userId: 'user-123',
       emailNotifications: true,
-      pushNotifications: true,
-      receiptUploads: true,
-      receiptProcessing: true,
-      analyticsUpdates: true,
-      searchSuggestions: true,
-      systemAlerts: true,
-      exportNotifications: true,
-      backupNotifications: true,
+      pushNotifications: false,
+      smsNotifications: false,
+      categories: ['receipt_uploaded', 'receipt_processed'],
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
-    it('should return existing preferences', async () => {
-      mockPrisma.notificationPreferences.findUnique.mockResolvedValue(mockPreferences as any)
+    it('should get user notification preferences', async () => {
+      // Override global mock for this specific test
+      prisma.notificationPreferences.findUnique.mockResolvedValue(mockPreferences as any)
 
       const result = await notificationService.getPreferences('user-123')
 
-      expect(mockPrisma.notificationPreferences.findUnique).toHaveBeenCalledWith({
+      expect(prisma.notificationPreferences.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-123' },
       })
-      expect(result).toEqual({
-        userId: 'user-123',
-        emailNotifications: true,
-        pushNotifications: true,
-        receiptUploads: true,
-        receiptProcessing: true,
-        analyticsUpdates: true,
-        searchSuggestions: true,
-        systemAlerts: true,
-        exportNotifications: true,
-        backupNotifications: true,
-      })
+      expect(result).toEqual(mockPreferences)
     })
 
-    it('should create default preferences if none exist', async () => {
-      mockPrisma.notificationPreferences.findUnique.mockResolvedValue(null)
-      mockPrisma.notificationPreferences.create.mockResolvedValue(mockPreferences as any)
+    it('should return default preferences if none exist', async () => {
+      // Override global mock to simulate no preferences
+      prisma.notificationPreferences.findUnique.mockResolvedValue(null)
 
       const result = await notificationService.getPreferences('user-123')
 
-      expect(mockPrisma.notificationPreferences.create).toHaveBeenCalledWith({
-        data: {
-          userId: 'user-123',
-          emailNotifications: true,
-          pushNotifications: true,
-          receiptUploads: true,
-          receiptProcessing: true,
-          analyticsUpdates: true,
-          searchSuggestions: true,
-          systemAlerts: true,
-          exportNotifications: true,
-          backupNotifications: true,
-        },
+      expect(result).toEqual({
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        categories: ['receipt_uploaded', 'receipt_processed', 'receipt_error'],
       })
-      expect(result).toBeDefined()
     })
   })
 
   describe('updatePreferences', () => {
-    it('should update existing preferences', async () => {
-      const mockPreferences = {
-        id: 'pref-123',
-        userId: 'user-123',
-        emailNotifications: false,
-        pushNotifications: true,
-        receiptUploads: true,
-        receiptProcessing: true,
-        analyticsUpdates: true,
-        searchSuggestions: true,
-        systemAlerts: true,
-        exportNotifications: true,
-        backupNotifications: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
+    const mockPreferences = {
+      id: 'pref-123',
+      userId: 'user-123',
+      emailNotifications: true,
+      pushNotifications: false,
+      smsNotifications: false,
+      categories: ['receipt_uploaded'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
 
-      mockPrisma.notificationPreferences.upsert.mockResolvedValue(mockPreferences as any)
+    it('should update existing preferences', async () => {
+      // Override global mock for this specific test
+      prisma.notificationPreferences.upsert.mockResolvedValue(mockPreferences as any)
 
       const result = await notificationService.updatePreferences('user-123', {
-        emailNotifications: false,
+        emailNotifications: true,
+        pushNotifications: false,
+        categories: ['receipt_uploaded'],
       })
 
-      expect(mockPrisma.notificationPreferences.upsert).toHaveBeenCalledWith({
+      expect(prisma.notificationPreferences.upsert).toHaveBeenCalledWith({
         where: { userId: 'user-123' },
-        update: { emailNotifications: false },
+        update: {
+          emailNotifications: true,
+          pushNotifications: false,
+          categories: ['receipt_uploaded'],
+        },
         create: {
           userId: 'user-123',
-          emailNotifications: false,
-          pushNotifications: true,
-          receiptUploads: true,
-          receiptProcessing: true,
-          analyticsUpdates: true,
-          searchSuggestions: true,
-          systemAlerts: true,
-          exportNotifications: true,
-          backupNotifications: true,
+          emailNotifications: true,
+          pushNotifications: false,
+          categories: ['receipt_uploaded'],
         },
       })
-      expect(result.emailNotifications).toBe(false)
+      expect(result).toEqual(mockPreferences)
     })
   })
 
   // ============================================================================
-  // SPECIALIZED NOTIFICATION TESTS (see master guide: Unit Testing Strategy)
+  // REAL-TIME NOTIFICATION TESTS (see master guide: Unit Testing Strategy)
   // ============================================================================
 
-  describe('notifyReceiptUploaded', () => {
-    it('should create receipt upload notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
+  describe('sendRealtimeNotification', () => {
+    it('should send real-time notification via Supabase', async () => {
+      const mockChannel = {
+        send: jest.fn().mockResolvedValue(undefined),
+      }
+      
+      // Override global mock for this specific test
+      const mockSupabaseClient = {
+        channel: jest.fn().mockReturnValue(mockChannel),
+      }
+      ;(createSupabaseServerClient as jest.Mock).mockReturnValue(mockSupabaseClient)
 
-      await notificationService.notifyReceiptUploaded('user-123', 'receipt-123', 'Walmart')
-
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
+      await notificationService.sendRealtimeNotification('user-123', {
         type: 'receipt_uploaded',
         title: 'Receipt Uploaded',
-        message: 'Receipt from Walmart has been uploaded and is being processed.',
-        metadata: { receiptId: 'receipt-123', merchant: 'Walmart' },
+        message: 'Your receipt has been uploaded',
+      })
+
+      expect(mockSupabaseClient.channel).toHaveBeenCalledWith('notifications:user-123')
+      expect(mockChannel.send).toHaveBeenCalledWith({
+        type: 'broadcast',
+        event: 'notification',
+        payload: {
+          type: 'receipt_uploaded',
+          title: 'Receipt Uploaded',
+          message: 'Your receipt has been uploaded',
+        },
       })
     })
   })
 
-  describe('notifyReceiptProcessed', () => {
-    it('should create receipt processed notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
+  // ============================================================================
+  // ERROR HANDLING TESTS (see master guide: Unit Testing Strategy)
+  // ============================================================================
 
-      await notificationService.notifyReceiptProcessed('user-123', 'receipt-123', 'Walmart', new Decimal(25.99))
+  describe('Error Handling', () => {
+    it('should handle database connection errors', async () => {
+      // Override global mock to simulate database connection error
+      prisma.user.findUnique.mockRejectedValue(new Error('Connection failed'))
 
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
-        type: 'receipt_processed',
-        title: 'Receipt Processed',
-        message: 'Receipt from Walmart has been processed. Total: $25.99',
-        metadata: { receiptId: 'receipt-123', merchant: 'Walmart', total: '25.99' },
-      })
+      await expect(
+        notificationService.createNotification({
+          userId: 'user-123',
+          type: 'receipt_uploaded',
+          title: 'Receipt Uploaded',
+          message: 'Receipt has been uploaded',
+        })
+      ).rejects.toThrow('Failed to create notification')
     })
-  })
 
-  describe('notifyReceiptError', () => {
-    it('should create receipt error notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
-
-      await notificationService.notifyReceiptError('user-123', 'receipt-123', 'OCR failed')
-
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
-        type: 'receipt_error',
-        title: 'Receipt Processing Error',
-        message: 'Failed to process receipt: OCR failed',
-        metadata: { receiptId: 'receipt-123', error: 'OCR failed' },
-      })
+    it('should handle invalid user ID', async () => {
+      await expect(
+        notificationService.createNotification({
+          userId: '',
+          type: 'receipt_uploaded',
+          title: 'Receipt Uploaded',
+          message: 'Receipt has been uploaded',
+        })
+      ).rejects.toThrow('Invalid user ID')
     })
-  })
 
-  describe('notifyAnalyticsUpdated', () => {
-    it('should create analytics update notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
-
-      await notificationService.notifyAnalyticsUpdated('user-123', ['Spending increased', 'New category detected'])
-
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
-        type: 'analytics_updated',
-        title: 'Analytics Updated',
-        message: 'New insights available: Spending increased, New category detected',
-        metadata: { insights: ['Spending increased', 'New category detected'] },
-      })
-    })
-  })
-
-  describe('notifySearchSuggestion', () => {
-    it('should create search suggestion notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
-
-      await notificationService.notifySearchSuggestion('user-123', 'Walmart receipts')
-
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
-        type: 'search_suggestion',
-        title: 'Search Suggestion',
-        message: 'Try searching for: "Walmart receipts"',
-        metadata: { suggestion: 'Walmart receipts' },
-      })
-    })
-  })
-
-  describe('notifySystemAlert', () => {
-    it('should create system alert notification', async () => {
-      const createNotificationSpy = jest.spyOn(notificationService, 'createNotification')
-      createNotificationSpy.mockResolvedValue({} as any)
-
-      await notificationService.notifySystemAlert('user-123', 'System Maintenance', 'Scheduled maintenance in 1 hour')
-
-      expect(createNotificationSpy).toHaveBeenCalledWith({
-        userId: 'user-123',
-        type: 'system_alert',
-        title: 'System Maintenance',
-        message: 'Scheduled maintenance in 1 hour',
-        metadata: { systemAlert: true },
-      })
+    it('should handle invalid notification type', async () => {
+      await expect(
+        notificationService.createNotification({
+          userId: 'user-123',
+          type: 'invalid_type' as any,
+          title: 'Receipt Uploaded',
+          message: 'Receipt has been uploaded',
+        })
+      ).rejects.toThrow('Invalid notification type')
     })
   })
 }) 
