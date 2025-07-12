@@ -166,7 +166,7 @@ describe('ErrorToast Component', () => {
   describe('Animations', () => {
     it('should have enter animation classes', () => {
       // Arrange & Act
-      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
       // Assert
       const toast = screen.getByRole('alert')
@@ -175,7 +175,7 @@ describe('ErrorToast Component', () => {
 
     it('should have exit animation classes', () => {
       // Arrange & Act
-      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
       // Assert
       const toast = screen.getByRole('alert')
@@ -196,7 +196,7 @@ describe('ErrorToast Component', () => {
       }
 
       // Act
-      render(<ErrorToast error={errorWithoutMessage} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={errorWithoutMessage} onDismiss={jest.fn()} />)
 
       // Assert
       expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -210,7 +210,7 @@ describe('ErrorToast Component', () => {
       }
 
       // Act
-      render(<ErrorToast error={longError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={longError} onDismiss={jest.fn()} />)
 
       // Assert
       expect(screen.getByText(longError.message)).toBeInTheDocument()
@@ -224,7 +224,7 @@ describe('ErrorToast Component', () => {
       }
 
       // Act
-      render(<ErrorToast error={specialCharError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={specialCharError} onDismiss={jest.fn()} />)
 
       // Assert
       expect(screen.getByText(specialCharError.message)).toBeInTheDocument()
@@ -244,7 +244,7 @@ describe('ErrorToast Component', () => {
       }
 
       // Act
-      render(<ErrorToast error={warningError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={warningError} onDismiss={jest.fn()} />)
 
       // Assert
       const toast = screen.getByRole('alert')
@@ -256,7 +256,7 @@ describe('ErrorToast Component', () => {
       const customClass = 'custom-error-toast'
 
       // Act
-      render(<ErrorToast error={mockError} onDismiss={jest.fn()} className={customClass} />)
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} className={customClass} />)
 
       // Assert
       const toast = screen.getByRole('alert')
@@ -265,7 +265,7 @@ describe('ErrorToast Component', () => {
 
     it('should handle missing onDismiss prop', () => {
       // Arrange & Act
-      render(<ErrorToast error={mockError} onDismiss={undefined} />)
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={undefined} />)
 
       // Assert
       expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -280,7 +280,7 @@ describe('ErrorToast Component', () => {
   describe('Integration', () => {
     it('should work with toast context', () => {
       // Arrange & Act
-      render(<ErrorToast error={mockError} onDismiss={jest.fn()} />)
+      render(<ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />)
 
       // Assert
       expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -297,8 +297,8 @@ describe('ErrorToast Component', () => {
       // Act
       render(
         <div>
-          <ErrorToast error={mockError} onDismiss={jest.fn()} />
-          <ErrorToast error={error2} onDismiss={jest.fn()} />
+          <ErrorToast title="Test Error" error={mockError} onDismiss={jest.fn()} />
+          <ErrorToast title="Test Error 2" error={error2} onDismiss={jest.fn()} />
         </div>
       )
 
