@@ -150,26 +150,107 @@ API endpoints implement rate limiting to prevent abuse and ensure fair resource 
 
 ## 5. Testing and Quality Assurance
 
+**Test Isolation Strategy:**
+All tests use comprehensive global mocks defined in `jest.setup.js` to ensure complete isolation from external dependencies. This approach eliminates flaky tests and ensures consistent behavior across all environments.
+
+**Global Mock Architecture:**
+- **Prisma Client**: All database operations are mocked with realistic responses
+- **Supabase Services**: Authentication, storage, and real-time features are mocked
+- **External APIs**: OpenAI, OCR services, and third-party integrations are mocked
+- **Service Layers**: Analytics, export, notifications, and business logic services are mocked
+- **Browser APIs**: File uploads, clipboard, and other browser-specific features are mocked
+
 **Unit Testing Strategy:**
-All critical business logic, utility functions, and API routes must have comprehensive unit tests. Test coverage targets 80% for critical paths and 60% overall.
+All critical business logic, utility functions, and API routes must have comprehensive unit tests. Test coverage targets 80% for critical paths and 60% overall. Tests focus on business logic rather than infrastructure setup.
 
 **Component Testing:**
-React components are tested using React Testing Library to ensure they behave correctly from a user perspective. Tests focus on user interactions and accessibility.
+React components are tested using React Testing Library to ensure they behave correctly from a user perspective. Tests focus on user interactions, accessibility, and component behavior rather than implementation details.
 
-**Integration Testing:**
-Database operations and external API integrations are tested in isolation using mocked dependencies. End-to-end workflows are validated through integration tests.
+**API Route Testing:**
+API routes are tested with realistic request/response scenarios. Tests validate:
+- Authentication and authorization flows
+- Input validation and error handling
+- Business logic execution
+- Response formatting and status codes
+- Rate limiting and security measures
 
-**Mocking Practices:**
-External services like Supabase and OpenAI are mocked in tests to ensure reliable and fast test execution. Mock implementations simulate real-world scenarios and error conditions.
+**Mocking Best Practices:**
+- **Single Source of Truth**: All mocks defined in `jest.setup.js`
+- **Consistent Behavior**: Same mock implementations across all tests
+- **Realistic Data**: Mock responses simulate real-world scenarios
+- **Error Conditions**: Comprehensive error handling and edge cases
+- **Performance**: Fast execution without external dependencies
+
+**Test File Structure:**
+```
+src/
+├── __tests__/                    # Test utilities and helpers
+├── app/api/*/__tests__/         # API route tests
+├── components/*/__tests__/      # Component tests
+├── lib/services/__tests__/      # Service layer tests
+└── jest.setup.js               # Global test configuration
+```
+
+**Test Naming Conventions:**
+- API tests: `route.test.ts` or `[endpoint].test.ts`
+- Component tests: `[ComponentName].test.tsx`
+- Service tests: `[ServiceName].test.ts`
+- Utility tests: `[utilityName].test.ts`
 
 **CI/CD Pipeline:**
-The GitHub Actions pipeline includes linting, type checking, unit tests, and integration tests. Failed tests prevent deployment to production environments.
+The GitHub Actions pipeline includes:
+1. **Linting**: ESLint and Prettier validation
+2. **Type Checking**: TypeScript compilation verification
+3. **Unit Tests**: Jest with comprehensive coverage reporting
+4. **Integration Tests**: End-to-end workflow validation
+5. **Security Scanning**: Dependency vulnerability checks
+
+**Test Execution:**
+- **Local Development**: `npm test` for fast feedback
+- **CI/CD**: `npm run test:ci` for comprehensive validation
+- **Coverage**: `npm run test:coverage` for detailed reporting
+- **Watch Mode**: `npm run test:watch` for development iteration
+
+**Quality Gates:**
+- All tests must pass before deployment
+- Coverage thresholds enforced (80% critical paths, 60% overall)
+- No flaky tests allowed in main branch
+- Performance benchmarks for critical paths
 
 **Manual QA Processes:**
-All features undergo manual testing before release, including cross-browser compatibility and mobile responsiveness testing. User acceptance testing validates that features meet business requirements.
+All features undergo manual testing before release, including:
+- Cross-browser compatibility testing
+- Mobile responsiveness validation
+- Accessibility compliance verification
+- User acceptance testing
+- Performance testing under load
 
-**E2E Testing Approach:**
-TODO: Define end-to-end testing strategy using tools like Playwright or Cypress
+**E2E Testing Strategy:**
+TODO: Implement end-to-end testing using Playwright for critical user journeys:
+- User registration and authentication
+- Receipt upload and processing workflow
+- Analytics and reporting features
+- Export functionality
+- Bulk operations
+
+**Test Data Management:**
+- **Mock Data**: Realistic test data defined in test files
+- **Fixtures**: Reusable test data for common scenarios
+- **Factories**: Dynamic test data generation for edge cases
+- **Cleanup**: Automatic cleanup after each test to prevent interference
+
+**Performance Testing:**
+- **Load Testing**: API endpoints under realistic load
+- **Memory Testing**: Component rendering performance
+- **Bundle Analysis**: Frontend bundle size optimization
+- **Database Query Optimization**: Query performance validation
+
+**Security Testing:**
+- **Authentication Testing**: Proper auth flow validation
+- **Authorization Testing**: Role-based access control
+- **Input Validation**: SQL injection and XSS prevention
+- **Rate Limiting**: Abuse prevention mechanisms
+- **Data Privacy**: GDPR compliance validation
 
 ## 6. TypeScript Standards
 
@@ -236,11 +317,19 @@ All AI-assisted code generation must explicitly reference this master system gui
 **Architecture Validation:**
 Generated code must be validated against the architectural patterns and conventions defined in this guide. Any deviations must be justified and documented.
 
+**Testing Requirements:**
+All AI-generated code must include comprehensive tests following the test isolation strategy:
+- Use global mocks from `jest.setup.js`
+- Focus on business logic rather than infrastructure
+- Include error handling and edge cases
+- Follow established test naming conventions
+- Ensure proper test coverage for critical paths
+
 **Inline Commentary Standards:**
 All AI-generated code must include inline comments explaining how the implementation aligns with this guide's requirements and design decisions.
 
 **Quality Assurance:**
-Generated code must pass all linting, type checking, and testing requirements before being accepted into the codebase.
+Generated code must pass all linting, type checking, and testing requirements before being accepted into the codebase. Tests must be isolated and reliable.
 
 ## 10. Monitoring and Observability
 
