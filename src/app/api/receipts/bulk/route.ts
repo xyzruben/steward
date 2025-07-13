@@ -5,6 +5,7 @@
 // See: Master System Guide - Backend/API Design, Security Requirements
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { bulkOperationsService } from '@/lib/services/bulkOperations'
 import { analyticsRateLimiter } from '@/lib/rate-limiter'
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Authentication
-    const supabase = createSupabaseServerClient()
+    const cookieStore = await cookies()
+    const supabase = createSupabaseServerClient(cookieStore)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -96,7 +98,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Authentication
-    const supabase = createSupabaseServerClient()
+    const cookieStore = await cookies()
+    const supabase = createSupabaseServerClient(cookieStore)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

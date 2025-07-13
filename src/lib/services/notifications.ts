@@ -74,7 +74,8 @@ export interface NotificationFilters {
  * @see STEWARD_MASTER_SYSTEM_GUIDE.md - Scalability and Performance, Security Requirements
  */
 export class NotificationService {
-  private supabase = createSupabaseServerClient()
+  // Remove the problematic line that creates Supabase client at module level
+  // private supabase = createSupabaseServerClient()
 
   // ============================================================================
   // NOTIFICATION CRUD OPERATIONS (see master guide: Database Query Optimization)
