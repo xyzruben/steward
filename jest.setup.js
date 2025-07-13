@@ -12,6 +12,24 @@ import '@testing-library/jest-dom'
 
 // Polyfill Web APIs for Node.js test environment
 
+// Setup DOM container for React Testing Library
+const { configure } = require('@testing-library/react')
+
+configure({
+  testIdAttribute: 'data-testid',
+})
+
+// Ensure we have a proper DOM container
+if (typeof document === 'undefined') {
+  const { JSDOM } = require('jsdom')
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    url: 'http://localhost',
+  })
+  global.document = dom.window.document
+  global.window = dom.window
+  global.navigator = dom.window.navigator
+}
+
 // Mock window.matchMedia for JSDOM environment
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -101,6 +119,18 @@ global.Headers = class Headers {
 
   forEach(callback) {
     this._headers.forEach((value, key) => callback(value, key))
+  }
+
+  entries() {
+    return this._headers.entries()
+  }
+
+  keys() {
+    return this._headers.keys()
+  }
+
+  values() {
+    return this._headers.values()
   }
 }
 
