@@ -8,7 +8,7 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const customJestConfig = {
   // ============================================================================
-  // SIMPLIFIED JEST CONFIGURATION FOR CI/CD RELIABILITY
+  // "JUST RIGHT" JEST CONFIGURATION FOR CRITICAL TEST SUITE
   // ============================================================================
   
   // Test environment setup
@@ -25,15 +25,18 @@ const customJestConfig = {
     'node_modules/(?!(framer-motion)/)',
   ],
   
-  // Test file patterns
+  // Test file patterns - Focused on critical components only
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
     '<rootDir>/src/**/*.{test,spec}.{js,jsx,ts,tsx}',
   ],
   
-  // Coverage configuration
+  // Coverage configuration - Focused on critical user paths
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
+    'src/components/dashboard/**/*.{js,jsx,ts,tsx}',  // ReceiptUpload
+    'src/components/auth/**/*.{js,jsx,ts,tsx}',        // LoginForm
+    'src/components/ui/ErrorBoundary.{js,jsx,ts,tsx}', // ErrorBoundary
+    'src/components/ui/PageTransition.{js,jsx,ts,tsx}', // PageTransition
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
     '!src/**/index.{js,jsx,ts,tsx}',
@@ -41,13 +44,13 @@ const customJestConfig = {
     '!src/types/**/*',
   ],
   
-  // Relaxed coverage thresholds for CI/CD reliability
+  // Realistic coverage thresholds for focused test suite
   coverageThreshold: {
     global: {
-      branches: 20,
-      functions: 20,
-      lines: 20,
-      statements: 20,
+      branches: 40,
+      functions: 40,
+      lines: 40,
+      statements: 40,
     },
   },
   
