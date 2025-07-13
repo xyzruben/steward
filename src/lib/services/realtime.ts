@@ -127,7 +127,7 @@ export class RealtimeService {
           table: 'receipts',
           filter: `userId=eq.${userId}`,
         },
-        (payload) => {
+        (payload: { new: { id: string } }) => {
           console.log('RealtimeService: Receipt uploaded:', payload)
           this.notifyListeners('receipt_uploaded', {
             type: 'receipt_uploaded',
@@ -148,7 +148,7 @@ export class RealtimeService {
           table: 'receipts',
           filter: `userId=eq.${userId}`,
         },
-        (payload) => {
+        (payload: { new: { id: string } }) => {
           console.log('RealtimeService: Receipt processed:', payload)
           this.notifyListeners('receipt_processed', {
             type: 'receipt_processed',
@@ -178,7 +178,7 @@ export class RealtimeService {
       .on(
         'broadcast',
         { event: 'analytics_updated' },
-        (payload) => {
+        (payload: Record<string, unknown>) => {
           console.log('RealtimeService: Analytics updated:', payload)
           this.notifyListeners('analytics_updated', {
             type: 'analytics_updated',

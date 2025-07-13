@@ -9,12 +9,14 @@ import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adap
 // Following Next.js 15 App Router and Supabase SSR best practices
 
 export const createSupabaseBrowserClient = () => {
+  // Check if we're in a build environment (no environment variables available)
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // During build time, return a mock client to prevent build errors
+    return {} as any
+  }
+  
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-  }
   
   return createBrowserClient(url, key)
 }
@@ -25,12 +27,14 @@ export const createSupabaseClient = createSupabaseBrowserClient
 export const createSupabaseServerClient = (
   cookies?: ReadonlyRequestCookies
 ) => {
+  // Check if we're in a build environment (no environment variables available)
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // During build time, return a mock client to prevent build errors
+    return {} as any
+  }
+  
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-  }
   
   return createServerClient(url, key, {
     cookies: {

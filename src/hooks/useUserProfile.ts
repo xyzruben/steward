@@ -7,6 +7,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createSupabaseClient } from '@/lib/supabase'
 import type { UserProfile, UpdateUserProfile, UserProfileWithUser } from '@/lib/services/userProfile'
+import type { SupabaseAuthEvent } from '@/types/supabase'
+import type { Session } from '@supabase/supabase-js'
 
 // ============================================================================
 // TYPES
@@ -162,7 +164,7 @@ export function useUserProfile(): UseUserProfileReturn {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: SupabaseAuthEvent, session: Session | null) => {
         if (session?.user) {
           setUserId(session.user.id)
           // Clear cache when user changes
