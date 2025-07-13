@@ -14,7 +14,7 @@ on:
   workflow_dispatch: # Allow manual triggers
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '22.14.0'
   PNPM_VERSION: '8'
 
 jobs:
@@ -35,6 +35,21 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           
+      - name: Validate Node.js environment
+        run: |
+          echo "Node.js version: $(node --version)"
+          echo "Node.js architecture: $(node -p 'process.arch')"
+          echo "Platform: $(node -p 'process.platform')"
+          
+          # Validate Node.js architecture for Apple Silicon compatibility
+          if [[ "$(node -p 'process.arch')" == "arm64" && "$(node -p 'process.platform')" == "darwin" ]]; then
+            echo "✅ ARM64 Node.js detected on macOS - Apple Silicon compatible"
+          elif [[ "$(node -p 'process.arch')" == "x64" ]]; then
+            echo "✅ x64 Node.js detected - Standard architecture"
+          else
+            echo "⚠️  Unexpected Node.js architecture: $(node -p 'process.arch')"
+          fi
+          
       - name: Install dependencies
         run: npm ci
         
@@ -45,7 +60,7 @@ jobs:
         run: npm run type-check
         
       - name: Run tests with coverage
-        run: npm test -- --coverage --watchAll=false
+        run: npm run test:ci
         
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -86,6 +101,21 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          
+      - name: Validate Node.js environment
+        run: |
+          echo "Node.js version: $(node --version)"
+          echo "Node.js architecture: $(node -p 'process.arch')"
+          echo "Platform: $(node -p 'process.platform')"
+          
+          # Validate Node.js architecture for Apple Silicon compatibility
+          if [[ "$(node -p 'process.arch')" == "arm64" && "$(node -p 'process.platform')" == "darwin" ]]; then
+            echo "✅ ARM64 Node.js detected on macOS - Apple Silicon compatible"
+          elif [[ "$(node -p 'process.arch')" == "x64" ]]; then
+            echo "✅ x64 Node.js detected - Standard architecture"
+          else
+            echo "⚠️  Unexpected Node.js architecture: $(node -p 'process.arch')"
+          fi
           
       - name: Install dependencies
         run: npm ci
