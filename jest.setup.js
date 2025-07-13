@@ -26,12 +26,26 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 })
+// Mock Request with proper getter/setter for NextRequest compatibility
 global.Request = class Request {
   constructor(url, options = {}) {
-    this.url = url
+    // Use Object.defineProperty to create a read-only url property
+    Object.defineProperty(this, 'url', {
+      value: url,
+      writable: false,
+      configurable: true,
+      enumerable: true
+    })
     this.method = options.method || 'GET'
     this.headers = new Headers(options.headers || {})
     this.body = options.body
+  }
+}
+
+// Mock NextRequest to extend our Request mock properly
+global.NextRequest = class NextRequest extends global.Request {
+  constructor(url, options = {}) {
+    super(url, options)
   }
 }
 
@@ -396,14 +410,70 @@ jest.mock('@/lib/services/analytics', () => ({
 
 jest.mock('@/lib/services/bulkOperations', () => ({
   BulkOperationsService: {
-    bulkUpdate: jest.fn(),
-    bulkDelete: jest.fn(),
-    bulkExport: jest.fn(),
+    filterReceipts: jest.fn().mockResolvedValue({
+      receipts: [
+        { id: 'receipt-1', merchant: 'Test Merchant 1', total: 25.99, purchaseDate: new Date(), imageUrl: 'test1.jpg' },
+        { id: 'receipt-2', merchant: 'Test Merchant 2', total: 15.50, purchaseDate: new Date(), imageUrl: 'test2.jpg' }
+      ],
+      totalCount: 3,
+      filteredCount: 2,
+      appliedFilters: {}
+    }),
+    getFilteredReceiptIds: jest.fn().mockResolvedValue(['receipt-1', 'receipt-2']),
+    bulkUpdate: jest.fn().mockResolvedValue({
+      success: true,
+      processedCount: 2,
+      successCount: 2,
+      errorCount: 0,
+      errors: [],
+      operationId: 'test-operation-id',
+      duration: 100
+    }),
+    bulkDelete: jest.fn().mockResolvedValue({
+      success: true,
+      processedCount: 2,
+      successCount: 2,
+      errorCount: 0,
+      errors: [],
+      operationId: 'test-operation-id',
+      duration: 100
+    }),
+    prepareBulkExport: jest.fn().mockResolvedValue({
+      receipts: [
+        { id: 'receipt-1', merchant: 'Test Merchant 1', total: 25.99, purchaseDate: new Date(), imageUrl: 'test1.jpg' }
+      ],
+      totalCount: 1,
+      filteredCount: 1,
+      appliedFilters: {}
+    }),
+    getFilterOptions: jest.fn().mockResolvedValue({
+      categories: ['Food & Dining', 'Transportation'],
+      merchants: ['Test Merchant 1', 'Test Merchant 2'],
+      dateRange: { min: new Date('2025-01-01'), max: new Date('2025-12-31') },
+      amountRange: { min: 0, max: 1000 }
+    }),
+    getReceiptStats: jest.fn().mockResolvedValue({
+      totalReceipts: 10,
+      totalAmount: 250.99,
+      averageAmount: 25.10,
+      categoryBreakdown: [
+        { category: 'Food & Dining', count: 5, total: 125.50 },
+        { category: 'Transportation', count: 3, total: 75.25 }
+      ],
+      monthlyBreakdown: [
+        { month: '2025-01', count: 3, total: 75.25 },
+        { month: '2025-02', count: 2, total: 50.10 }
+      ]
+    })
   },
   bulkOperationsService: {
+    filterReceipts: jest.fn(),
+    getFilteredReceiptIds: jest.fn(),
     bulkUpdate: jest.fn(),
     bulkDelete: jest.fn(),
-    bulkExport: jest.fn(),
+    prepareBulkExport: jest.fn(),
+    getFilterOptions: jest.fn(),
+    getReceiptStats: jest.fn(),
   },
 }))
 
