@@ -1,6 +1,8 @@
-# Steward - AI-Powered Receipt & Expense Tracker
+# Steward
 
-Steward is a production-grade, AI-powered receipt and expense tracker designed for individuals and professionals who value faithful financial stewardship. The application automates the tedious process of manual expense tracking by leveraging optical character recognition (OCR) and artificial intelligence to extract, categorize, and analyze receipt data.
+AI-powered receipt and expense tracker for faithful financial stewardship.
+
+<!-- CI/CD Test: Triggering deployment with Vercel secrets configured -->
 
 ## Features
 
