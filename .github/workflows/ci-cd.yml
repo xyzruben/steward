@@ -1,4 +1,4 @@
-name: Simplified CI/CD - "Just Right" Testing
+name: CI/CD Pipeline
 
 on:
   push:
