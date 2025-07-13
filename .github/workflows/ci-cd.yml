@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "Running simplified test suite for deployment stability"
           echo "Focusing on critical user-facing functionality only"
-          npm test -- --testPathPatterns="ReceiptUpload|LoginForm|ErrorBoundary|PageTransition" --passWithNoTests --maxWorkers=2 --coverage --coverageReporters=text
+          npm test -- --testPathPatterns="ReceiptUpload|LoginForm|ErrorBoundary|PageTransition" --passWithNoTests --maxWorkers=2 --coverage --coverageReporters=text --ci
           
       - name: Build verification
         run: npm run build
