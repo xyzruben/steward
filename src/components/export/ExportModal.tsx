@@ -6,7 +6,7 @@
 // User-friendly export interface for receipts and analytics data
 // See: Master System Guide - Frontend Architecture, User Experience
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Download, FileText, FileJson, Filter, X } from 'lucide-react'
 
 // ============================================================================
@@ -57,6 +57,26 @@ export default function ExportModal({
   })
 
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setOptions({
+        format: 'csv',
+        includeAnalytics: false,
+        dateRange: null,
+        categories: [],
+        merchants: [],
+        minAmount: '',
+        maxAmount: ''
+      })
+      setShowAdvanced(false)
+    }
+  }, [isOpen])
 
   // ============================================================================
   // EVENT HANDLERS
@@ -177,10 +197,11 @@ export default function ExportModal({
       <h3 className="text-lg font-semibold text-gray-900">Date Range</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
             Start Date
           </label>
           <input
+            id="start-date"
             type="date"
             value={options.dateRange?.start || ''}
             onChange={(e) => handleDateRangeChange('start', e.target.value)}
@@ -188,10 +209,11 @@ export default function ExportModal({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
             End Date
           </label>
           <input
+            id="end-date"
             type="date"
             value={options.dateRange?.end || ''}
             onChange={(e) => handleDateRangeChange('end', e.target.value)}
@@ -207,10 +229,11 @@ export default function ExportModal({
       <h3 className="text-lg font-semibold text-gray-900">Amount Range</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="min-amount" className="block text-sm font-medium text-gray-700 mb-1">
             Minimum Amount
           </label>
           <input
+            id="min-amount"
             type="number"
             step="0.01"
             min="0"
@@ -221,10 +244,11 @@ export default function ExportModal({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="max-amount" className="block text-sm font-medium text-gray-700 mb-1">
             Maximum Amount
           </label>
           <input
+            id="max-amount"
             type="number"
             step="0.01"
             min="0"

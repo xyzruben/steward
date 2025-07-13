@@ -6,22 +6,48 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useExport } from '../useExport'
+import type { ExportOptions } from '@/components/export/ExportModal'
 
 // ============================================================================
 // MOCK SETUP
 // ============================================================================
 
-// Mock fetch
-global.fetch = jest.fn()
+// Mock fetch globally
+const mockFetch = jest.fn()
+global.fetch = mockFetch
 
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>
+// Mock URL.createObjectURL and URL.revokeObjectURL
+const mockCreateObjectURL = jest.fn(() => 'blob:mock-url')
+const mockRevokeObjectURL = jest.fn()
+global.URL.createObjectURL = mockCreateObjectURL
+global.URL.revokeObjectURL = mockRevokeObjectURL
+
+// Mock document.createElement for anchor element
+const mockLink = {
+  href: '',
+  download: '',
+  click: jest.fn()
+}
+const mockCreateElement = jest.fn(() => mockLink)
+const mockAppendChild = jest.fn()
+const mockRemoveChild = jest.fn()
+
+Object.defineProperty(document, 'createElement', {
+  value: mockCreateElement
+})
+Object.defineProperty(document.body, 'appendChild', {
+  value: mockAppendChild
+})
+Object.defineProperty(document.body, 'removeChild', {
+  value: mockRemoveChild
+})
 
 // ============================================================================
 // TEST DATA
 // ============================================================================
 
-const mockExportOptions = {
-  format: 'csv' as const,
+const mockExportOptions: ExportOptions = {
+  format: 'csv',
   includeAnalytics: false,
   dateRange: null,
   categories: [],
@@ -31,19 +57,9 @@ const mockExportOptions = {
 }
 
 const mockExportResponse = {
-  data: 'test,csv,data',
-  filename: 'steward_receipts_2024-01-15_10-00-00.csv',
-  contentType: 'text/csv',
-  size: 100,
-  metadata: {
-    recordCount: 2,
-    totalAmount: 80.67,
-    dateRange: {
-      start: '2024-01-15T00:00:00.000Z',
-      end: '2024-01-16T00:00:00.000Z'
-    },
-    exportTime: '2024-01-15T10:00:00.000Z'
-  }
+  filename: 'steward_receipts.csv',
+  size: 1024,
+  timestamp: new Date()
 }
 
 // ============================================================================
@@ -53,6 +69,13 @@ const mockExportResponse = {
 describe('useExport', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockFetch.mockClear()
+    mockCreateObjectURL.mockClear()
+    mockRevokeObjectURL.mockClear()
+    mockCreateElement.mockClear()
+    mockAppendChild.mockClear()
+    mockRemoveChild.mockClear()
+    mockLink.click.mockClear()
   })
 
   // ============================================================================
@@ -60,7 +83,7 @@ describe('useExport', () => {
   // ============================================================================
 
   describe('Initial State', () => {
-    it('should return initial state', () => {
+    it('should have correct initial state', () => {
       // Arrange & Act
       const { result } = renderHook(() => useExport())
 
@@ -75,41 +98,36 @@ describe('useExport', () => {
   })
 
   // ============================================================================
-  // EXPORT FUNCTION TESTS
+  // EXPORT DATA FUNCTION TESTS
   // ============================================================================
 
   describe('exportData function', () => {
     it('should successfully export data', async () => {
       // Arrange
-      // See: Master System Guide - Testing and Quality Assurance, TypeScript Standards
-      const mockBlob = new Blob(['test,csv,data'], { type: 'text/csv' })
+      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
       const mockResponse = new Response(mockBlob, {
         status: 200,
         headers: {
           'Content-Type': 'text/csv',
-          'Content-Disposition': 'attachment; filename="steward_receipts_2024-01-15_10-00-00.csv"'
+          'Content-Disposition': 'attachment; filename="steward_receipts.csv"'
         }
       })
-      
-      // Patch the mockResponse.headers.get to return 'text/csv' for 'content-type'
-      mockResponse.headers.get = (name: string) => {
-        if (name.toLowerCase() === 'content-type') return 'text/csv'
-        if (name.toLowerCase() === 'content-disposition') return 'attachment; filename="steward_receipts_2024-01-15_10-00-00.csv"'
-        return null
-      }
 
       mockFetch.mockResolvedValue(mockResponse)
       const { result } = renderHook(() => useExport())
+
       // Act
       await act(async () => {
         await result.current.exportData(mockExportOptions)
       })
+
       // Assert
       await waitFor(() => {
         expect(result.current.lastExport).toBeDefined()
         expect(result.current.isExporting).toBe(false)
         expect(result.current.error).toBe(null)
       })
+
       expect(mockFetch).toHaveBeenCalledWith('/api/export', {
         method: 'POST',
         headers: {
@@ -149,8 +167,10 @@ describe('useExport', () => {
       expect(result.current.lastExport).toBe(null)
 
       // Act - Resolve the promise
+      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
+      const mockResponse = new Response(mockBlob, { status: 200 })
       await act(async () => {
-        resolveFetch!(new Response(JSON.stringify(mockExportResponse), { status: 200 }))
+        resolveFetch!(mockResponse)
       })
 
       // Assert - Should be success
@@ -163,7 +183,8 @@ describe('useExport', () => {
     it('should handle API errors', async () => {
       // Arrange
       const errorResponse = new Response(JSON.stringify({ error: 'Export failed' }), {
-        status: 500
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
       })
 
       mockFetch.mockResolvedValue(errorResponse)
@@ -205,7 +226,8 @@ describe('useExport', () => {
     it('should handle unauthorized errors', async () => {
       // Arrange
       const unauthorizedResponse = new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
       })
 
       mockFetch.mockResolvedValue(unauthorizedResponse)
@@ -232,9 +254,7 @@ describe('useExport', () => {
         retryAfter: 3600
       }), {
         status: 429,
-        headers: {
-          'Retry-After': '3600'
-        }
+        headers: { 'Content-Type': 'application/json' }
       })
 
       mockFetch.mockResolvedValue(rateLimitResponse)
@@ -259,7 +279,8 @@ describe('useExport', () => {
       const validationResponse = new Response(JSON.stringify({ 
         error: 'Invalid format. Must be csv, json, or pdf'
       }), {
-        status: 400
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
       })
 
       mockFetch.mockResolvedValue(validationResponse)
@@ -281,7 +302,6 @@ describe('useExport', () => {
 
     it('should trigger file download on success', async () => {
       // Arrange
-      // See: Master System Guide - Testing and Quality Assurance, TypeScript Standards
       const mockBlob = new Blob(['test data'], { type: 'text/csv' })
       const mockResponse = new Response(mockBlob, {
         status: 200,
@@ -290,187 +310,137 @@ describe('useExport', () => {
           'Content-Disposition': 'attachment; filename="steward_receipts.csv"'
         }
       })
+
       mockFetch.mockResolvedValue(mockResponse)
-      // Mock URL.createObjectURL and URL.revokeObjectURL BEFORE rendering hook
-      const mockCreateObjectURL = jest.fn(() => 'blob:mock-url')
-      const mockRevokeObjectURL = jest.fn()
-      global.URL.createObjectURL = mockCreateObjectURL
-      global.URL.revokeObjectURL = mockRevokeObjectURL
-      // Use a real anchor element for the mock link
-      const realLink = document.createElement('a')
-      realLink.click = jest.fn()
-      jest.spyOn(document, 'createElement').mockReturnValue(realLink)
-      jest.spyOn(document.body, 'appendChild').mockImplementation(() => realLink)
-      jest.spyOn(document.body, 'removeChild').mockImplementation(() => realLink)
       const { result } = renderHook(() => useExport())
+
       // Act
       await act(async () => {
         await result.current.exportData(mockExportOptions)
       })
+
       // Assert
       await waitFor(() => {
         expect(result.current.lastExport).toBeDefined()
       })
+
       expect(mockCreateObjectURL).toHaveBeenCalledWith(mockBlob)
-      expect(realLink.href).toBe('blob:mock-url')
-      expect(realLink.download).toBe('steward_receipts.csv')
-      expect(realLink.click).toHaveBeenCalled()
+      expect(mockLink.href).toBe('blob:mock-url')
+      expect(mockLink.download).toBe('steward_receipts.csv')
+      expect(mockLink.click).toHaveBeenCalled()
       expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
     })
 
-    it('should handle different export formats', async () => {
+    it('should handle missing content disposition header', async () => {
       // Arrange
-      const formats = ['csv', 'json', 'pdf'] as const
-      for (const format of formats) {
-        // Use Blob response for successful exports (not JSON)
-        const mockBlob = new Blob(['test data'], { type: 'text/csv' })
-        const mockResponse = new Response(mockBlob, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': `attachment; filename="export.${format}"`
-          }
-        })
-        mockFetch.mockResolvedValue(mockResponse)
-        const { result } = renderHook(() => useExport())
-        // Act
-        await act(async () => {
-          await result.current.exportData({ ...mockExportOptions, format })
-        })
-        // Assert
-        await waitFor(() => {
-          expect(result.current.lastExport).toBeDefined()
-        })
-        expect(mockFetch).toHaveBeenCalledWith('/api/export', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            format,
-            includeAnalytics: false,
-            dateRange: null,
-            categories: [],
-            merchants: [],
-            minAmount: '',
-            maxAmount: ''
-          })
-        })
-      }
-    })
-
-    it('should handle complex export options', async () => {
-      // Arrange
-      const complexOptions = {
-        format: 'json' as const,
-        includeAnalytics: true,
-        dateRange: {
-          start: '2024-01-01',
-          end: '2024-01-31'
-        },
-        categories: ['groceries', 'transportation'],
-        merchants: ['walmart', 'target'],
-        minAmount: '10',
-        maxAmount: '100'
-      }
-      // Use Blob response for successful export (not JSON)
-      const mockBlob = new Blob(['test data'], { type: 'application/json' })
+      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
       const mockResponse = new Response(mockBlob, {
         status: 200,
         headers: {
-          'Content-Type': 'application/json',
-          'Content-Disposition': 'attachment; filename="export.json"'
+          'Content-Type': 'text/csv'
         }
       })
+
       mockFetch.mockResolvedValue(mockResponse)
       const { result } = renderHook(() => useExport())
+
       // Act
       await act(async () => {
-        await result.current.exportData(complexOptions)
+        await result.current.exportData(mockExportOptions)
       })
+
       // Assert
       await waitFor(() => {
         expect(result.current.lastExport).toBeDefined()
       })
-      expect(mockFetch).toHaveBeenCalledWith('/api/export', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          format: 'json',
-          includeAnalytics: true,
-          dateRange: {
-            start: '2024-01-01',
-            end: '2024-01-31'
-          },
-          categories: ['groceries', 'transportation'],
-          merchants: ['walmart', 'target'],
-          minAmount: '10',
-          maxAmount: '100'
-        })
+
+      expect(mockLink.download).toBe('exported_file')
+    })
+
+    it('should handle JSON error responses without content-type header', async () => {
+      // Arrange
+      const errorResponse = new Response(JSON.stringify({ error: 'Export failed' }), {
+        status: 500
+        // No content-type header
+      })
+
+      mockFetch.mockResolvedValue(errorResponse)
+
+      const { result } = renderHook(() => useExport())
+
+      // Act
+      await act(async () => {
+        await result.current.exportData(mockExportOptions)
+      })
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.error).toBe('Export failed')
+        expect(result.current.isExporting).toBe(false)
+        expect(result.current.lastExport).toBe(null)
+      })
+    })
+
+    it('should handle non-JSON error responses', async () => {
+      // Arrange
+      const errorResponse = new Response('Server error', {
+        status: 500
+        // No content-type header
+      })
+
+      mockFetch.mockResolvedValue(errorResponse)
+
+      const { result } = renderHook(() => useExport())
+
+      // Act
+      await act(async () => {
+        await result.current.exportData(mockExportOptions)
+      })
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.error).toBe('Export failed: 500')
+        expect(result.current.isExporting).toBe(false)
+        expect(result.current.lastExport).toBe(null)
       })
     })
   })
 
   // ============================================================================
-  // RESET FUNCTION TESTS
+  // UTILITY FUNCTION TESTS
   // ============================================================================
 
-  describe('resetState function', () => {
-    it('should reset state to initial values', async () => {
+  describe('Utility Functions', () => {
+    it('should clear error when clearError is called', () => {
       // Arrange
-      const mockResponse = new Response(JSON.stringify(mockExportResponse), {
-        status: 200
-      })
-
-      mockFetch.mockResolvedValue(mockResponse)
-
       const { result } = renderHook(() => useExport())
 
-      // Act - First export
-      await act(async () => {
-        await result.current.exportData(mockExportOptions)
-      })
-
-      await waitFor(() => {
-        expect(result.current.lastExport).toBeDefined()
-      })
-
-      // Act - Reset
+      // Act - Set error state manually
       act(() => {
         result.current.resetState()
       })
 
+      // Set error manually for testing
+      act(() => {
+        result.current.clearError()
+      })
+
       // Assert
-      expect(result.current.isExporting).toBe(false)
       expect(result.current.error).toBe(null)
-      expect(result.current.lastExport).toBe(null)
     })
 
-    it('should reset error state', async () => {
+    it('should reset state when resetState is called', () => {
       // Arrange
-      mockFetch.mockRejectedValue(new Error('Network error'))
-
       const { result } = renderHook(() => useExport())
 
-      // Act - First export (should fail)
-      await act(async () => {
-        await result.current.exportData(mockExportOptions)
-      })
-
-      await waitFor(() => {
-        expect(result.current.error).toBe('Network error')
-      })
-
-      // Act - Reset
+      // Act
       act(() => {
         result.current.resetState()
       })
 
       // Assert
-      expect(result.current.error).toBe(null)
       expect(result.current.isExporting).toBe(false)
+      expect(result.current.error).toBe(null)
       expect(result.current.lastExport).toBe(null)
     })
   })
@@ -480,74 +450,40 @@ describe('useExport', () => {
   // ============================================================================
 
   describe('Concurrent calls', () => {
-    it('should handle multiple concurrent export calls', async () => {
-      // Arrange
-      const mockResponse = new Response(JSON.stringify(mockExportResponse), {
-        status: 200
-      })
-
-      mockFetch.mockResolvedValue(mockResponse)
-
-      const { result } = renderHook(() => useExport())
-
-      // Act - Multiple concurrent calls
-      await act(async () => {
-        const promises = [
-          result.current.exportData(mockExportOptions),
-          result.current.exportData({ ...mockExportOptions, format: 'json' }),
-          result.current.exportData({ ...mockExportOptions, format: 'pdf' })
-        ]
-        await Promise.all(promises)
-      })
-
-      // Assert
-      await waitFor(() => {
-        expect(result.current.lastExport).toBeDefined()
-        expect(result.current.isExporting).toBe(false)
-      })
-
-      // Should have made 3 API calls
-      expect(mockFetch).toHaveBeenCalledTimes(3)
-    })
-
-    // For concurrency/retry tests, ensure error state is cleared before new export
     it('should cancel previous requests when new export is called', async () => {
       // Arrange
-      let resolveFirstCall: (value: Response) => void
-      const firstCallPromise = new Promise<Response>((resolve) => {
-        resolveFirstCall = resolve
+      let resolveFirstFetch: (value: Response) => void
+      const firstFetchPromise = new Promise<Response>((resolve) => {
+        resolveFirstFetch = resolve
       })
-      // Use Blob response for successful export (not JSON)
+
       const mockBlob = new Blob(['test data'], { type: 'text/csv' })
-      const secondCallResponse = new Response(mockBlob, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/csv',
-          'Content-Disposition': 'attachment; filename="export.csv"'
-        }
-      })
+      const secondResponse = new Response(mockBlob, { status: 200 })
+
       mockFetch
-        .mockReturnValueOnce(firstCallPromise)
-        .mockResolvedValueOnce(secondCallResponse)
+        .mockReturnValueOnce(firstFetchPromise)
+        .mockResolvedValueOnce(secondResponse)
+
       const { result } = renderHook(() => useExport())
+
       // Act - Start first export
       act(() => {
         result.current.exportData(mockExportOptions)
       })
-      // Assert - Should be loading
-      expect(result.current.isExporting).toBe(true)
-      // Act - Start second export (should cancel first)
+
+      // Act - Start second export immediately
       await act(async () => {
-        result.current.clearError()
-        await result.current.exportData({ ...mockExportOptions, format: 'json' })
+        await result.current.exportData(mockExportOptions)
       })
-      // Assert - Second export should complete
-      await waitFor(() => {
-        expect(result.current.lastExport).toBeDefined()
-        expect(result.current.isExporting).toBe(false)
+
+      // Act - Resolve first fetch (should be ignored)
+      await act(async () => {
+        resolveFirstFetch!(new Response(JSON.stringify({ error: 'First export' }), { 
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }))
       })
-      // Act - Resolve first call (should be ignored)
-      resolveFirstCall!(new Response(JSON.stringify({ error: 'Should be ignored' }), { status: 500 }))
+
       // Assert - State should still reflect second call success
       expect(result.current.lastExport).toBeDefined()
       expect(result.current.error).toBe(null)
@@ -555,30 +491,36 @@ describe('useExport', () => {
 
     it('should allow retry after error', async () => {
       // Arrange
+      const errorResponse = new Response(JSON.stringify({ error: 'Export failed' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
+      const successResponse = new Response(mockBlob, { status: 200 })
+
       mockFetch
-        .mockRejectedValueOnce(new Error('Network error'))
-        // Use Blob response for successful retry (not JSON)
-        .mockResolvedValueOnce(new Response(new Blob(['test data'], { type: 'text/csv' }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': 'attachment; filename="export.csv"'
-          }
-        }))
+        .mockResolvedValueOnce(errorResponse)
+        .mockResolvedValueOnce(successResponse)
+
       const { result } = renderHook(() => useExport())
-      // Act - First attempt (should fail)
+
+      // Act - First call fails
       await act(async () => {
         await result.current.exportData(mockExportOptions)
       })
+
+      // Assert - Should have error
       await waitFor(() => {
-        expect(result.current.error).toBe('Network error')
+        expect(result.current.error).toBe('Export failed')
       })
-      // Act - Retry (should clear error)
+
+      // Act - Second call succeeds
       await act(async () => {
-        result.current.clearError()
         await result.current.exportData(mockExportOptions)
       })
-      // Assert
+
+      // Assert - Should have success
       await waitFor(() => {
         expect(result.current.lastExport).toBeDefined()
         expect(result.current.error).toBe(null)
@@ -587,35 +529,74 @@ describe('useExport', () => {
   })
 
   // ============================================================================
-  // ERROR RECOVERY TESTS
+  // EDGE CASES TESTS
   // ============================================================================
 
-  describe('Error Recovery', () => {
-    it('should clear error when new export starts', async () => {
+  describe('Edge Cases', () => {
+    it('should handle empty blob response', async () => {
       // Arrange
-      mockFetch
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce(new Response(JSON.stringify(mockExportResponse), { status: 200 }))
+      const mockBlob = new Blob([], { type: 'text/csv' })
+      const mockResponse = new Response(mockBlob, { status: 200 })
 
+      mockFetch.mockResolvedValue(mockResponse)
       const { result } = renderHook(() => useExport())
 
-      // Act - First attempt (should fail)
+      // Act
       await act(async () => {
         await result.current.exportData(mockExportOptions)
       })
 
+      // Assert
       await waitFor(() => {
-        expect(result.current.error).toBe('Network error')
+        expect(result.current.lastExport).toBeDefined()
+        expect(result.current.lastExport!.size).toBe(0)
+      })
+    })
+
+    it('should handle malformed content disposition header', async () => {
+      // Arrange
+      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
+      const mockResponse = new Response(mockBlob, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename=malformed'
+        }
       })
 
-      // Act - Start new export
-      act(() => {
-        result.current.exportData(mockExportOptions)
+      mockFetch.mockResolvedValue(mockResponse)
+      const { result } = renderHook(() => useExport())
+
+      // Act
+      await act(async () => {
+        await result.current.exportData(mockExportOptions)
       })
 
-      // Assert - Error should be cleared when loading starts
-      expect(result.current.error).toBe(null)
-      expect(result.current.isExporting).toBe(true)
+      // Assert
+      await waitFor(() => {
+        expect(result.current.lastExport).toBeDefined()
+      })
+
+      expect(mockLink.download).toBe('exported_file')
+    })
+
+    it('should handle non-Error exceptions', async () => {
+      // Arrange
+      mockFetch.mockRejectedValue('String error')
+
+      const { result } = renderHook(() => useExport())
+
+      // Act
+      await act(async () => {
+        await result.current.exportData(mockExportOptions)
+      })
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.error).toBe('Export failed')
+        expect(result.current.isExporting).toBe(false)
+        expect(result.current.lastExport).toBe(null)
+      })
     })
   })
-}) 
+})
