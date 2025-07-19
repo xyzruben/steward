@@ -25,7 +25,7 @@ jest.mock('@/context/AuthContext', () => ({
 describe('LoginForm', () => {
   // Helper function to find the toggle button
   const getToggleButton = () =>
-    screen.getByText("Don&apos;t have an account? Sign Up");
+    screen.getByText("Don't have an account? Sign Up");
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -38,7 +38,7 @@ describe('LoginForm', () => {
       expect(screen.getByLabelText('Email')).toBeInTheDocument()
       expect(screen.getByLabelText('Password')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument()
-      expect(screen.getByText("Don&apos;t have an account? Sign Up")).toBeInTheDocument()
+      expect(screen.getByText("Don't have an account? Sign Up")).toBeInTheDocument()
     })
 
     it('should render sign up form when toggled', async () => {
@@ -491,7 +491,7 @@ describe('LoginForm', () => {
       render(<LoginForm />)
 
       const submitButton = screen.getByRole('button', { name: 'Sign In' })
-      const toggleButton = screen.getByRole('button', { name: "Don&apos;t have an account? Sign Up" })
+      const toggleButton = screen.getByRole('button', { name: "Don't have an account? Sign Up" })
 
       expect(submitButton).toHaveAttribute('type', 'submit')
       expect(toggleButton).toHaveAttribute('type', 'button')

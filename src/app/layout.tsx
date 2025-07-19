@@ -19,6 +19,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Steward - AI-Powered Receipt Tracker",
   description: "Track expenses and analyze receipts with AI",
+  icons: {
+    icon: [
+      {
+        url: "/steward_logo.png",
+        type: "image/png",
+        sizes: "32x32",
+      },
+      {
+        url: "/steward_logo.png",
+        type: "image/png",
+        sizes: "16x16",
+      },
+    ],
+    shortcut: "/steward_logo.png",
+    apple: "/steward_logo.png",
+  },
 };
 
 export default function RootLayout({
