@@ -87,6 +87,33 @@ model UserProfile {
 }
 
 // ============================================================================
+// RECEIPT EMBEDDING MODEL
+// ============================================================================
+// Vector embeddings for semantic search and RAG capabilities
+model ReceiptEmbedding {
+  id        String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to Receipt
+  receiptId String   @unique @db.Uuid
+  receipt   Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  
+  // Embedding data
+  embedding Float[]  // Vector embedding (1536 dimensions for OpenAI text-embedding-3-small)
+  content   String   // Text content that was embedded (for debugging/regeneration)
+  model     String   @default("text-embedding-3-small") // Embedding model used
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Indexes for performance
+  @@index([receiptId])
+  @@index([model])
+  
+  @@map("receipt_embeddings")
+}
+
+// ============================================================================
 // RECEIPT MODEL
 // ============================================================================
 // Core receipt data with AI-powered analysis
@@ -118,6 +145,9 @@ model Receipt {
   // Metadata
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  
+  // Relations
+  embedding    ReceiptEmbedding?
   
   // Indexes for performance (see master guide: Indexing Strategy)
   @@index([userId])

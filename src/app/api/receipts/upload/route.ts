@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { createReceipt, createUser, getUserById, updateReceipt } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { Decimal } from '@/generated/prisma/runtime/library'
 import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
@@ -9,6 +10,7 @@ import { AnalyticsService } from '@/lib/services/analytics'
 import { realtimeService } from '@/lib/services/realtime'
 import { notificationService } from '@/lib/services/notifications'
 import { userProfileService } from '@/lib/services/userProfile'
+import { EmbeddingsService } from '@/lib/services/embeddings'
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
 // ============================================================================
@@ -328,13 +330,29 @@ async function processReceiptAsync(
       ocrConfidence
     })
 
-    // 4. Invalidate analytics cache (see master guide: Scalability and Performance)
+    // 4. Generate embedding for semantic search (see master guide: AI and Processing)
+    try {
+      console.log('Generating embedding for receipt:', receiptId)
+      const embeddingsService = new EmbeddingsService()
+      const receipt = await prisma.receipt.findUnique({
+        where: { id: receiptId }
+      })
+      if (receipt) {
+        await embeddingsService.storeReceiptEmbedding(receipt)
+        console.log('Embedding generated successfully for receipt:', receiptId)
+      }
+    } catch (embeddingError) {
+      console.error('Failed to generate embedding for receipt:', receiptId, embeddingError)
+      // Don't fail the processing if embedding generation fails
+    }
+
+    // 5. Invalidate analytics cache (see master guide: Scalability and Performance)
     try {
       const analyticsService = new AnalyticsService();
       await analyticsService.invalidateUserCache(userId);
       console.log('Analytics cache invalidated for user:', userId);
       
-      // 5. Broadcast real-time analytics update (see master guide: Scalability and Performance)
+      // 6. Broadcast real-time analytics update (see master guide: Scalability and Performance)
       try {
         await realtimeService.broadcastAnalyticsUpdate(userId);
         console.log('Real-time analytics update broadcasted for user:', userId);

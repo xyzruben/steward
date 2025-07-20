@@ -39,6 +39,7 @@ The application is fully deployed and operational with:
 
 ### AI & Processing
 - **OpenAI API** (GPT-4o-mini) for intelligent categorization and analysis
+- **OpenAI Embeddings** (text-embedding-3-small) for semantic search and RAG
 - **Tesseract.js** for optical character recognition
 - **Fuse.js** for fuzzy search capabilities
 
@@ -61,6 +62,12 @@ The application is fully deployed and operational with:
 - **Contextual Understanding**: AI considers merchant context, items purchased, and spending patterns
 - **Confidence Scoring**: Provides confidence levels for categorization accuracy
 - **Learning Capabilities**: System improves categorization over time
+
+### Semantic Search (RAG)
+- **Natural Language Queries**: Search receipts using conversational language
+- **Vector Embeddings**: OpenAI text-embedding-3-small for semantic understanding
+- **Intelligent Insights**: AI-generated spending pattern analysis and recommendations
+- **Dual Search Modes**: Traditional keyword search + AI-powered semantic search
 
 ### Advanced Analytics
 - **Spending Pattern Analysis**: AI-driven insights into spending habits
@@ -196,6 +203,7 @@ steward/
 - **Automatic data extraction** via OCR and AI
 - **Smart categorization** with confidence scoring
 - **Search and filtering** with fuzzy matching
+- **Semantic search** with natural language queries
 
 ### Analytics & Insights
 - **Spending analytics** with interactive charts
@@ -259,6 +267,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Live Application**: [https://hellosteward.org](https://hellosteward.org)
 - **Documentation**: [Master System Guide](docs/STEWARD_MASTER_SYSTEM_GUIDE.md)
 - **CI/CD Setup**: [CI/CD Documentation](docs/CI_CD_SETUP.md)
+- **Embedding Search Guide**: [Embedding Search Documentation](docs/EMBEDDING_SEARCH_GUIDE.md)
 
 ---
 

@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { BulkOperationsToolbar } from '@/components/receipts/BulkOperationsToolbar'
 import { ReceiptList } from '@/components/receipts/ReceiptList'
 import { EnhancedSearch } from '@/components/search/EnhancedSearch'
+import { SemanticSearch } from '@/components/search/SemanticSearch'
 import { SearchResults } from '@/components/search/SearchResults'
 import { ReceiptFilters, ReceiptFilters as ReceiptFiltersType } from '@/components/receipts/ReceiptFilters'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -25,6 +26,7 @@ export default function ReceiptsPage() {
   const [searchMetadata, setSearchMetadata] = useState<any>(null)
   const [currentSearchFilters, setCurrentSearchFilters] = useState<any>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [searchMode, setSearchMode] = useState<'traditional' | 'semantic'>('traditional')
 
   // Initialize bulk operations hook
   const {
@@ -250,30 +252,84 @@ export default function ReceiptsPage() {
       {/* Search and Filters */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <EnhancedSearch 
-                onSearch={handleSearch}
-                onSaveSearch={handleSaveSearch}
-                placeholder="Search receipts by merchant, category, or description..."
-                showAdvancedFilters={true}
-                showSuggestions={true}
-                showSavedSearches={true}
-              />
-            </div>
-            <div className="space-y-4">
-              <ReceiptFilters onFiltersChange={handleFiltersChange} />
-              <div className="flex justify-end">
-                <ExportButton
-                  variant="outline"
-                  size="md"
-                  className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
-                >
-                  Export All
-                </ExportButton>
-              </div>
+          {/* Search Mode Toggle */}
+          <div className="flex justify-center mb-6">
+            <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+              <button
+                onClick={() => setSearchMode('traditional')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  searchMode === 'traditional'
+                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Traditional Search
+              </button>
+              <button
+                onClick={() => setSearchMode('semantic')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  searchMode === 'semantic'
+                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                AI-Powered Search
+              </button>
             </div>
           </div>
+
+          {searchMode === 'traditional' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <EnhancedSearch 
+                  onSearch={handleSearch}
+                  onSaveSearch={handleSaveSearch}
+                  placeholder="Search receipts by merchant, category, or description..."
+                  showAdvancedFilters={true}
+                  showSuggestions={true}
+                  showSavedSearches={true}
+                />
+              </div>
+              <div className="space-y-4">
+                <ReceiptFilters onFiltersChange={handleFiltersChange} />
+                <div className="flex justify-end">
+                  <ExportButton
+                    variant="outline"
+                    size="md"
+                    className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
+                  >
+                    Export All
+                  </ExportButton>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto">
+              <SemanticSearch 
+                onResults={(results) => {
+                  // Convert semantic search results to receipt format for display
+                  const convertedReceipts = results.map(result => ({
+                    id: result.receiptId,
+                    merchant: result.metadata.merchant,
+                    total: result.metadata.amount,
+                    purchaseDate: result.metadata.date,
+                    category: result.metadata.category,
+                    subcategory: result.metadata.subcategory,
+                    summary: result.metadata.summary,
+                    similarity: result.similarity
+                  }))
+                  setReceipts(convertedReceipts)
+                  setSearchQuery(`AI Search: ${results.length} results`)
+                }}
+                onInsights={(insights) => {
+                  // Handle insights display
+                  console.log('Spending insights:', insights)
+                }}
+                placeholder="Ask about your spending in natural language..."
+                showSuggestions={true}
+              />
+            </div>
+          )}
         </div>
       </div>
 

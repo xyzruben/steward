@@ -438,6 +438,36 @@ jest.mock('@/lib/services/analytics', () => ({
   },
 }))
 
+jest.mock('@/lib/services/embeddings', () => ({
+  EmbeddingsService: jest.fn().mockImplementation(() => ({
+    generateEmbedding: jest.fn().mockResolvedValue(new Array(1536).fill(0.1)),
+    generateReceiptEmbedding: jest.fn().mockResolvedValue({
+      receiptId: 'test-id',
+      content: 'Test receipt content',
+      metadata: {
+        merchant: 'Test Store',
+        category: 'Food & Dining',
+        amount: 25.50,
+        date: new Date().toISOString(),
+        summary: 'Test receipt'
+      }
+    }),
+    storeEmbedding: jest.fn().mockResolvedValue(undefined),
+    storeReceiptEmbedding: jest.fn().mockResolvedValue(undefined),
+    semanticSearch: jest.fn().mockResolvedValue([]),
+    generateSpendingInsights: jest.fn().mockResolvedValue({
+      insights: [],
+      totalAmount: 0,
+      averageAmount: 0,
+      topCategories: [],
+      topMerchants: [],
+      count: 0
+    }),
+    generateEmbeddingsForUser: jest.fn().mockResolvedValue(undefined),
+    updateEmbeddingForReceipt: jest.fn().mockResolvedValue(undefined)
+  }))
+}))
+
 jest.mock('@/lib/services/bulkOperations', () => ({
   BulkOperationsService: {
     filterReceipts: jest.fn().mockResolvedValue({
