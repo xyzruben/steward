@@ -4,7 +4,7 @@
 // Custom hooks for consistent animation states and interactions
 // Follows master guide: React State Patterns, Component Hierarchy, Performance
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useMotionValue, useTransform, useSpring, MotionValue } from 'framer-motion'
 import { ANIMATION_DURATION, ANIMATION_EASING } from '@/lib/animations'
 
@@ -341,7 +341,9 @@ interface UseReducedMotionReturn {
 export function useReducedMotion(): UseReducedMotionReturn {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
-  useState(() => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return; // SSR guard
+
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
 
@@ -351,7 +353,7 @@ export function useReducedMotion(): UseReducedMotionReturn {
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
-  })
+  }, [])
 
   return {
     prefersReducedMotion,
