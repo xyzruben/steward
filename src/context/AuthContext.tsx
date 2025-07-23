@@ -71,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     if (!supabase) return
     await supabase.auth.signOut()
+    // Redirect to homepage after logout
+    window.location.href = '/'
   }
 
   const refreshSession = async () => {
