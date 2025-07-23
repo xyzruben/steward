@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { BulkOperationsToolbar } from '@/components/receipts/BulkOperationsToolbar'
 import { ReceiptList } from '@/components/receipts/ReceiptList'
-import { EnhancedSearch } from '@/components/search/EnhancedSearch'
 import { SemanticSearch } from '@/components/search/SemanticSearch'
 import { SearchResults } from '@/components/search/SearchResults'
 import { ReceiptFilters, ReceiptFilters as ReceiptFiltersType } from '@/components/receipts/ReceiptFilters'
@@ -12,7 +11,6 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { SharedNavigation } from '@/components/ui/SharedNavigation'
 import ExportButton from '@/components/export/ExportButton'
 import { useBulkOperations } from '@/hooks/useBulkOperations'
-import type { SearchFilters, SearchOptions } from '@/lib/services/search'
 
 export default function ReceiptsPage() {
   const { user } = useAuth()
@@ -26,7 +24,6 @@ export default function ReceiptsPage() {
   const [searchMetadata, setSearchMetadata] = useState<any>(null)
   const [currentSearchFilters, setCurrentSearchFilters] = useState<any>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [searchMode, setSearchMode] = useState<'traditional' | 'semantic'>('traditional')
 
   // Initialize bulk operations hook
   const {
@@ -104,36 +101,28 @@ export default function ReceiptsPage() {
     fetchReceipts()
   }, [fetchReceipts])
 
-  // Listen for custom events when receipts are uploaded
-  useEffect(() => {
-    const handleReceiptUploaded = () => {
-      fetchReceipts()
-    }
+  const handleReceiptUploaded = () => {
+    // Refresh receipts after upload
+    fetchReceipts()
+  }
 
-    window.addEventListener('receipt-uploaded', handleReceiptUploaded)
-    return () => {
-      window.removeEventListener('receipt-uploaded', handleReceiptUploaded)
-    }
-  }, [fetchReceipts])
-
-  // Handle bulk operations
   const handleBulkUpdate = async (updates: any) => {
     try {
       await bulkUpdate(updates)
-      await fetchReceipts() // Refresh the list
+      setSelectedReceipts([])
+      fetchReceipts() // Refresh the list
     } catch (error) {
       console.error('Bulk update failed:', error)
-      throw error
     }
   }
 
   const handleBulkDelete = async () => {
     try {
       await bulkDelete()
-      await fetchReceipts() // Refresh the list
+      setSelectedReceipts([])
+      fetchReceipts() // Refresh the list
     } catch (error) {
       console.error('Bulk delete failed:', error)
-      throw error
     }
   }
 
@@ -142,88 +131,6 @@ export default function ReceiptsPage() {
       await bulkExport(format)
     } catch (error) {
       console.error('Bulk export failed:', error)
-      throw error
-    }
-  }
-
-  const handleSearch = async (query: string, filters?: SearchFilters, options?: SearchOptions) => {
-    if (!user) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      setSearchQuery(query)
-      
-      // Build enhanced search parameters
-      const params = new URLSearchParams()
-      params.append('query', query)
-      
-      if (filters) {
-        if (filters.category) params.append('category', filters.category)
-        if (filters.subcategory) params.append('subcategory', filters.subcategory)
-        if (filters.minAmount !== undefined) params.append('minAmount', filters.minAmount.toString())
-        if (filters.maxAmount !== undefined) params.append('maxAmount', filters.maxAmount.toString())
-        if (filters.startDate) params.append('startDate', filters.startDate.toISOString())
-        if (filters.endDate) params.append('endDate', filters.endDate.toISOString())
-        if (filters.minConfidence !== undefined) params.append('minConfidence', filters.minConfidence.toString())
-        if (filters.merchant) params.append('merchant', filters.merchant)
-        if (filters.tags) params.append('tags', filters.tags.join(','))
-      }
-      
-      if (options) {
-        if (options.limit) params.append('limit', options.limit.toString())
-        if (options.offset) params.append('offset', options.offset.toString())
-        if (options.sortBy) params.append('sortBy', options.sortBy)
-        if (options.sortOrder) params.append('sortOrder', options.sortOrder)
-        if (options.includeSuggestions) params.append('includeSuggestions', 'true')
-        if (options.fuzzyMatch) params.append('fuzzyMatch', 'true')
-      }
-      
-      const response = await fetch(`/api/search?${params.toString()}`)
-      if (response.ok) {
-        const data = await response.json()
-        setReceipts(data.receipts || [])
-        
-        // Store search analytics and metadata for display
-        setSearchAnalytics(data.searchAnalytics || null)
-        setSearchMetadata(data.metadata || null)
-        setCurrentSearchFilters(filters || null)
-      } else {
-        throw new Error('Search failed')
-      }
-    } catch (error) {
-      console.error('Search error:', error)
-      setError('Search failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSaveSearch = async (name: string, query: string, filters: SearchFilters) => {
-    if (!user) return
-
-    try {
-      const response = await fetch('/api/search/saved', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          query,
-          filters
-        })
-      })
-
-      if (response.ok) {
-        console.log('Search saved successfully')
-        // You could show a toast notification here
-      } else {
-        throw new Error('Failed to save search')
-      }
-    } catch (error) {
-      console.error('Failed to save search:', error)
-      // You could show an error toast here
     }
   }
 
@@ -249,87 +156,34 @@ export default function ReceiptsPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <SharedNavigation />
       
-      {/* Search and Filters */}
+      {/* AI-Powered Search */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
         <div className="max-w-7xl mx-auto">
-          {/* Search Mode Toggle */}
-          <div className="flex justify-center mb-6">
-            <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-              <button
-                onClick={() => setSearchMode('traditional')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  searchMode === 'traditional'
-                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Traditional Search
-              </button>
-              <button
-                onClick={() => setSearchMode('semantic')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  searchMode === 'semantic'
-                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                AI-Powered Search
-              </button>
-            </div>
+          <div className="max-w-4xl mx-auto">
+            <SemanticSearch 
+              onResults={(results) => {
+                // Convert semantic search results to receipt format for display
+                const convertedReceipts = results.map(result => ({
+                  id: result.receiptId,
+                  merchant: result.metadata.merchant,
+                  total: result.metadata.amount,
+                  purchaseDate: result.metadata.date,
+                  category: result.metadata.category,
+                  subcategory: result.metadata.subcategory,
+                  summary: result.metadata.summary,
+                  similarity: result.similarity
+                }))
+                setReceipts(convertedReceipts)
+                setSearchQuery(`AI Search: ${results.length} results`)
+              }}
+              onInsights={(insights) => {
+                // Handle insights display
+                console.log('Spending insights:', insights)
+              }}
+              placeholder="Ask about your spending in natural language..."
+              showSuggestions={true}
+            />
           </div>
-
-          {searchMode === 'traditional' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <EnhancedSearch 
-                  onSearch={handleSearch}
-                  onSaveSearch={handleSaveSearch}
-                  placeholder="Search receipts by merchant, category, or description..."
-                  showAdvancedFilters={true}
-                  showSuggestions={true}
-                  showSavedSearches={true}
-                />
-              </div>
-              <div className="space-y-4">
-                <ReceiptFilters onFiltersChange={handleFiltersChange} />
-                <div className="flex justify-end">
-                  <ExportButton
-                    variant="outline"
-                    size="md"
-                    className="text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
-                  >
-                    Export All
-                  </ExportButton>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto">
-              <SemanticSearch 
-                onResults={(results) => {
-                  // Convert semantic search results to receipt format for display
-                  const convertedReceipts = results.map(result => ({
-                    id: result.receiptId,
-                    merchant: result.metadata.merchant,
-                    total: result.metadata.amount,
-                    purchaseDate: result.metadata.date,
-                    category: result.metadata.category,
-                    subcategory: result.metadata.subcategory,
-                    summary: result.metadata.summary,
-                    similarity: result.similarity
-                  }))
-                  setReceipts(convertedReceipts)
-                  setSearchQuery(`AI Search: ${results.length} results`)
-                }}
-                onInsights={(insights) => {
-                  // Handle insights display
-                  console.log('Spending insights:', insights)
-                }}
-                placeholder="Ask about your spending in natural language..."
-                showSuggestions={true}
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -347,43 +201,70 @@ export default function ReceiptsPage() {
       )}
 
       {/* Bulk operations toolbar */}
-      <BulkOperationsToolbar
-        receipts={receipts}
-        selectedReceipts={selectedReceipts}
-        onSelectionChange={setSelectedReceipts}
-        onBulkUpdate={handleBulkUpdate}
-        onBulkDelete={handleBulkDelete}
-        onBulkExport={handleBulkExport}
-        onShowFilters={handleShowFilters}
-        isLoading={loading || isProcessing}
-      />
+      {selectedReceipts.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <BulkOperationsToolbar
+              receipts={receipts}
+              selectedReceipts={selectedReceipts}
+              onSelectionChange={setSelectedReceipts}
+              onBulkUpdate={handleBulkUpdate}
+              onBulkDelete={handleBulkDelete}
+              onBulkExport={handleBulkExport}
+              onShowFilters={handleShowFilters}
+              isLoading={loading || isProcessing}
+            />
+          </div>
+        </div>
+      )}
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner />
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Filters Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Filters</h3>
+                <button
+                  onClick={handleShowFilters}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  {showFilters ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              
+              {showFilters && (
+                <ReceiptFilters onFiltersChange={handleFiltersChange} />
+              )}
+              
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <ExportButton
+                  variant="outline"
+                  size="md"
+                  className="w-full text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600"
+                >
+                  Export All
+                </ExportButton>
+              </div>
+            </div>
           </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-            <button
-              onClick={fetchReceipts}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
-            >
-              Try Again
-            </button>
+
+          {/* Receipts List */}
+          <div className="lg:col-span-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            ) : (
+              <ReceiptList />
+            )}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-slate-600 dark:text-slate-400">
-              {receipts.length > 0 
-                ? `Showing ${receipts.length} receipts` 
-                : 'No receipts found. Upload some receipts to get started!'
-              }
-            </p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )

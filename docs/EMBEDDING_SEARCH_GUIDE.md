@@ -16,18 +16,16 @@ Steward now includes AI-powered semantic search capabilities using vector embedd
 - **Category Analysis**: Automatic breakdown of spending by category
 - **Merchant Insights**: Identify top merchants and spending trends
 
-### Dual Search Modes
-- **Traditional Search**: Original keyword-based search with filters
-- **AI-Powered Search**: New semantic search with natural language queries
+### AI-Powered Search
+- **Semantic Search**: Natural language queries with intelligent understanding
+- **Spending Insights**: AI-generated analytics and pattern recognition
 
 ## 🚀 How to Use
 
-### Switching Search Modes
+### AI-Powered Search Interface
 
 1. Navigate to the **Receipts** page
-2. Use the toggle buttons to switch between:
-   - **Traditional Search**: Keyword-based search with advanced filters
-   - **AI-Powered Search**: Natural language queries
+2. Use the AI-powered search interface for natural language queries
 
 ### Natural Language Queries
 

@@ -67,7 +67,7 @@ The application is fully deployed and operational with:
 - **Natural Language Queries**: Search receipts using conversational language
 - **Vector Embeddings**: OpenAI text-embedding-3-small for semantic understanding
 - **Intelligent Insights**: AI-generated spending pattern analysis and recommendations
-- **Dual Search Modes**: Traditional keyword search + AI-powered semantic search
+- **AI-Powered Search**: Natural language semantic search with intelligent insights
 
 ### Advanced Analytics
 - **Spending Pattern Analysis**: AI-driven insights into spending habits
