@@ -14,6 +14,7 @@ import { RecentReceipts } from './RecentReceipts'
 import { ReceiptUpload } from './ReceiptUpload'
 import { useData } from '@/context/DataContext'
 import { cn } from '@/lib/utils'
+import { usePerformance } from '@/hooks/usePerformance'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -29,6 +30,16 @@ interface DashboardContentProps {
 
 export function DashboardContent({ className = '' }: DashboardContentProps) {
   const { dashboardData, isLoading, error } = useData()
+
+  // Track dashboard load
+  const { start, end } = usePerformance({ label: 'Dashboard Load', auto: false })
+  React.useEffect(() => {
+    start()
+    if (!isLoading && !error) {
+      end()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, error])
 
   // Show loading state while data is being fetched
   if (isLoading) {

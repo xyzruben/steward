@@ -17,6 +17,7 @@ import { MobileNavigation, MobileHeader } from '@/components/ui/MobileNavigation
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { cn } from '@/lib/utils'
 import { isMobileDevice } from '@/lib/utils'
+import { usePerformance } from '@/hooks/usePerformance'
 
 // ============================================================================
 // MAIN PAGE COMPONENT (see master guide: Component Hierarchy)
@@ -28,10 +29,18 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Initialize immediately for better performance
+  // Track initial page load
+  const { start, end } = usePerformance({ label: 'Initial Page Load', auto: false })
+
   useEffect(() => {
+    start()
     setIsInitialized(true)
-  }, [])
+    // End timer when dashboard is shown
+    if (user && !loading) {
+      end()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading])
 
   // Show full screen loading for initial app load
   if (!isInitialized) {
