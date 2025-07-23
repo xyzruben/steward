@@ -552,3 +552,26 @@ export function getResponsiveHoverScale(): Variants {
 export function getResponsiveCardHover(): Variants {
   return isMobileDevice() ? mobileCardTap : cardHover
 } 
+
+// ============================================================================
+// REDUCED MOTION UTILITIES
+// ============================================================================
+
+export function getOptimizedTransition(reducedMotion: boolean, fallback: Transition = baseTransition): Transition {
+  if (reducedMotion) {
+    return { duration: 0, ease: ANIMATION_EASING.easeOut };
+  }
+  return fallback;
+}
+
+export function getReducedMotionVariants(reducedMotion: boolean, variants: Variants): Variants {
+  if (reducedMotion) {
+    // Only show the final state, no animation
+    return {
+      initial: {},
+      animate: {},
+      exit: {}
+    };
+  }
+  return variants;
+} 

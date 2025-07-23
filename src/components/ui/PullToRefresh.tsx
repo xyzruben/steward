@@ -10,6 +10,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { RefreshCw } from 'lucide-react'
+import { useAnimationPreferenceContext } from '@/context/AnimationPreferenceContext'
+import { getOptimizedTransition, getReducedMotionVariants } from '@/lib/animations'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -46,6 +48,9 @@ export function PullToRefresh({
     progress: 0
   })
   
+  const { animationEnabled } = useAnimationPreferenceContext()
+  const reducedMotion = !animationEnabled
+
   const containerRef = useRef<HTMLDivElement>(null)
   const y = useMotionValue(0)
   const rotate = useTransform(y, [0, threshold], [0, 180])
@@ -118,14 +123,20 @@ export function PullToRefresh({
       <motion.div
         className="absolute top-0 left-0 right-0 flex items-center justify-center py-4 pointer-events-none z-10"
         style={{ opacity, y: useTransform(y, [0, threshold], [-50, 0]) }}
+        transition={getOptimizedTransition(reducedMotion)}
+        variants={getReducedMotionVariants(reducedMotion, {})}
+        animate="animate"
       >
         <motion.div
           className="flex items-center space-x-2 bg-white dark:bg-slate-800 rounded-full px-4 py-2 shadow-lg border border-slate-200 dark:border-slate-700"
           style={{ scale }}
+          transition={getOptimizedTransition(reducedMotion)}
+          variants={getReducedMotionVariants(reducedMotion, {})}
+          animate="animate"
         >
           <motion.div
-            animate={refreshState.isRefreshing ? { rotate: 360 } : {}}
-            transition={refreshState.isRefreshing ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
+            animate={refreshState.isRefreshing && !reducedMotion ? { rotate: 360 } : {}}
+            transition={refreshState.isRefreshing && !reducedMotion ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
           >
             <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </motion.div>
@@ -138,13 +149,16 @@ export function PullToRefresh({
       {/* Content */}
       <motion.div
         style={{ y }}
-        drag="y"
+        drag={reducedMotion ? false : "y"}
         dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.1}
+        dragElastic={reducedMotion ? 0 : 0.1}
         onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
         className="touch-manipulation"
+        transition={getOptimizedTransition(reducedMotion)}
+        variants={getReducedMotionVariants(reducedMotion, {})}
+        animate="animate"
       >
         {children}
       </motion.div>

@@ -10,6 +10,7 @@ import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
 import { getPageTransition } from '@/lib/animations'
+import { useAnimationPreferenceContext } from '@/context/AnimationPreferenceContext'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -31,6 +32,22 @@ export function PageTransition({
   className = ''
 }: PageTransitionProps) {
   const pathname = usePathname()
+  const { animationEnabled } = useAnimationPreferenceContext()
+
+  if (!animationEnabled) {
+    // Render without animation for reduced motion
+    return (
+      <div
+        key={pathname}
+        className={className}
+        style={{ minHeight: '100vh' }}
+        aria-live="polite"
+        aria-label={`Navigated to ${pathname}`}
+      >
+        {children}
+      </div>
+    )
+  }
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -42,7 +59,6 @@ export function PageTransition({
         exit="exit"
         className={className}
         style={{ minHeight: '100vh' }}
-        // Accessibility: Announce route changes to screen readers
         aria-live="polite"
         aria-label={`Navigated to ${pathname}`}
       >

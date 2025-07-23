@@ -8,6 +8,7 @@ import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { PageTransition } from '../PageTransition'
 import { getPageTransition } from '@/lib/animations'
+import { AnimationPreferenceProvider } from '@/context/AnimationPreferenceContext'
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -37,9 +38,11 @@ describe('PageTransition', () => {
 
   it('renders children correctly', () => {
     render(
-      <PageTransition>
-        <div data-testid="test-content">Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div data-testid="test-content">Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument()
@@ -48,9 +51,11 @@ describe('PageTransition', () => {
 
   it('renders AnimatePresence wrapper', () => {
     render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     expect(screen.getByTestId('animate-presence')).toBeInTheDocument()
@@ -58,9 +63,11 @@ describe('PageTransition', () => {
 
   it('renders motion.div with correct props', () => {
     render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     const motionDiv = screen.getByTestId('motion-div')
@@ -74,9 +81,11 @@ describe('PageTransition', () => {
 
   it('uses fade transition by default', () => {
     render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     const motionDiv = screen.getByTestId('motion-div')
@@ -85,9 +94,11 @@ describe('PageTransition', () => {
 
   it('applies custom className', () => {
     render(
-      <PageTransition className="custom-class">
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition className="custom-class">
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     const motionDiv = screen.getByTestId('motion-div')
@@ -100,9 +111,11 @@ describe('PageTransition', () => {
 
   it('has proper accessibility attributes', () => {
     render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     const motionDiv = screen.getByTestId('motion-div')
@@ -115,7 +128,11 @@ describe('PageTransition', () => {
   // ============================================================================
 
   it('handles empty children', () => {
-    render(<PageTransition>{null}</PageTransition>)
+    render(
+      <AnimationPreferenceProvider>
+        <PageTransition>{null}</PageTransition>
+      </AnimationPreferenceProvider>
+    )
     
     expect(screen.getByTestId('animate-presence')).toBeInTheDocument()
     expect(screen.getByTestId('motion-div')).toBeInTheDocument()
@@ -123,13 +140,15 @@ describe('PageTransition', () => {
 
   it('handles complex nested children', () => {
     render(
-      <PageTransition>
-        <div>
-          <h1>Title</h1>
-          <p>Paragraph</p>
-          <button>Button</button>
-        </div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>
+            <h1>Title</h1>
+            <p>Paragraph</p>
+            <button>Button</button>
+          </div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     expect(screen.getByText('Title')).toBeInTheDocument()
@@ -149,9 +168,11 @@ describe('PageTransition', () => {
     }))
 
     render(
-      <PageTransition transitionType="slide-up">
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition transitionType="slide-up">
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     // Note: In a real test, we'd verify the integration
@@ -169,9 +190,11 @@ describe('PageTransition Performance', () => {
     const startTime = performance.now()
     
     render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
     
     const endTime = performance.now()
@@ -183,17 +206,21 @@ describe('PageTransition Performance', () => {
 
   it('handles rapid re-renders', () => {
     const { rerender } = render(
-      <PageTransition>
-        <div>Test Content</div>
-      </PageTransition>
+      <AnimationPreferenceProvider>
+        <PageTransition>
+          <div>Test Content</div>
+        </PageTransition>
+      </AnimationPreferenceProvider>
     )
 
     // Simulate rapid route changes
     for (let i = 0; i < 10; i++) {
       rerender(
-        <PageTransition>
-          <div>Test Content {i}</div>
-        </PageTransition>
+        <AnimationPreferenceProvider>
+          <PageTransition>
+            <div>Test Content {i}</div>
+          </PageTransition>
+        </AnimationPreferenceProvider>
       )
     }
 

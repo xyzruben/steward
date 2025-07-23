@@ -10,6 +10,8 @@ import React, { useState, useRef } from 'react'
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { AnimatedCard } from './AnimatedComponents'
+import { useAnimationPreferenceContext } from '@/context/AnimationPreferenceContext'
+import { getOptimizedTransition, getReducedMotionVariants } from '@/lib/animations'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -76,6 +78,9 @@ export function SwipeableCard({
       color: 'bg-red-600'
     }] : [])
   ]
+
+  const { animationEnabled } = useAnimationPreferenceContext()
+  const reducedMotion = !animationEnabled
 
   const handleDragStart = () => {
     if (disabled) return
@@ -152,6 +157,9 @@ export function SwipeableCard({
             style={{
               opacity: action.direction === 'left' ? leftActionOpacity : rightActionOpacity
             }}
+            transition={getOptimizedTransition(reducedMotion)}
+            variants={getReducedMotionVariants(reducedMotion, {})}
+            animate="animate"
           >
             {action.icon || (
               <span className="text-sm font-medium">
@@ -165,14 +173,17 @@ export function SwipeableCard({
       {/* Swipeable card */}
       <motion.div
         style={{ x, rotate, opacity }}
-        drag="x"
+        drag={reducedMotion ? false : "x"}
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.1}
+        dragElastic={reducedMotion ? 0 : 0.1}
         onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
-        whileTap={{ scale: 0.98 }}
+        whileTap={reducedMotion ? undefined : { scale: 0.98 }}
         className="touch-manipulation"
+        transition={getOptimizedTransition(reducedMotion)}
+        variants={getReducedMotionVariants(reducedMotion, {})}
+        animate="animate"
       >
         <AnimatedCard 
           className={cn(

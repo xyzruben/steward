@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { DataProvider } from "@/context/DataContext";
+import { AnimationPreferenceProvider } from "@/context/AnimationPreferenceContext";
 import { NotificationCenter } from "@/components/ui/NotificationCenter";
 import { PageTransition } from "@/components/ui/PageTransition";
 
@@ -50,16 +51,18 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            <DataProvider>
-              <PageTransition transitionType="fade">
-                {children}
-              </PageTransition>
-              <NotificationCenter 
-                position="bottom-right" 
-                variant="subtle"
-                className="z-40"
-              />
-            </DataProvider>
+            <AnimationPreferenceProvider>
+              <DataProvider>
+                <PageTransition transitionType="fade">
+                  {children}
+                </PageTransition>
+                <NotificationCenter 
+                  position="bottom-right" 
+                  variant="subtle"
+                  className="z-40"
+                />
+              </DataProvider>
+            </AnimationPreferenceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
