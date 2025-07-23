@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 import type { SupabaseAuthEvent } from '@/types/supabase'
@@ -111,30 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getInitialSession()
 
-    // Listen for auth changes
+    // Listen for auth changes (optimized for performance)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: SupabaseAuthEvent, session: Session | null) => {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
-
-        // Sync user to Prisma database when user exists and is confirmed
-        if (session?.user && event === 'SIGNED_IN') {
-          try {
-            await fetch('/api/auth/sync-user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: session.user.id,
-                email: session.user.email,
-              }),
-            })
-          } catch (error) {
-            console.error('Failed to sync user to database:', error)
-          }
-        }
+        // User sync moved to lazy loading - only syncs when user data is accessed
       }
     )
 
@@ -142,10 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   // ============================================================================
-  // CONTEXT VALUE
+  // CONTEXT VALUE (Memoized for performance)
   // ============================================================================
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     session,
     loading,
@@ -154,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     refreshSession,
     resendConfirmation,
-  }
+  }), [user, session, loading])
 
   return (
     <AuthContext.Provider value={value}>

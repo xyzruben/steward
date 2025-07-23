@@ -6,12 +6,13 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { SkeletonDashboard } from '@/components/ui/Skeleton'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ReceiptStats } from './ReceiptStats'
 import { RecentReceipts } from './RecentReceipts'
 import { ReceiptUpload } from './ReceiptUpload'
+import { useData } from '@/context/DataContext'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -27,21 +28,10 @@ interface DashboardContentProps {
 // ============================================================================
 
 export function DashboardContent({ className = '' }: DashboardContentProps) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const { dashboardData, isLoading, error } = useData()
 
-  // Simulate initial loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-      setIsInitialized(true)
-    }, 2500)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Show full screen loading for initial load
-  if (!isInitialized) {
+  // Show loading state while data is being fetched
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="text-center space-y-6">
@@ -69,16 +59,30 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     )
   }
 
+  // Show error state if data fetching failed
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center space-y-6">
+          <div className="text-red-600 dark:text-red-400">
+            <h2 className="text-xl font-semibold mb-2">Failed to load dashboard</h2>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn('space-y-8', className)}>
       {/* Stats Section */}
-      <ReceiptStats />
+      <ReceiptStats stats={dashboardData?.stats} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
-          <RecentReceipts />
+          <RecentReceipts receipts={dashboardData?.recentReceipts} />
         </div>
 
         {/* Sidebar */}

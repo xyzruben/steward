@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createSupabaseClient } from '@/lib/supabase'
 import type { UserProfile, UpdateUserProfile, UserProfileWithUser } from '@/lib/services/userProfile'
+import { LazyUserSyncService } from '@/lib/services/userProfile'
 import type { SupabaseAuthEvent } from '@/types/supabase'
 import type { Session } from '@supabase/supabase-js'
 
@@ -201,6 +202,17 @@ export function useUserProfile(): UseUserProfileReturn {
         setPreferences(cachedPreferences)
         setIsLoading(false)
         return
+      }
+
+      // Lazy sync user if needed before fetching data
+      const supabase = createSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        try {
+          await LazyUserSyncService.lazySyncUser(user.id, user.email!)
+        } catch (error) {
+          console.warn('Lazy sync failed, continuing with profile fetch:', error)
+        }
       }
 
       // Fetch fresh data

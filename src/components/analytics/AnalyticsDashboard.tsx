@@ -193,21 +193,17 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
     topMerchant: ''
   })
 
-  // Simulate loading and data fetching
+  // Load data immediately for better performance
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnalytics({
-        totalSpent: 2847.50,
-        totalReceipts: 47,
-        averagePerReceipt: 60.58,
-        monthlyGrowth: 12.5,
-        topCategory: 'Food & Dining',
-        topMerchant: 'Amazon.com'
-      })
-      setIsLoading(false)
-    }, 2000)
-
-    return () => clearTimeout(timer)
+    setAnalytics({
+      totalSpent: 2847.50,
+      totalReceipts: 47,
+      averagePerReceipt: 60.58,
+      monthlyGrowth: 12.5,
+      topCategory: 'Food & Dining',
+      topMerchant: 'Amazon.com'
+    })
+    setIsLoading(false)
   }, [])
 
   const analyticsData = [

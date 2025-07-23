@@ -8,6 +8,99 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // ============================================================================
+// LAZY USER SYNC SERVICE
+// ============================================================================
+
+class LazyUserSyncService {
+  private static syncInProgress = new Set<string>()
+  private static syncQueue = new Map<string, Promise<void>>()
+
+  /**
+   * Lazy user sync - only syncs when user data is actually accessed
+   */
+  static async lazySyncUser(userId: string, email: string): Promise<void> {
+    // If sync is already in progress, wait for it
+    if (this.syncInProgress.has(userId)) {
+      await this.syncQueue.get(userId)
+      return
+    }
+
+    // Check if user already exists in database
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    })
+
+    if (existingUser) {
+      return // User already exists, no need to sync
+    }
+
+    // Start sync process
+    this.syncInProgress.add(userId)
+    const syncPromise = this.performUserSync(userId, email)
+    this.syncQueue.set(userId, syncPromise)
+
+    try {
+      await syncPromise
+    } finally {
+      this.syncInProgress.delete(userId)
+      this.syncQueue.delete(userId)
+    }
+  }
+
+  /**
+   * Perform the actual user sync
+   */
+  private static async performUserSync(userId: string, email: string): Promise<void> {
+    try {
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: {
+          id: userId,
+          email,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+    } catch (error) {
+      console.error('Failed to sync user to database:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Debounced sync to prevent spam
+   */
+  static debouncedSync = (() => {
+    const timeouts = new Map<string, NodeJS.Timeout>()
+    
+    return (userId: string, email: string, delay: number = 1000) => {
+      // Clear existing timeout
+      if (timeouts.has(userId)) {
+        clearTimeout(timeouts.get(userId)!)
+      }
+
+      // Set new timeout
+      const timeout = setTimeout(async () => {
+        try {
+          await this.lazySyncUser(userId, email)
+        } catch (error) {
+          console.error('Debounced sync failed:', error)
+        } finally {
+          timeouts.delete(userId)
+        }
+      }, delay)
+
+      timeouts.set(userId, timeout)
+    }
+  })()
+}
+
+// Export lazy sync service for use in other parts of the app
+export { LazyUserSyncService }
+
+// ============================================================================
 // VALIDATION SCHEMAS
 // ============================================================================
 
@@ -78,10 +171,22 @@ export class UserProfileService {
   // ============================================================================
 
   /**
-   * Get user profile by user ID
+   * Get user profile by user ID (with lazy sync)
    */
   static async getUserProfile(userId: string): Promise<UserProfileWithUser | null> {
     try {
+      // Lazy sync user if needed
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true }
+      })
+
+      if (!user) {
+        // User doesn't exist in database, trigger lazy sync
+        console.warn('User not found in database, triggering lazy sync')
+        return null
+      }
+
       const profile = await prisma.userProfile.findUnique({
         where: { userId },
         include: {

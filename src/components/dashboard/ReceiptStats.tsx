@@ -22,6 +22,12 @@ import { staggerContainer, staggerItem, hoverLift } from '@/lib/animations'
 
 interface ReceiptStatsProps {
   className?: string
+  stats?: {
+    totalSpent: number
+    totalReceipts: number
+    averagePerReceipt: number
+    monthlyGrowth: number
+  }
 }
 
 interface StatCardProps {
@@ -225,8 +231,8 @@ function StatCard({
 // MAIN RECEIPT STATS COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-export function ReceiptStats({ className = '' }: ReceiptStatsProps) {
-  const [isLoading, setIsLoading] = useState(true)
+export function ReceiptStats({ className = '', stats: propStats }: ReceiptStatsProps) {
+  const [isLoading, setIsLoading] = useState(!propStats)
   const [error, setError] = useState<Error | null>(null)
   const [stats, setStats] = useState({
     totalSpent: 0,
@@ -235,9 +241,13 @@ export function ReceiptStats({ className = '' }: ReceiptStatsProps) {
     monthlyGrowth: 0
   })
 
-  // Simulate loading and data fetching
+  // Use props data if available, otherwise use local state
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (propStats) {
+      setStats(propStats)
+      setIsLoading(false)
+    } else {
+      // Fallback to local data fetching if no props provided
       try {
         // Simulate potential error (1 in 10 chance for demo)
         if (Math.random() < 0.1) {
@@ -255,10 +265,8 @@ export function ReceiptStats({ className = '' }: ReceiptStatsProps) {
         setError(err instanceof Error ? err : new Error('Unknown error occurred'))
         setIsLoading(false)
       }
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [])
+    }
+  }, [propStats])
 
   const statsData = [
     {

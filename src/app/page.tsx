@@ -28,13 +28,9 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Simulate initial app loading
+  // Initialize immediately for better performance
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsInitialized(true)
-    }, 1000)
-
-    return () => clearTimeout(timer)
+    setIsInitialized(true)
   }, [])
 
   // Show full screen loading for initial app load
@@ -88,8 +84,7 @@ export default function HomePage() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    // Simulate refresh
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Immediate refresh for better performance
     setIsRefreshing(false)
   }
 

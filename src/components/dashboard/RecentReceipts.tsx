@@ -19,6 +19,14 @@ import { cn } from '@/lib/utils'
 
 interface RecentReceiptsProps {
   className?: string
+  receipts?: Array<{
+    id: string
+    merchant: string
+    amount: number
+    date: string
+    category: string
+    imageUrl?: string
+  }>
 }
 
 interface ReceiptItemProps {
@@ -128,13 +136,17 @@ function ReceiptItem({
 // MAIN RECENT RECEIPTS COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-export function RecentReceipts({ className = '' }: RecentReceiptsProps) {
-  const [isLoading, setIsLoading] = useState(true)
+export function RecentReceipts({ className = '', receipts: propReceipts }: RecentReceiptsProps) {
+  const [isLoading, setIsLoading] = useState(!propReceipts)
   const [receipts, setReceipts] = useState<ReceiptItemProps[]>([])
 
-  // Simulate loading and data fetching
+  // Use props data if available, otherwise use local state
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (propReceipts) {
+      setReceipts(propReceipts)
+      setIsLoading(false)
+    } else {
+      // Fallback to local data if no props provided
       setReceipts([
         {
           id: '1',
@@ -178,10 +190,8 @@ export function RecentReceipts({ className = '' }: RecentReceiptsProps) {
         }
       ])
       setIsLoading(false)
-    }, 2000)
-
-    return () => clearTimeout(timer)
-  }, [])
+    }
+  }, [propReceipts])
 
   return (
     <Card className={cn('transition-all duration-300', className)}>
