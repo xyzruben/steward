@@ -1,3 +1,4 @@
+"use client";
 import React, { createContext, useContext } from 'react';
 import { useAnimationPreference } from '@/hooks/useAnimations';
 
