@@ -626,6 +626,14 @@ global.matchMedia = jest.fn().mockImplementation((query) => ({
   dispatchEvent: jest.fn(),
 }))
 
+// Polyfill for TextEncoder/TextDecoder in Node.js test environment
+if (typeof global.TextEncoder === 'undefined') {
+  global.TextEncoder = require('util').TextEncoder;
+}
+if (typeof global.TextDecoder === 'undefined') {
+  global.TextDecoder = require('util').TextDecoder;
+}
+
 // ============================================================================
 // TEST UTILITIES (see master guide: Testing and Quality Assurance)
 // ============================================================================
