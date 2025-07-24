@@ -1,10 +1,10 @@
-import { getSpendingByCategory, getSpendingByTime, getSpendingByVendor, getSpendingForCustomPeriod, getSpendingComparison } from './financeFunctions';
+import { getSpendingByCategory, getSpendingByTime, getSpendingByVendor, getSpendingForCustomPeriod, getSpendingComparison, detectSpendingAnomalies } from './financeFunctions';
 // import OpenAI client and types as needed
 
 /**
  * Orchestrates the AI-native financial assistant agent.
  * Aligns with Steward Master System Guide (see docs/STEWARD_MASTER_SYSTEM_GUIDE.md).
- * Tier 4: Expanded function registry for custom timeframes and comparisons.
+ * Tier 4: Expanded function registry for custom timeframes, comparisons, and anomaly detection.
  */
 export class FinanceAgent {
   /**
@@ -23,6 +23,7 @@ export class FinanceAgent {
       getSpendingByVendor,
       getSpendingForCustomPeriod, // Tier 4: custom period
       getSpendingComparison,      // Tier 4: comparisons
+      detectSpendingAnomalies,    // Tier 4: anomaly detection
       // Add more functions as needed
     ];
 

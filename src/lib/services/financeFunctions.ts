@@ -85,4 +85,33 @@ export async function getSpendingComparison(params: {
   };
 }
 
+/**
+ * Detects spending anomalies for a user in a given timeframe.
+ * Flags transactions or categories that are unusual (e.g., high amount, new vendor, outlier vs. historical average).
+ * @param params userId, timeframe, optional category/vendor
+ * @returns Array of anomalies with reason and details
+ */
+export async function detectSpendingAnomalies(params: {
+  userId: string;
+  timeframe: { start: Date; end: Date };
+  category?: string;
+  vendor?: string;
+}) {
+  // TODO: Implement anomaly detection logic (statistical or rule-based)
+  // Example: Compare spending to historical averages, flag outliers, new vendors, or large transactions
+  // See Master System Guide and TIER4_UPGRADE_PLAN.md for requirements
+  return [
+    // Example anomaly structure
+    // {
+    //   type: 'outlier',
+    //   entity: 'transaction' | 'category' | 'vendor',
+    //   id: 'receipt123',
+    //   amount: 250.00,
+    //   currency: 'USD',
+    //   reason: 'Unusually high compared to your monthly average',
+    //   details: {...}
+    // }
+  ];
+}
+
 // TODO: Add validation, error handling, and unit tests for each function 

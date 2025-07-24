@@ -1,4 +1,4 @@
-import { getSpendingForCustomPeriod, getSpendingComparison } from '../financeFunctions';
+import { getSpendingForCustomPeriod, getSpendingComparison, detectSpendingAnomalies } from '../financeFunctions';
 
 describe('financeFunctions (Tier 4)', () => {
   describe('getSpendingForCustomPeriod', () => {
@@ -44,6 +44,25 @@ describe('financeFunctions (Tier 4)', () => {
       expect(result.periodA.total).toBe(0);
       expect(result.periodB.total).toBe(0);
       expect(result.difference).toBe(0);
+    });
+  });
+
+  describe('detectSpendingAnomalies', () => {
+    it('returns an array (empty if no anomalies)', async () => {
+      const result = await detectSpendingAnomalies({
+        userId: 'user1',
+        timeframe: { start: new Date('2024-01-01'), end: new Date('2024-01-31') },
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
+    });
+    it('handles valid input and edge cases', async () => {
+      const result = await detectSpendingAnomalies({
+        userId: 'user2',
+        timeframe: { start: new Date('2024-02-01'), end: new Date('2024-02-28') },
+        category: 'food',
+      });
+      expect(Array.isArray(result)).toBe(true);
     });
   });
 }); 
