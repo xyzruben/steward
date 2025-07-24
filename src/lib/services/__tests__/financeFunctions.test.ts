@@ -1,4 +1,4 @@
-import { getSpendingForCustomPeriod, getSpendingComparison, detectSpendingAnomalies } from '../financeFunctions';
+import { getSpendingForCustomPeriod, getSpendingComparison, detectSpendingAnomalies, getSpendingTrends, summarizeTopVendors, summarizeTopCategories } from '../financeFunctions';
 
 describe('financeFunctions (Tier 4)', () => {
   describe('getSpendingForCustomPeriod', () => {
@@ -63,6 +63,42 @@ describe('financeFunctions (Tier 4)', () => {
         category: 'food',
       });
       expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe('getSpendingTrends', () => {
+    it('returns an array (empty if no data)', async () => {
+      const result = await getSpendingTrends({
+        userId: 'user1',
+        timeframe: { start: new Date('2024-01-01'), end: new Date('2024-01-31') },
+        interval: 'month',
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
+    });
+  });
+
+  describe('summarizeTopVendors', () => {
+    it('returns an array (empty if no data)', async () => {
+      const result = await summarizeTopVendors({
+        userId: 'user1',
+        timeframe: { start: new Date('2024-01-01'), end: new Date('2024-01-31') },
+        N: 3,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
+    });
+  });
+
+  describe('summarizeTopCategories', () => {
+    it('returns an array (empty if no data)', async () => {
+      const result = await summarizeTopCategories({
+        userId: 'user1',
+        timeframe: { start: new Date('2024-01-01'), end: new Date('2024-01-31') },
+        N: 3,
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
     });
   });
 }); 

@@ -114,4 +114,57 @@ export async function detectSpendingAnomalies(params: {
   ];
 }
 
+/**
+ * Returns time series data for spending trends (e.g., daily, weekly, monthly totals).
+ * @param params userId, timeframe, optional category/vendor
+ * @returns Array of { date, total, currency }
+ */
+export async function getSpendingTrends(params: {
+  userId: string;
+  timeframe: { start: Date; end: Date };
+  category?: string;
+  vendor?: string;
+  interval?: 'day' | 'week' | 'month';
+}) {
+  // TODO: Implement Prisma query to aggregate spending by interval
+  // Example: await prisma.receipt.groupBy(...)
+  return [
+    // Example: { date: '2024-01-01', total: 0, currency: 'USD' }
+  ];
+}
+
+/**
+ * Returns top N vendors by total spending for a user in a given timeframe.
+ * @param params userId, timeframe, N
+ * @returns Array of { vendor, total, currency }
+ */
+export async function summarizeTopVendors(params: {
+  userId: string;
+  timeframe: { start: Date; end: Date };
+  N: number;
+}) {
+  // TODO: Implement Prisma query to aggregate and sort by vendor
+  // Example: await prisma.receipt.groupBy(...)
+  return [
+    // Example: { vendor: 'Amazon', total: 0, currency: 'USD' }
+  ];
+}
+
+/**
+ * Returns top N categories by total spending for a user in a given timeframe.
+ * @param params userId, timeframe, N
+ * @returns Array of { category, total, currency }
+ */
+export async function summarizeTopCategories(params: {
+  userId: string;
+  timeframe: { start: Date; end: Date };
+  N: number;
+}) {
+  // TODO: Implement Prisma query to aggregate and sort by category
+  // Example: await prisma.receipt.groupBy(...)
+  return [
+    // Example: { category: 'Food', total: 0, currency: 'USD' }
+  ];
+}
+
 // TODO: Add validation, error handling, and unit tests for each function 
