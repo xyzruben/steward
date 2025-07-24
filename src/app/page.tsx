@@ -18,6 +18,7 @@ import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { cn } from '@/lib/utils'
 import { isMobileDevice } from '@/lib/utils'
 import { usePerformance } from '@/hooks/usePerformance'
+import AgentChat from '@/components/agent/AgentChat';
 
 // ============================================================================
 // MAIN PAGE COMPONENT (see master guide: Component Hierarchy)
@@ -133,6 +134,8 @@ export default function HomePage() {
         <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
           <DashboardContent />
         </PullToRefresh>
+        {/* Tier 4: AI-native AgentChat (see Master System Guide & TIER4_UPGRADE_PLAN.md) */}
+        <AgentChat />
       </main>
       
       {/* Mobile Navigation */}
