@@ -1,118 +1,319 @@
-import React, { useState } from 'react';
+'use client';
 
-/**
- * AgentChat UI component for Steward's AI-native financial assistant.
- * Follows Master System Guide: modular, testable, minimal styling, clear UX.
- *
- * Features:
- * - Input box for user queries
- * - Display area for agent responses (natural + structured)
- * - Loading and error states
- * - Insights display
- * - TODO: Streaming, rich formatting, chat history
- */
-const AgentChat: React.FC = () => {
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Send, Zap, Clock, Database } from 'lucide-react';
+
+interface AgentResponse {
+  message: string;
+  data: any;
+  insights?: string[];
+  error?: string;
+  cached?: boolean;
+  executionTime?: number;
+}
+
+interface StreamingAgentResponse {
+  type: 'start' | 'function_call' | 'data_processing' | 'summary' | 'complete' | 'error';
+  message?: string;
+  data?: any;
+  insights?: string[];
+  error?: string;
+  cached?: boolean;
+  executionTime?: number;
+}
+
+interface AgentChatProps {
+  className?: string;
+}
+
+export default function AgentChat({ className = '' }: AgentChatProps) {
   const [query, setQuery] = useState('');
-  const [response, setResponse] = useState<string | null>(null);
-  const [structured, setStructured] = useState<any>(null);
-  const [insights, setInsights] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState<AgentResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const [performanceStats, setPerformanceStats] = useState<{
+    cached: boolean;
+    executionTime?: number;
+  } | null>(null);
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!query.trim() || isLoading) return;
+
+    setIsLoading(true);
     setError(null);
     setResponse(null);
-    setStructured(null);
-    setInsights([]);
-    
-    try {
-      const res = await fetch('/api/agent/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || data.message || 'Unknown error');
-      }
-      
-      setResponse(data.message || 'No response');
-      setStructured(data.data || null);
-      setInsights(data.insights || []);
-    } catch (err: any) {
-      setError(err.message || 'Error contacting agent');
-    } finally {
-      setLoading(false);
+    setPerformanceStats(null);
+
+    if (streamingEnabled) {
+      await handleStreamingQuery();
+    } else {
+      await handleRegularQuery();
     }
   };
 
+  const handleRegularQuery = async () => {
+    try {
+      const res = await fetch('/api/agent/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, streaming: false }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data: AgentResponse = await res.json();
+      
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setResponse(data);
+        setPerformanceStats({
+          cached: data.cached || false,
+          executionTime: data.executionTime
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStreamingQuery = async () => {
+    try {
+      setIsStreaming(true);
+      setStreamingMessage('Starting analysis...');
+
+      const res = await fetch('/api/agent/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, streaming: true }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let finalResponse: AgentResponse | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+
+        for (const line of lines) {
+          try {
+            const data: StreamingAgentResponse = JSON.parse(line);
+            
+            switch (data.type) {
+              case 'start':
+                setStreamingMessage('Starting analysis...');
+                break;
+              case 'function_call':
+                setStreamingMessage('Determining best analysis approach...');
+                break;
+              case 'data_processing':
+                setStreamingMessage('Processing your financial data...');
+                break;
+              case 'summary':
+                setStreamingMessage('Generating insights...');
+                break;
+              case 'complete':
+                finalResponse = {
+                  message: data.message || 'Analysis complete',
+                  data: data.data,
+                  insights: data.insights,
+                  error: data.error,
+                  cached: data.cached,
+                  executionTime: data.executionTime
+                };
+                setResponse(finalResponse);
+                setPerformanceStats({
+                  cached: data.cached || false,
+                  executionTime: data.executionTime
+                });
+                break;
+              case 'error':
+                setError(data.error || 'An error occurred during processing');
+                break;
+            }
+          } catch (parseError) {
+            console.error('Error parsing streaming chunk:', parseError);
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+      setIsStreaming(false);
+      setStreamingMessage('');
+    }
+  };
+
+  const clearCache = async () => {
+    try {
+      const res = await fetch('/api/agent/query?action=clear-cache', {
+        method: 'GET',
+      });
+      
+      if (res.ok) {
+        // Optionally show a success message
+        console.log('Cache cleared successfully');
+      }
+    } catch (err) {
+      console.error('Error clearing cache:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
   return (
-    <div className="max-w-2xl mx-auto p-6 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-        💬 Financial Assistant
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
-        <input
-          type="text"
-          className="flex-1 border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-          placeholder="Ask anything about your spending..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          disabled={loading}
-          aria-label="Agent query input"
-        />
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          disabled={loading || !query.trim()}
-        >
-          {loading ? 'Analyzing...' : 'Ask'}
-        </button>
-      </form>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <div className="text-red-800 dark:text-red-200 font-medium">Error</div>
-          <div className="text-red-600 dark:text-red-300 text-sm">{error}</div>
-        </div>
-      )}
-      
-      {response && (
-        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="text-blue-900 dark:text-blue-100 font-medium mb-2">💡 Analysis</div>
-          <div className="text-blue-800 dark:text-blue-200">{response}</div>
-        </div>
-      )}
-      
-      {insights.length > 0 && (
-        <div className="mb-4">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔍 Key Insights</div>
-          <div className="space-y-1">
-            {insights.map((insight, index) => (
-              <div key={index} className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded">
-                {insight}
+    <div className={`space-y-4 ${className}`}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-blue-500" />
+            AI Financial Assistant
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setStreamingEnabled(!streamingEnabled)}
+                className="text-xs"
+              >
+                {streamingEnabled ? 'Streaming ON' : 'Streaming OFF'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearCache}
+                className="text-xs"
+              >
+                Clear Cache
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ask about your spending patterns, e.g., 'How much did I spend on food last month?'"
+                disabled={isLoading}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={isLoading || !query.trim()}>
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </form>
+
+          {/* Performance Stats */}
+          {performanceStats && (
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+              {performanceStats.cached && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Database className="h-3 w-3" />
+                  Cached
+                </Badge>
+              )}
+              {performanceStats.executionTime && (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {performanceStats.executionTime}ms
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Streaming Status */}
+          {isStreaming && streamingMessage && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-blue-700 dark:text-blue-300">{streamingMessage}</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {structured && (
-        <div className="mb-4">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📊 Data</div>
-          <pre className="bg-gray-100 dark:bg-gray-700 p-3 rounded text-xs overflow-x-auto text-gray-800 dark:text-gray-200">
-            {JSON.stringify(structured, null, 2)}
-          </pre>
-        </div>
-      )}
-      
-      {/* TODO: Add chat history, streaming, and rich formatting */}
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+              <p className="text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
+          {/* Response Display */}
+          {response && !isStreaming && (
+            <div className="mt-4 space-y-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <h3 className="font-semibold mb-2">Analysis Results</h3>
+                <p className="text-gray-700 dark:text-gray-300">{response.message}</p>
+              </div>
+
+              {/* Insights */}
+              {response.insights && response.insights.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Key Insights</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {response.insights.map((insight, index) => (
+                      <Badge key={index} variant="outline">
+                        {insight}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Data Display */}
+              {response.data && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Data</h4>
+                  <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-auto">
+                    {JSON.stringify(response.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default AgentChat; 
+} 
