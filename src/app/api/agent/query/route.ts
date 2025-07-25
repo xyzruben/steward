@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FinanceAgent } from '@/lib/services/financeAgent';
+import { FinanceAgent, AgentResponse } from '@/lib/services/financeAgent';
 
 /**
  * API route for Steward's AI-native financial assistant agent.
@@ -7,6 +7,7 @@ import { FinanceAgent } from '@/lib/services/financeAgent';
  *
  * POST /api/agent/query
  * Body: { query: string }
+ * Response: { message: string, data: any, insights?: string[], error?: string }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -26,15 +27,25 @@ export async function POST(req: NextRequest) {
 
     // 3. Instantiate agent and handle query
     const agent = new FinanceAgent();
-    const result = await agent.handleQuery(userQuery, { userId });
+    const result: AgentResponse = await agent.handleQuery(userQuery, { userId });
 
-    // 4. Return agent response
+    // 4. Return agent response with proper status codes
+    if (result.error) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     // 5. Error handling
     // Log error (TODO: Add structured logging per Master System Guide)
     console.error('Agent API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ 
+      error: errorMessage,
+      message: 'I encountered an error while processing your request. Please try again.',
+      data: null 
+    }, { status: 500 });
   }
 }
 
