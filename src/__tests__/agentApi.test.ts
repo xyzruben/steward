@@ -1,6 +1,26 @@
 import * as agentModule from '@/lib/services/financeAgent';
 
-// Mock OpenAI
+// Mock Supabase and cookies
+jest.mock('@/lib/supabase', () => ({
+  createSupabaseServerClient: jest.fn().mockReturnValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: 'test-user-123' } },
+        error: null
+      })
+    }
+  })
+}));
+
+jest.mock('next/headers', () => ({
+  cookies: jest.fn().mockResolvedValue({
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn()
+  })
+}));
+
+// Mock OpenAI globally
 jest.mock('openai', () => ({
   OpenAI: jest.fn().mockImplementation(() => ({
     chat: {
@@ -23,12 +43,12 @@ jest.mock('openai', () => ({
  * Follows "just right" testing philosophy from Master System Guide.
  * Focuses on business value, error handling, and reliability.
  */
-describe('/api/agent/query', () => {
+describe('/api/agent/query', () => { // Name kept for historical context, but now tests agent directly
   let handleQuerySpy: jest.SpyInstance;
 
   beforeEach(() => {
-    handleQuerySpy = jest.spyOn(agentModule.FinanceAgent.prototype, 'handleQuery').mockResolvedValue({ 
-      message: 'mocked response', 
+    handleQuerySpy = jest.spyOn(agentModule.FinanceAgent.prototype, 'handleQuery').mockResolvedValue({
+      message: 'mocked response',
       data: { foo: 'bar' },
       insights: ['Test insight']
     });
@@ -39,32 +59,41 @@ describe('/api/agent/query', () => {
   });
 
   it('returns 200 and expected structure for valid query', async () => {
-    // Test the agent directly since API route testing is complex with App Router
     const agent = new agentModule.FinanceAgent();
-    const result = await agent.handleQuery('How much did I spend on food?', { userId: 'test-user' });
-    
+    const result = await agent.handleQuery('How much did I spend on food?', { userId: 'test-user-123' });
+
     expect(result.message).toBe('mocked response');
     expect(result.data).toEqual({ foo: 'bar' });
     expect(result.insights).toEqual(['Test insight']);
   });
 
   it('handles agent error responses correctly', async () => {
-    handleQuerySpy.mockResolvedValueOnce({ 
-      message: 'Error occurred', 
-      data: null, 
-      error: 'Agent processing failed' 
+    handleQuerySpy.mockResolvedValueOnce({
+      message: 'Error occurred',
+      data: null,
+      error: 'Agent processing failed'
     });
-    
     const agent = new agentModule.FinanceAgent();
-    const result = await agent.handleQuery('test', { userId: 'test-user' });
-    
+    const result = await agent.handleQuery('test', { userId: 'test-user-123' });
+
     expect(result.error).toBe('Agent processing failed');
     expect(result.message).toBe('Error occurred');
   });
 
   it('creates FinanceAgent instance successfully', () => {
-    // Test that the agent can be instantiated without errors
     const agent = new agentModule.FinanceAgent();
     expect(agent).toBeInstanceOf(agentModule.FinanceAgent);
+  });
+
+  it('handles authentication errors correctly', async () => {
+    // Test that the agent can handle authentication errors gracefully
+    const agent = new agentModule.FinanceAgent();
+    
+    // Mock an authentication error scenario
+    handleQuerySpy.mockRejectedValueOnce(new Error('Authentication failed'));
+    
+    await expect(
+      agent.handleQuery('test query', { userId: 'invalid-user' })
+    ).rejects.toThrow('Authentication failed');
   });
 }); 

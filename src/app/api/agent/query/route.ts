@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase';
 import { FinanceAgent, AgentResponse } from '@/lib/services/financeAgent';
 
 /**
@@ -11,12 +13,19 @@ import { FinanceAgent, AgentResponse } from '@/lib/services/financeAgent';
  */
 export async function POST(req: NextRequest) {
   try {
-    // 1. Authenticate user (TODO: Integrate with real auth/session)
-    // Example: const user = await getUserFromRequest(req);
-    const userId = 'TODO-user-id'; // TODO: Replace with real user ID
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 1. Authenticate user (following established pattern from other API routes)
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
+
+    const userId = user.id; // Real user ID from Supabase
 
     // 2. Parse request body
     const body = await req.json();
