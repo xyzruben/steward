@@ -34,6 +34,8 @@ model User {
   notificationPreferences NotificationPreferences?
   userProfile UserProfile?
   savedSearches SavedSearch[]
+  agentLogs AgentLog[]
+  agentErrors AgentError[]
   
   // Supabase Auth integration
   // The id field will be synced with Supabase Auth users
@@ -224,35 +226,88 @@ model NotificationPreferences {
 }
 
 // ============================================================================
-// SAVED SEARCH MODEL (see master guide: Database Schema Design)
+// SAVED SEARCH MODEL
 // ============================================================================
-// User's saved search queries and filters
+// User's saved search queries for quick access
 model SavedSearch {
-  id        String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
   
   // Foreign key to User (Supabase Auth)
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Search data
-  name      String   // User-friendly name for the search
-  query     String   // Search query string
-  filters   Json     // Search filters as JSON object
-  
-  // Usage tracking
-  useCount  Int      @default(1)
-  lastUsed  DateTime @default(now())
+  // Search details
+  name        String   // User-friendly name for the search
+  query       String   // The actual search query
+  filters     Json?    // Search filters as JSON
+  isDefault   Boolean  @default(false) // Whether this is the user's default search
   
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
-  // Indexes for performance
-  @@index([userId])
-  @@index([lastUsed])
-  @@index([userId, lastUsed]) // Composite index for user's recent searches
-  
+  @@unique([userId, name])
   @@map("saved_searches")
+}
+
+// ============================================================================
+// AGENT LOG MODEL
+// ============================================================================
+// Logs all agent queries and responses for monitoring and analytics
+model AgentLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Query details
+  query         String   // The user's query
+  responseTime  Int      // Response time in milliseconds
+  success       Boolean  // Whether the query was successful
+  error         String?  // Error message if failed
+  functionsUsed String[] // Array of function names used
+  cached        Boolean  @default(false) // Whether response was cached
+  
+  // Metadata
+  metadata      Json?    // Additional metadata (user agent, IP, etc.)
+  
+  // Timestamps
+  timestamp     DateTime @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([timestamp])
+  @@index([success])
+  @@map("agent_logs")
+}
+
+// ============================================================================
+// AGENT ERROR MODEL
+// ============================================================================
+// Detailed error tracking for agent failures
+model AgentError {
+  id          String   @id @default(uuid()) @db.Uuid
+  
+  // Foreign key to User (Supabase Auth)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Error details
+  query       String   // The query that caused the error
+  error       String   // Error message
+  stackTrace  String?  // Full stack trace if available
+  context     Json     // Error context (functions used, response time, etc.)
+  severity    String   // low, medium, high, critical
+  resolved    Boolean  @default(false) // Whether the error has been resolved
+  
+  // Timestamps
+  timestamp   DateTime @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([timestamp])
+  @@index([severity])
+  @@index([resolved])
+  @@map("agent_errors")
 }
 
 // ============================================================================

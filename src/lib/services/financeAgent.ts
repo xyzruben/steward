@@ -1,6 +1,8 @@
 import { OpenAI } from 'openai';
-import { getSpendingByCategory, getSpendingByTime, getSpendingByVendor, getSpendingForCustomPeriod, getSpendingComparison, detectSpendingAnomalies, getSpendingTrends, summarizeTopVendors, summarizeTopCategories } from './financeFunctions';
+import { prisma } from '../prisma';
 import { analyticsCache } from './cache';
+import { monitoringService } from './monitoring';
+import * as financeFunctions from './financeFunctions';
 
 // ============================================================================
 // FINANCE AGENT - AI-NATIVE FINANCIAL ASSISTANT
@@ -20,6 +22,7 @@ export interface AgentResponse {
   error?: string;
   cached?: boolean;
   executionTime?: number;
+  functionsUsed?: string[];
 }
 
 export interface StreamingAgentResponse {
@@ -220,15 +223,15 @@ const functionSchemas = [
 // Function Registry
 // -----------------------------
 const functionRegistry = {
-  getSpendingByCategory,
-  getSpendingByTime,
-  getSpendingByVendor,
-  getSpendingForCustomPeriod,
-  getSpendingComparison,
-  detectSpendingAnomalies,
-  getSpendingTrends,
-  summarizeTopVendors,
-  summarizeTopCategories,
+  getSpendingByCategory: financeFunctions.getSpendingByCategory,
+  getSpendingByTime: financeFunctions.getSpendingByTime,
+  getSpendingByVendor: financeFunctions.getSpendingByVendor,
+  getSpendingForCustomPeriod: financeFunctions.getSpendingForCustomPeriod,
+  getSpendingComparison: financeFunctions.getSpendingComparison,
+  detectSpendingAnomalies: financeFunctions.detectSpendingAnomalies,
+  getSpendingTrends: financeFunctions.getSpendingTrends,
+  summarizeTopVendors: financeFunctions.summarizeTopVendors,
+  summarizeTopCategories: financeFunctions.summarizeTopCategories,
 };
 
 // -----------------------------
@@ -248,43 +251,82 @@ export class FinanceAgent {
    * Supports both regular and streaming responses
    */
   async handleQuery(
-    userQuery: string, 
-    userContext: { userId: string },
-    options: { streaming?: boolean } = {}
+    query: string,
+    userId: string,
+    streaming: boolean = false,
+    metadata?: Record<string, any>
   ): Promise<AgentResponse | AsyncGenerator<StreamingAgentResponse>> {
     const startTime = Date.now();
-    
+    let functionsUsed: string[] = [];
+    let success = false;
+    let error: string | undefined;
+    let cached = false;
+
     try {
-      // 1. Check cache first (if enabled)
-      if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-        const cacheKey = this.generateCacheKey(userQuery, userContext.userId);
-        const cachedResult = await analyticsCache.get<AgentResponse>(cacheKey);
-        if (cachedResult) {
-          return {
-            ...cachedResult,
-            cached: true,
-            executionTime: Date.now() - startTime
-          };
-        }
-      }
-
-      // 2. Handle streaming response
-      if (options.streaming && PERFORMANCE_CONFIG.STREAMING_ENABLED) {
-        return this.handleQueryStreaming(userQuery, userContext, startTime);
-      }
-
-      // 3. Handle regular response
-      return await this.handleQueryRegular(userQuery, userContext, startTime);
-    } catch (error) {
-      console.error('FinanceAgent error:', error);
-      const executionTime = Date.now() - startTime;
+      // Check cache first
+      const cacheKey = `agent:${userId}:${query}`;
+      const cachedResult = await analyticsCache.get<AgentResponse>(cacheKey);
       
-      return {
-        message: 'I encountered an error while processing your request. Please try again or rephrase your question.',
-        data: null,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        executionTime
-      };
+      if (cachedResult) {
+        cached = true;
+        success = true;
+        
+        // Log cached response
+        await monitoringService.logAgentQuery(
+          userId,
+          query,
+          Date.now() - startTime,
+          success,
+          functionsUsed,
+          cached,
+          error,
+          metadata
+        );
+        
+        return cachedResult;
+      }
+
+      if (streaming) {
+        return this.handleQueryStreaming(query, userId, startTime, metadata);
+      } else {
+        const result = await this.handleQueryRegular(query, userId, startTime, metadata);
+        success = true;
+        functionsUsed = result.functionsUsed || [];
+        
+        // Cache successful response
+        await analyticsCache.set(cacheKey, result, 3600); // 1 hour
+        
+        // Log successful response
+        await monitoringService.logAgentQuery(
+          userId,
+          query,
+          Date.now() - startTime,
+          success,
+          functionsUsed,
+          cached,
+          error,
+          metadata
+        );
+        
+        return result;
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Unknown error';
+      success = false;
+      
+      // Log error
+      await monitoringService.logAgentQuery(
+        userId,
+        query,
+        Date.now() - startTime,
+        success,
+        functionsUsed,
+        cached,
+        error,
+        metadata
+      );
+      
+      throw err;
     }
   }
 
@@ -292,87 +334,119 @@ export class FinanceAgent {
    * Handle regular (non-streaming) query processing
    */
   private async handleQueryRegular(
-    userQuery: string, 
-    userContext: { userId: string },
-    startTime: number
+    query: string,
+    userId: string,
+    startTime: number,
+    metadata?: Record<string, any>
   ): Promise<AgentResponse> {
-    // 1. Prepare system prompt
-    const systemPrompt = this.getSystemPrompt();
+    const functionsUsed: string[] = [];
+    const cacheKey = `agent:${userId}:${query}`;
+    
+    try {
+      // 1. Prepare system prompt
+      const systemPrompt = this.getSystemPrompt();
 
-    // 2. Call OpenAI with function calling enabled
-    const completion = await this.openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userQuery }
-      ],
-      tools: functionSchemas.map(schema => ({
-        type: 'function' as const,
-        function: schema
-      })),
-      tool_choice: 'auto',
-      temperature: 0.1,
-      max_tokens: 1000,
-    });
-
-    const assistantMessage = completion.choices[0].message;
-
-    // 3. Handle function calls if present
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      const results = await this.executeFunctionsOptimized(
-        assistantMessage.tool_calls,
-        userContext.userId
-      );
-
-      // 4. Get natural language summary from OpenAI
-      const summaryCompletion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
+      // 2. Call OpenAI with function calling enabled
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userQuery },
-          { 
-            role: 'assistant', 
-            content: `I've analyzed your data using the following functions: ${results.map(r => r.functionName).join(', ')}` 
+          {
+            role: 'system',
+            content: `You are a financial assistant that helps users analyze their spending patterns. You have access to various financial data functions. Use them to provide accurate, helpful responses. Always provide insights and explanations with your data.`,
           },
           {
-            role: 'tool',
-            tool_call_id: assistantMessage.tool_calls[0].id,
-            content: JSON.stringify(results)
-          }
+            role: 'user',
+            content: query,
+          },
         ],
-        temperature: 0.3,
-        max_tokens: 800,
+        functions: functionSchemas,
+        function_call: 'auto',
+        temperature: 0.1,
       });
 
-      const result: AgentResponse = {
-        message: summaryCompletion.choices[0].message.content || 'Analysis complete',
-        data: results,
-        insights: this.extractInsights(results),
-        executionTime: Date.now() - startTime
-      };
-
-      // 5. Cache the result
-      if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-        const cacheKey = this.generateCacheKey(userQuery, userContext.userId);
-        await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+      const response = completion.choices[0]?.message;
+      if (!response) {
+        throw new Error('No response from OpenAI');
       }
 
-      return result;
-    } else {
-      // 6. Handle direct response (no function call needed)
-      const result: AgentResponse = {
-        message: assistantMessage.content || 'I understand your query but don\'t have a specific function to call. Could you rephrase or ask about spending analysis?',
-        data: null,
-        executionTime: Date.now() - startTime
-      };
-
-      // Cache the result
-      if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-        const cacheKey = this.generateCacheKey(userQuery, userContext.userId);
-        await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+      // Track function calls
+      if (response.function_call) {
+        functionsUsed.push(response.function_call.name);
       }
 
-      return result;
+      // 3. Handle function calls if present
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        const results = await this.executeFunctionsOptimized(
+          response.tool_calls,
+          userId
+        );
+
+        // 4. Generate final response with function results
+        const finalCompletion = await this.openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: query },
+            { 
+              role: 'assistant', 
+              content: response.content || '',
+              tool_calls: response.tool_calls
+            },
+            {
+              role: 'tool',
+              tool_call_id: response.tool_calls[0].id,
+              content: JSON.stringify(results)
+            }
+          ],
+          temperature: 0.1,
+        });
+
+        const finalResponse = finalCompletion.choices[0]?.message;
+        const result: AgentResponse = {
+          message: finalResponse?.content || 'Analysis complete',
+          data: results,
+          insights: this.extractInsights(results),
+          executionTime: Date.now() - startTime,
+          functionsUsed,
+        };
+
+        // 5. Cache the result
+        if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
+          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+        }
+
+        return result;
+      } else {
+        // 6. Handle direct response (no function call needed)
+        const result: AgentResponse = {
+          message: response.content || 'I understand your query but don\'t have a specific function to call. Could you rephrase or ask about spending analysis?',
+          data: null,
+          executionTime: Date.now() - startTime,
+          functionsUsed,
+        };
+
+        // Cache the result
+        if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
+          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+        }
+
+        return result;
+      }
+    } catch (err) {
+      // Log error with context
+      await monitoringService.logError(
+        userId,
+        query,
+        err instanceof Error ? err.message : 'Unknown error',
+        {
+          functionsUsed,
+          responseTime: Date.now() - startTime,
+          timestamp: new Date(),
+        },
+        err instanceof Error ? err.stack : undefined
+      );
+      
+      throw err;
     }
   }
 
@@ -380,10 +454,13 @@ export class FinanceAgent {
    * Handle streaming query processing
    */
   private async *handleQueryStreaming(
-    userQuery: string,
-    userContext: { userId: string },
-    startTime: number
+    query: string,
+    userId: string,
+    startTime: number,
+    metadata?: Record<string, any>
   ): AsyncGenerator<StreamingAgentResponse> {
+    const functionsUsed: string[] = [];
+    
     try {
       // 1. Start streaming
       yield {
@@ -406,7 +483,7 @@ export class FinanceAgent {
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userQuery }
+          { role: 'user', content: query }
         ],
         tools: functionSchemas.map(schema => ({
           type: 'function' as const,
@@ -417,10 +494,18 @@ export class FinanceAgent {
         max_tokens: 1000,
       });
 
-      const assistantMessage = completion.choices[0].message;
+      const response = completion.choices[0]?.message;
+      if (!response) {
+        throw new Error('No response from OpenAI');
+      }
+
+      // Track function calls in streaming
+      if (response.function_call) {
+        functionsUsed.push(response.function_call.name);
+      }
 
       // 4. Handle function calls if present
-      if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      if (response.tool_calls && response.tool_calls.length > 0) {
         yield {
           type: 'data_processing',
           message: 'Processing your financial data...',
@@ -428,8 +513,8 @@ export class FinanceAgent {
         };
 
         const results = await this.executeFunctionsOptimized(
-          assistantMessage.tool_calls,
-          userContext.userId
+          response.tool_calls,
+          userId
         );
 
         // 5. Get natural language summary from OpenAI
@@ -443,14 +528,14 @@ export class FinanceAgent {
           model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userQuery },
+            { role: 'user', content: query },
             { 
               role: 'assistant', 
               content: `I've analyzed your data using the following functions: ${results.map(r => r.functionName).join(', ')}` 
             },
             {
               role: 'tool',
-              tool_call_id: assistantMessage.tool_calls[0].id,
+              tool_call_id: response.tool_calls[0].id,
               content: JSON.stringify(results)
             }
           ],
@@ -463,12 +548,12 @@ export class FinanceAgent {
           message: summaryCompletion.choices[0].message.content || 'Analysis complete',
           data: results,
           insights: this.extractInsights(results),
-          executionTime: Date.now() - startTime
+          executionTime: Date.now() - startTime,
         };
 
         // 6. Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-          const cacheKey = this.generateCacheKey(userQuery, userContext.userId);
+          const cacheKey = `agent:${userId}:${query}`;
           await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
         }
 
@@ -477,27 +562,34 @@ export class FinanceAgent {
         // 7. Handle direct response (no function call needed)
         const result: StreamingAgentResponse = {
           type: 'complete',
-          message: assistantMessage.content || 'I understand your query but don\'t have a specific function to call. Could you rephrase or ask about spending analysis?',
+          message: response.content || 'I understand your query but don\'t have a specific function to call. Could you rephrase or ask about spending analysis?',
           data: null,
-          executionTime: Date.now() - startTime
+          executionTime: Date.now() - startTime,
         };
 
         // Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-          const cacheKey = this.generateCacheKey(userQuery, userContext.userId);
+          const cacheKey = `agent:${userId}:${query}`;
           await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
         }
 
         yield result;
       }
-    } catch (error) {
-      console.error('FinanceAgent streaming error:', error);
-      yield {
-        type: 'error',
-        message: 'I encountered an error while processing your request. Please try again.',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        executionTime: Date.now() - startTime
-      };
+    } catch (err) {
+      // Log streaming error
+      await monitoringService.logError(
+        userId,
+        query,
+        err instanceof Error ? err.message : 'Unknown error',
+        {
+          functionsUsed,
+          responseTime: Date.now() - startTime,
+          timestamp: new Date(),
+        },
+        err instanceof Error ? err.stack : undefined
+      );
+      
+      throw err;
     }
   }
 

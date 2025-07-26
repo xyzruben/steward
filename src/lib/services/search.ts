@@ -66,8 +66,7 @@ export interface SavedSearch {
   query: string
   filters: SearchFilters
   createdAt: Date
-  lastUsed: Date
-  useCount: number
+  updatedAt: Date
 }
 
 // ============================================================================
@@ -431,8 +430,6 @@ export class SearchService {
           name,
           query,
           filters: filters as any, // Cast to any for JSON storage
-          useCount: 1,
-          lastUsed: new Date(),
         }
       })
 
@@ -443,8 +440,7 @@ export class SearchService {
         query: savedSearch.query,
         filters: savedSearch.filters as SearchFilters,
         createdAt: savedSearch.createdAt,
-        lastUsed: savedSearch.lastUsed,
-        useCount: savedSearch.useCount,
+        updatedAt: savedSearch.updatedAt,
       }
     } catch (error) {
       console.error('Error saving search:', error)
@@ -456,7 +452,7 @@ export class SearchService {
     try {
       const savedSearches = await prisma.savedSearch.findMany({
         where: { userId },
-        orderBy: { lastUsed: 'desc' },
+        orderBy: { updatedAt: 'desc' },
       })
 
       return savedSearches.map(search => ({
@@ -466,8 +462,7 @@ export class SearchService {
         query: search.query,
         filters: search.filters as SearchFilters,
         createdAt: search.createdAt,
-        lastUsed: search.lastUsed,
-        useCount: search.useCount,
+        updatedAt: search.updatedAt,
       }))
     } catch (error) {
       console.error('Error getting saved searches:', error)

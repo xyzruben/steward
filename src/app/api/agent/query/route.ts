@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
     
     // 5. Handle regular response
-    const result = await agent.handleQuery(userQuery, { userId }) as AgentResponse;
+    const result = await agent.handleQuery(userQuery, userId) as AgentResponse;
 
     // 6. Return agent response with proper status codes
     if (result.error) {
@@ -81,7 +81,7 @@ async function handleStreamingResponse(
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const streamingResult = agent.handleQuery(userQuery, { userId }, { streaming: true });
+        const streamingResult = agent.handleQuery(userQuery, userId, true);
         
         if (Symbol.asyncIterator in streamingResult) {
           // Handle streaming response
