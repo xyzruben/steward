@@ -18,7 +18,14 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:test": "dotenv -e .env.local -- node scripts/db-test.js"
+    "db:test": "dotenv -e .env.local -- node scripts/db-test.js",
+    "validate:production": "node scripts/production-validation.js",
+    "validate:env": "node scripts/production-validation.js --env-only",
+    "validate:build": "node scripts/production-validation.js --build-only",
+    "validate:test": "node scripts/production-validation.js --test-only",
+    "deploy:production": "./scripts/deploy-production.sh",
+    "deploy:rollback": "./scripts/deploy-production.sh --rollback",
+    "deploy:verify": "./scripts/deploy-production.sh --verify"
   },
   "dependencies": {
     "@google-cloud/vision": "^5.2.0",
