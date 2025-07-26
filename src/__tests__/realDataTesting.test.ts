@@ -77,8 +77,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How much did I spend on food and dining this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -98,8 +98,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How much did I spend at Starbucks?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -130,8 +130,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'Are there any unusual spending patterns this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -145,8 +145,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How has my spending changed over the past month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -159,8 +159,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How much did I spend on food this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -173,8 +173,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How much did I spend on entertainment this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -190,8 +190,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'How much did I spend on entertainment this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -205,8 +205,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         'What is my total spending this year?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -224,8 +224,8 @@ describe('Real Data Testing - FinanceAgent', () => {
 
       const result = await agent.handleQuery(
         "How much did I spend at McDonald's?",
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
 
       expect(result.message).toBeTruthy();
       expect(result.data).toBeDefined();
@@ -241,8 +241,8 @@ describe('Real Data Testing - FinanceAgent', () => {
       const startTime = Date.now();
       const result = await agent.handleQuery(
         'How much did I spend this month?',
-        { userId: testUserId }
-      );
+        testUserId
+      ) as any;
       const endTime = Date.now();
 
       expect(result.message).toBeTruthy();
