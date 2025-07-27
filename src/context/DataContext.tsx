@@ -161,17 +161,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // CACHE MANAGEMENT (see master guide: Performance)
   // ============================================================================
 
-  // Check if data is stale
+  // Check if data is stale (with memoization to prevent excessive updates)
   useEffect(() => {
     if (lastFetch > 0) {
       const timeSinceLastFetch = Date.now() - lastFetch
-      setIsStale(timeSinceLastFetch > CACHE_DURATION)
+      const newIsStale = timeSinceLastFetch > CACHE_DURATION
+      
+      // Only update if the stale state actually changed
+      if (newIsStale !== isStale) {
+        setIsStale(newIsStale)
+      }
     }
-  }, [lastFetch])
+  }, [lastFetch, isStale, CACHE_DURATION])
 
-  // Auto-refresh stale data
+  // Auto-refresh stale data (with better guards)
   useEffect(() => {
-    if (isStale && user && !isLoading) {
+    if (isStale && user?.id && !isLoading) {
       const timer = setTimeout(() => {
         fetchDashboardData()
       }, 1000) // Small delay to prevent rapid refreshes
@@ -185,9 +190,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // ============================================================================
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchDashboardData()
-    } else {
+    } else if (!user) {
       // Clear data when user logs out
       setDashboardData(null)
       setIsLoading(false)

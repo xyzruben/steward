@@ -44,14 +44,19 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, error])
 
-  // Add debug logging
+  // Add debug logging (throttled to prevent excessive logging)
   React.useEffect(() => {
-    console.log('DashboardContent render:', { 
-      isLoading, 
-      hasError: !!error, 
-      hasData: !!dashboardData,
-      dataKeys: dashboardData ? Object.keys(dashboardData) : []
-    })
+    // Throttle logging to prevent excessive console output
+    const timeoutId = setTimeout(() => {
+      console.log('DashboardContent render:', { 
+        isLoading, 
+        hasError: !!error, 
+        hasData: !!dashboardData,
+        dataKeys: dashboardData ? Object.keys(dashboardData) : []
+      })
+    }, 100)
+    
+    return () => clearTimeout(timeoutId)
   }, [isLoading, error, dashboardData])
 
   // Show loading state while data is being fetched

@@ -37,6 +37,9 @@ export default function HomePage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   
+  // Memoize expensive computations to prevent re-renders
+  const isMobile = React.useMemo(() => isMobileDevice(), [])
+  
   // Onboarding tour
   const { isTourVisible, hasCompletedTour, startTour, completeTour, skipTour } = useOnboardingTour()
 
@@ -50,11 +53,11 @@ export default function HomePage() {
     startTimer()
     setIsInitialized(true)
     // End timer when dashboard is shown
-    if (user && !loading) {
+    if (user?.id && !loading) {
       endTimer(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading])
+  }, [user?.id, loading])
 
   // Show full screen loading for initial app load
   if (!isInitialized) {
@@ -124,7 +127,6 @@ export default function HomePage() {
   }
 
   // Show authenticated dashboard
-  const isMobile = isMobileDevice()
 
   const handleRefresh = async () => {
     setIsRefreshing(true)

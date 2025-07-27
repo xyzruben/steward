@@ -33,12 +33,15 @@ export function PageTransition({
 }: PageTransitionProps) {
   const pathname = usePathname()
   const { animationEnabled } = useAnimationPreferenceContext()
+  
+  // Memoize the key to prevent unnecessary re-renders
+  const memoizedKey = React.useMemo(() => pathname, [pathname])
 
   if (!animationEnabled) {
     // Render without animation for reduced motion
     return (
       <div
-        key={pathname}
+        key={memoizedKey}
         className={className}
         style={{ minHeight: '100vh' }}
         aria-live="polite"
@@ -52,7 +55,7 @@ export function PageTransition({
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
-        key={pathname}
+        key={memoizedKey}
         variants={getPageTransition(transitionType)}
         initial="initial"
         animate="animate"
