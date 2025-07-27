@@ -6,11 +6,14 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   // Connection pooling configuration for production performance
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
+  // Only configure datasources if DATABASE_URL is available
+  ...(process.env.DATABASE_URL && {
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
     },
-  },
+  }),
   // Log queries in development for debugging
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   // Connection pool settings
