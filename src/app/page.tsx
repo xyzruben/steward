@@ -23,6 +23,7 @@ import AgentChat from '@/components/agent/AgentChat';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { OnboardingTour, useOnboardingTour } from '@/components/ui/OnboardingTour';
 import { HelpSystem, HelpTrigger } from '@/components/ui/HelpSystem';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 // ============================================================================
 // MAIN PAGE COMPONENT (see master guide: Component Hierarchy)
@@ -164,11 +165,13 @@ export default function HomePage() {
         'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8',
         isMobile && 'pb-32' // Space for mobile navigation
       )}>
-        <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
-          <DashboardContent />
-        </PullToRefresh>
-        {/* Tier 4: AI-native AgentChat (see Master System Guide & TIER4_UPGRADE_PLAN.md) */}
-        <AgentChat />
+        <ErrorBoundary>
+          <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
+            <DashboardContent />
+          </PullToRefresh>
+          {/* Tier 4: AI-native AgentChat (see Master System Guide & TIER4_UPGRADE_PLAN.md) */}
+          <AgentChat />
+        </ErrorBoundary>
       </main>
       
       {/* Mobile Navigation */}

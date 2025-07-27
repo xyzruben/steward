@@ -35,6 +35,7 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
   const { startTimer, endTimer } = usePerformance({ 
     label: 'Dashboard Load'
   })
+  
   React.useEffect(() => {
     startTimer()
     if (!isLoading && !error) {
@@ -42,6 +43,16 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, error])
+
+  // Add debug logging
+  React.useEffect(() => {
+    console.log('DashboardContent render:', { 
+      isLoading, 
+      hasError: !!error, 
+      hasData: !!dashboardData,
+      dataKeys: dashboardData ? Object.keys(dashboardData) : []
+    })
+  }, [isLoading, error, dashboardData])
 
   // Show loading state while data is being fetched
   if (isLoading) {
@@ -86,16 +97,30 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     )
   }
 
+  // Ensure we have valid data before rendering
+  if (!dashboardData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center space-y-6">
+          <div className="text-orange-600 dark:text-orange-400">
+            <h2 className="text-xl font-semibold mb-2">No dashboard data available</h2>
+            <p className="text-sm">Please refresh the page or try again later.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn('space-y-8', className)}>
       {/* Stats Section */}
-      <ReceiptStats stats={dashboardData?.stats} />
+      <ReceiptStats stats={dashboardData.stats} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
-          <RecentReceipts receipts={dashboardData?.recentReceipts} />
+          <RecentReceipts receipts={dashboardData.recentReceipts} />
         </div>
 
         {/* Sidebar */}

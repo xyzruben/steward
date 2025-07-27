@@ -84,8 +84,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       setError(null)
 
-      // Use the dashboard data service for batch fetching
-      const data = await DashboardDataService.getDashboardData(user.id)
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000) // 10 second timeout
+      })
+
+      // Use the dashboard data service for batch fetching with timeout
+      const dataPromise = DashboardDataService.getDashboardData(user.id)
+      const data = await Promise.race([dataPromise, timeoutPromise]) as any
       
       setDashboardData(data)
       setLastFetch(Date.now())
@@ -97,7 +103,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [user])
+  }, [user?.id]) // Only depend on user.id, not the entire user object
 
   const refreshData = useCallback(async () => {
     await fetchDashboardData()
@@ -115,7 +121,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error('Error refreshing stats:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh stats')
     }
-  }, [user])
+  }, [user?.id])
 
   const refreshReceipts = useCallback(async () => {
     if (!user) return
@@ -129,7 +135,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error('Error refreshing receipts:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh receipts')
     }
-  }, [user])
+  }, [user?.id])
 
   const refreshAnalytics = useCallback(async () => {
     if (!user) return
@@ -143,7 +149,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error('Error refreshing analytics:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh analytics')
     }
-  }, [user])
+  }, [user?.id])
 
   const clearCache = useCallback(() => {
     setDashboardData(null)
@@ -172,7 +178,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       return () => clearTimeout(timer)
     }
-  }, [isStale, user, isLoading, fetchDashboardData])
+  }, [isStale, user?.id, isLoading, fetchDashboardData])
 
   // ============================================================================
   // INITIAL DATA LOADING (see master guide: React State Patterns)
@@ -189,7 +195,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLastFetch(0)
       setIsStale(false)
     }
-  }, [user, fetchDashboardData])
+  }, [user?.id, fetchDashboardData])
 
   // ============================================================================
   // CONTEXT VALUE (Memoized for performance)

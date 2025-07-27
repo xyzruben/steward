@@ -61,6 +61,7 @@ export function PageTransition({
         style={{ minHeight: '100vh' }}
         aria-live="polite"
         aria-label={`Navigated to ${pathname}`}
+        transition={{ duration: 0.2 }} // Faster, simpler transition
       >
         {children}
       </motion.div>

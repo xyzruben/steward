@@ -95,11 +95,11 @@ export class DashboardDataService {
   static async getDashboardData(userId: string): Promise<DashboardData> {
     const cacheKey = `${userId}:dashboard`
     
-    // Check cache first
-    const cached = DashboardCache.get<DashboardData>(cacheKey)
-    if (cached) {
-      return cached
-    }
+    // Temporarily disable cache to isolate issues
+    // const cached = DashboardCache.get<DashboardData>(cacheKey)
+    // if (cached) {
+    //   return cached
+    // }
 
     try {
       // Make batch API call to get all data at once
@@ -108,6 +108,8 @@ export class DashboardDataService {
         headers: {
           'Content-Type': 'application/json',
         },
+        // Add timeout to prevent hanging requests
+        signal: AbortSignal.timeout(8000) // 8 second timeout
       })
 
       if (!response.ok) {
