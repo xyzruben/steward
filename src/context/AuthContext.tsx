@@ -50,13 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }
 
+  // Helper function to get the correct redirect URL for email confirmation
+  const getEmailRedirectUrl = () => {
+    // Use environment variable if available (production), otherwise use window.location.origin (development)
+    return process.env.NEXT_PUBLIC_APP_URL 
+      ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+      : `${window.location.origin}/auth/callback`
+  }
+
   const signUp = async (email: string, password: string) => {
     if (!supabase) return { error: new Error('Supabase client not initialized') }
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`
+        emailRedirectTo: getEmailRedirectUrl()
       }
     })
     
@@ -90,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`
+        emailRedirectTo: getEmailRedirectUrl()
       }
     })
     return { error }

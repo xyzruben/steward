@@ -2,6 +2,7 @@ import { OpenAI } from 'openai';
 import { prisma } from '../prisma';
 import { analyticsCache } from './cache';
 import { monitoringService } from './monitoring';
+import { trackPerformance, trackDatabasePerformance, trackExternalApiPerformance } from './performance';
 import * as financeFunctions from './financeFunctions';
 
 // ============================================================================
@@ -347,6 +348,7 @@ export class FinanceAgent {
       const systemPrompt = this.getSystemPrompt();
 
       // 2. Call OpenAI with function calling enabled
+      const openaiStartTime = Date.now();
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -363,6 +365,20 @@ export class FinanceAgent {
         function_call: 'auto',
         temperature: 0.1,
       });
+      const openaiDuration = Date.now() - openaiStartTime;
+      
+      // Track OpenAI API performance
+      trackExternalApiPerformance(
+        'openai-chat-completion',
+        openaiDuration,
+        true,
+        userId,
+        {
+          model: 'gpt-4o-mini',
+          functionsUsed: functionsUsed.length,
+          responseSize: completion.choices[0]?.message?.content?.length || 0,
+        }
+      );
 
       const response = completion.choices[0]?.message;
       if (!response) {
@@ -382,6 +398,7 @@ export class FinanceAgent {
         );
 
         // 4. Generate final response with function results
+        const finalCompletionStartTime = Date.now();
         const finalCompletion = await this.openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
@@ -400,15 +417,43 @@ export class FinanceAgent {
           ],
           temperature: 0.1,
         });
+        const finalCompletionDuration = Date.now() - finalCompletionStartTime;
+        
+        // Track final OpenAI API performance
+        trackExternalApiPerformance(
+          'openai-final-completion',
+          finalCompletionDuration,
+          true,
+          userId,
+          {
+            model: 'gpt-4o-mini',
+            responseSize: finalCompletion.choices[0]?.message?.content?.length || 0,
+          }
+        );
 
         const finalResponse = finalCompletion.choices[0]?.message;
+        const totalExecutionTime = Date.now() - startTime;
         const result: AgentResponse = {
           message: finalResponse?.content || 'Analysis complete',
           data: results,
           insights: this.extractInsights(results),
-          executionTime: Date.now() - startTime,
+          executionTime: totalExecutionTime,
           functionsUsed,
         };
+
+        // Track overall performance
+        trackPerformance(
+          'finance-agent-query',
+          totalExecutionTime,
+          true,
+          userId,
+          {
+            functionsUsed,
+            cacheHit: false,
+            responseSize: finalResponse?.content?.length || 0,
+            openaiCalls: 2,
+          }
+        );
 
         // 5. Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
@@ -418,12 +463,28 @@ export class FinanceAgent {
         return result;
       } else {
         // 6. Handle direct response (no function call needed)
+        const totalExecutionTime = Date.now() - startTime;
         const result: AgentResponse = {
           message: response.content || 'I understand your query but don\'t have a specific function to call. Could you rephrase or ask about spending analysis?',
           data: null,
-          executionTime: Date.now() - startTime,
+          executionTime: totalExecutionTime,
           functionsUsed,
         };
+
+        // Track performance for direct response
+        trackPerformance(
+          'finance-agent-query',
+          totalExecutionTime,
+          true,
+          userId,
+          {
+            functionsUsed,
+            cacheHit: false,
+            responseSize: response.content?.length || 0,
+            openaiCalls: 1,
+            directResponse: true,
+          }
+        );
 
         // Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
@@ -433,6 +494,22 @@ export class FinanceAgent {
         return result;
       }
     } catch (err) {
+      const totalExecutionTime = Date.now() - startTime;
+      
+      // Track failed performance
+      trackPerformance(
+        'finance-agent-query',
+        totalExecutionTime,
+        false,
+        userId,
+        {
+          functionsUsed,
+          cacheHit: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        },
+        err instanceof Error ? err.message : 'Unknown error'
+      );
+      
       // Log error with context
       await monitoringService.logError(
         userId,
@@ -440,7 +517,7 @@ export class FinanceAgent {
         err instanceof Error ? err.message : 'Unknown error',
         {
           functionsUsed,
-          responseTime: Date.now() - startTime,
+          responseTime: totalExecutionTime,
           timestamp: new Date(),
         },
         err instanceof Error ? err.stack : undefined

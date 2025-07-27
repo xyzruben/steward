@@ -132,79 +132,36 @@ export function ReceiptList({ className = '' }: ReceiptListProps) {
   const [receipts, setReceipts] = useState<ReceiptItemProps[]>([])
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid')
 
-  // Simulate loading and data fetching
+  // Fetch real receipt data
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setReceipts([
-        {
-          id: '1',
-          merchant: 'Starbucks Coffee',
-          amount: 12.45,
-          date: '2024-01-15',
-          category: 'Food & Dining',
-          imageUrl: undefined
-        },
-        {
-          id: '2',
-          merchant: 'Amazon.com',
-          amount: 89.99,
-          date: '2024-01-14',
-          category: 'Shopping',
-          imageUrl: undefined
-        },
-        {
-          id: '3',
-          merchant: 'Shell Gas Station',
-          amount: 45.67,
-          date: '2024-01-13',
-          category: 'Transportation',
-          imageUrl: undefined
-        },
-        {
-          id: '4',
-          merchant: 'Walmart',
-          amount: 156.78,
-          date: '2024-01-12',
-          category: 'Shopping',
-          imageUrl: undefined
-        },
-        {
-          id: '5',
-          merchant: 'Netflix',
-          amount: 15.99,
-          date: '2024-01-11',
-          category: 'Entertainment',
-          imageUrl: undefined
-        },
-        {
-          id: '6',
-          merchant: 'Target',
-          amount: 78.32,
-          date: '2024-01-10',
-          category: 'Shopping',
-          imageUrl: undefined
-        },
-        {
-          id: '7',
-          merchant: 'Chipotle',
-          amount: 18.50,
-          date: '2024-01-09',
-          category: 'Food & Dining',
-          imageUrl: undefined
-        },
-        {
-          id: '8',
-          merchant: 'Uber',
-          amount: 23.45,
-          date: '2024-01-08',
-          category: 'Transportation',
-          imageUrl: undefined
+    const fetchReceipts = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/receipts?limit=50')
+        if (response.ok) {
+          const data = await response.json()
+          const formattedReceipts = data.map((receipt: any) => ({
+            id: receipt.id,
+            merchant: receipt.merchant,
+            amount: Number(receipt.total),
+            date: receipt.purchaseDate.split('T')[0],
+            category: receipt.category || 'Uncategorized',
+            imageUrl: receipt.imageUrl
+          }))
+          setReceipts(formattedReceipts)
+        } else {
+          console.error('Failed to fetch receipts:', response.statusText)
+          setReceipts([])
         }
-      ])
-      setIsLoading(false)
-    }, 3000)
+      } catch (error) {
+        console.error('Error fetching receipts:', error)
+        setReceipts([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    return () => clearTimeout(timer)
+    fetchReceipts()
   }, [])
 
   const renderContent = () => {

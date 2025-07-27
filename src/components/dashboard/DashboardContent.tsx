@@ -32,11 +32,13 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
   const { dashboardData, isLoading, error } = useData()
 
   // Track dashboard load
-  const { start, end } = usePerformance({ label: 'Dashboard Load', auto: false })
+  const { startTimer, endTimer } = usePerformance({ 
+    label: 'Dashboard Load'
+  })
   React.useEffect(() => {
-    start()
+    startTimer()
     if (!isLoading && !error) {
-      end()
+      endTimer(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, error])

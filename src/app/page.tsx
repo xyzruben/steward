@@ -15,10 +15,14 @@ import { RealtimeNotifications } from '@/components/ui/RealtimeNotifications'
 import { FullScreenLoading } from '@/components/ui/LoadingSpinner'
 import { MobileNavigation, MobileHeader } from '@/components/ui/MobileNavigation'
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { isMobileDevice } from '@/lib/utils'
 import { usePerformance } from '@/hooks/usePerformance'
 import AgentChat from '@/components/agent/AgentChat';
+import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
+import { OnboardingTour, useOnboardingTour } from '@/components/ui/OnboardingTour';
+import { HelpSystem, HelpTrigger } from '@/components/ui/HelpSystem';
 
 // ============================================================================
 // MAIN PAGE COMPONENT (see master guide: Component Hierarchy)
@@ -29,16 +33,24 @@ export default function HomePage() {
   const [isInitialized, setIsInitialized] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  
+  // Onboarding tour
+  const { isTourVisible, hasCompletedTour, startTour, completeTour, skipTour } = useOnboardingTour()
 
   // Track initial page load
-  const { start, end } = usePerformance({ label: 'Initial Page Load', auto: false })
+  const { startTimer, endTimer } = usePerformance({ 
+    label: 'Initial Page Load',
+    userId: user?.id 
+  })
 
   useEffect(() => {
-    start()
+    startTimer()
     setIsInitialized(true)
     // End timer when dashboard is shown
     if (user && !loading) {
-      end()
+      endTimer(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading])
@@ -65,8 +77,20 @@ export default function HomePage() {
     )
   }
 
-  // Show login form if user is not authenticated
+  // Show welcome screen for new users or login form
   if (!user) {
+    if (showWelcome) {
+      return (
+        <WelcomeScreen
+          onGetStarted={() => setShowWelcome(false)}
+          onTakeTour={() => {
+            setShowWelcome(false);
+            startTour();
+          }}
+        />
+      );
+    }
+    
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="w-full max-w-md">
@@ -84,6 +108,15 @@ export default function HomePage() {
             </p>
           </div>
           <LoginForm />
+          <div className="text-center mt-4">
+            <Button
+              variant="link"
+              onClick={() => setShowWelcome(true)}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Learn More About Steward
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -148,6 +181,33 @@ export default function HomePage() {
           onNotifications={handleNotifications}
         />
       )}
+      
+      {/* Help and Tour Components */}
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col space-y-2">
+        {!hasCompletedTour && (
+          <Button
+            onClick={startTour}
+            size="sm"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg hover:from-blue-600 hover:to-purple-700"
+          >
+            Take Tour
+          </Button>
+        )}
+        <HelpTrigger onOpen={() => setShowHelp(true)} />
+      </div>
+      
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        isVisible={isTourVisible}
+        onComplete={completeTour}
+        onSkip={skipTour}
+      />
+      
+      {/* Help System */}
+      <HelpSystem
+        isVisible={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
       
       {/* Real-time notifications - positioned in top-right to avoid conflicts */}
       <RealtimeNotifications position="top-right" />

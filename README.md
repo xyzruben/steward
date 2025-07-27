@@ -131,6 +131,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key
 
+# Application URL (Required for email confirmation in production)
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+
 # Optional: Analytics and Monitoring
 NEXT_PUBLIC_VERCEL_ANALYTICS_ID=your_analytics_id
 ```
