@@ -3,6 +3,7 @@
 
 import { prisma } from '../prisma';
 import { analyticsCache } from './cache';
+import { dbService } from './db';
 import type {
   AnalyticsOverview,
   SpendingTrend,
@@ -13,14 +14,19 @@ import type {
 } from '../../types/analytics';
 
 export class AnalyticsService {
-  // Get overall analytics overview for a user with caching
+  // Get overall analytics overview for a user with enhanced caching
   async getOverview(userId: string, filters?: AnalyticsFilters): Promise<AnalyticsResponse<AnalyticsOverview>> {
     const startTime = Date.now();
-    const cacheKey = analyticsCache.generateKey('overview', { userId, filters: JSON.stringify(filters) });
+    const cacheKey = analyticsCache.generateKey('overview', { 
+      userId, 
+      filters: JSON.stringify(filters),
+      version: '1.0' // Cache version for future invalidation
+    }, userId);
     
-    // Try to get from cache first
-    const cached = await analyticsCache.get<AnalyticsOverview>(cacheKey);
+    // Try to get from cache first with user isolation
+    const cached = await analyticsCache.get<AnalyticsOverview>(cacheKey, userId);
     if (cached) {
+      console.log(`🎯 Analytics cache HIT for overview - User: ${userId}`);
       return {
         data: cached,
         metadata: {
@@ -32,19 +38,23 @@ export class AnalyticsService {
       };
     }
 
+    console.log(`🔄 Analytics cache MISS for overview - User: ${userId}, fetching fresh data...`);
+
     // Build where clause with filters
     const whereClause = this.buildWhereClause(userId, filters);
     
-    const [aggregate, first, last] = await Promise.all([
-      prisma.receipt.aggregate({
-        where: whereClause,
-        _sum: { total: true },
-        _count: true,
-        _avg: { total: true },
-      }),
-      prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'asc' } }),
-      prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'desc' } }),
-    ]);
+    const [aggregate, first, last] = await dbService.executeWithRetry(async () => {
+      return Promise.all([
+        prisma.receipt.aggregate({
+          where: whereClause,
+          _sum: { total: true },
+          _count: true,
+          _avg: { total: true },
+        }),
+        prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'asc' } }),
+        prisma.receipt.findFirst({ where: whereClause, orderBy: { purchaseDate: 'desc' } }),
+      ]);
+    });
 
     const result = {
       totalSpent: Number(aggregate._sum.total ?? 0),

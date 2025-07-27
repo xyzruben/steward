@@ -157,7 +157,7 @@ export function ReceiptList({ className = '' }: ReceiptListProps) {
         console.error('Error fetching receipts:', error)
         setReceipts([])
       } finally {
-        setIsLoading(false)
+      setIsLoading(false)
       }
     }
 

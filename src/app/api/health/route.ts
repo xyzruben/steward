@@ -40,7 +40,7 @@ export async function GET() {
 
     // 3. Cache Health Check
     try {
-      await analyticsCache.set('health_check', 'ok', 60);
+      await analyticsCache.set('health_check', 'ok', { ttl: 60 * 1000 });
       const cacheResult = await analyticsCache.get('health_check');
       healthChecks.cache = cacheResult === 'ok';
     } catch (error) {

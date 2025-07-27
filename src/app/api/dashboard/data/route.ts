@@ -1,7 +1,7 @@
 // ============================================================================
 // DASHBOARD DATA API ROUTE (see STEWARD_MASTER_SYSTEM_GUIDE.md - API Route Principles)
 // ============================================================================
-// Batch API endpoint for fetching all dashboard data in a single call
+// Enhanced batch API endpoint with intelligent caching and performance optimization
 // Follows master guide: API Route Principles, Authentication and Authorization, Performance
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,8 +10,14 @@ import { createSupabaseServerClient } from '@/lib/supabase'
 import { AnalyticsService } from '@/lib/services/analytics'
 import { getReceiptsByUserId } from '@/lib/db'
 import { analyticsRateLimiter } from '@/lib/rate-limiter'
+import { analyticsCache } from '@/lib/services/cache'
+import { dbService } from '@/lib/services/db'
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  let cacheHit = false
+  let cacheKey = ''
+
   try {
     // Authentication check (see master guide: Authentication and Authorization)
     const cookieStore = await cookies()
@@ -47,16 +53,59 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const startTime = Date.now()
+    // Generate cache key for user-specific dashboard data
+    cacheKey = analyticsCache.generateKey('dashboard:data', {
+      userId: user.id,
+      version: '1.0' // Cache version for future invalidation
+    }, user.id)
 
-    // Fetch all dashboard data in parallel
+    // Try to get cached dashboard data first
+    const cachedData = await analyticsCache.get<any>(cacheKey, user.id)
+    
+    if (cachedData) {
+      cacheHit = true
+      const queryTime = Date.now() - startTime
+      
+      console.log(`🎯 Cache HIT for dashboard data (${queryTime}ms) - User: ${user.id}`)
+      
+      const response = NextResponse.json({
+        ...cachedData,
+        metadata: {
+          ...(cachedData.metadata || {}),
+          queryTime,
+          cached: true,
+          cacheHit: true,
+          timestamp: new Date().toISOString(),
+          userId: user.id
+        }
+      })
+      
+      // Add cache headers
+      response.headers.set('X-Cache', 'HIT')
+      response.headers.set('X-Cache-Key', cacheKey)
+      response.headers.set('X-Query-Time', queryTime.toString())
+      
+      // Add rate limit headers
+      response.headers.set('X-RateLimit-Limit', '30')
+      response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
+      response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString())
+
+      return response
+    }
+
+    console.log(`🔄 Cache MISS for dashboard data - User: ${user.id}, fetching fresh data...`)
+
+    // Cache miss - fetch fresh data with database retry logic
     const analyticsService = new AnalyticsService()
-    const [analyticsData, recentReceipts] = await Promise.all([
-      // Get analytics overview
-      analyticsService.getOverview(user.id),
-      // Get recent receipts
-      getReceiptsByUserId(user.id, { take: 5, orderBy: 'purchaseDate', order: 'desc' })
-    ])
+    
+    const [analyticsData, recentReceipts] = await dbService.executeWithRetry(async () => {
+      return Promise.all([
+        // Get analytics overview with retry logic
+        analyticsService.getOverview(user.id),
+        // Get recent receipts with retry logic
+        getReceiptsByUserId(user.id, { take: 5, orderBy: 'purchaseDate', order: 'desc' })
+      ])
+    })
 
     // Transform data to match expected format
     const dashboardData = {
@@ -86,17 +135,46 @@ export async function GET(request: NextRequest) {
 
     const queryTime = Date.now() - startTime
 
-    // Add rate limit headers to response
+    // Cache the fresh data with user-specific TTL
+    const cacheOptions = {
+      userId: user.id,
+      ttl: 2 * 60 * 1000, // 2 minutes TTL for dashboard data
+      priority: 'high' as const
+    }
+
+    await analyticsCache.set(cacheKey, {
+      ...dashboardData,
+      metadata: {
+        queryTime,
+        cached: false,
+        cacheHit: false,
+        timestamp: new Date().toISOString(),
+        userId: user.id,
+        cacheKey
+      }
+    }, cacheOptions)
+
+    console.log(`💾 Cached fresh dashboard data (${queryTime}ms) - User: ${user.id}`)
+
+    // Add cache headers to response
     const response = NextResponse.json({
       ...dashboardData,
       metadata: {
         queryTime,
         cached: false,
+        cacheHit: false,
         timestamp: new Date().toISOString(),
-        userId: user.id
+        userId: user.id,
+        cacheKey
       }
     })
     
+    // Add cache headers
+    response.headers.set('X-Cache', 'MISS')
+    response.headers.set('X-Cache-Key', cacheKey)
+    response.headers.set('X-Query-Time', queryTime.toString())
+    
+    // Add rate limit headers
     response.headers.set('X-RateLimit-Limit', '30')
     response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
     response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString())
@@ -105,6 +183,27 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Dashboard data API error:', error)
+    
+    // Try to return cached data as fallback if available
+    if (cacheKey) {
+      try {
+        const fallbackData = await analyticsCache.get<any>(cacheKey)
+        if (fallbackData) {
+          console.log(`🔄 Returning cached fallback data due to error`)
+          return NextResponse.json({
+            ...fallbackData,
+            metadata: {
+              ...(fallbackData.metadata || {}),
+              error: 'Using cached data due to database error',
+              timestamp: new Date().toISOString()
+            }
+          })
+        }
+      } catch (cacheError) {
+        console.error('Cache fallback error:', cacheError)
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

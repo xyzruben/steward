@@ -379,7 +379,7 @@ export class PerformanceMonitoringService {
     };
 
     // Cache the result
-    await analyticsCache.set(cacheKey, dashboard, 60); // 1 minute cache
+    await analyticsCache.set(cacheKey, dashboard, { ttl: 60 * 1000 }); // 1 minute cache
 
     return dashboard;
   }

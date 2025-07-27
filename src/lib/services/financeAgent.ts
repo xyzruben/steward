@@ -295,7 +295,7 @@ export class FinanceAgent {
         functionsUsed = result.functionsUsed || [];
         
         // Cache successful response
-        await analyticsCache.set(cacheKey, result, 3600); // 1 hour
+        await analyticsCache.set(cacheKey, result, { ttl: 3600 * 1000 }); // 1 hour
         
         // Log successful response
         await monitoringService.logAgentQuery(
@@ -457,7 +457,7 @@ export class FinanceAgent {
 
         // 5. Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+          await analyticsCache.set(cacheKey, result, { ttl: PERFORMANCE_CONFIG.CACHE_TTL });
         }
 
         return result;
@@ -488,7 +488,7 @@ export class FinanceAgent {
 
         // Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
-          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+          await analyticsCache.set(cacheKey, result, { ttl: PERFORMANCE_CONFIG.CACHE_TTL });
         }
 
         return result;
@@ -631,7 +631,7 @@ export class FinanceAgent {
         // 6. Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
           const cacheKey = `agent:${userId}:${query}`;
-          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+          await analyticsCache.set(cacheKey, result, { ttl: PERFORMANCE_CONFIG.CACHE_TTL });
         }
 
         yield result;
@@ -647,7 +647,7 @@ export class FinanceAgent {
         // Cache the result
         if (PERFORMANCE_CONFIG.CACHE_ENABLED) {
           const cacheKey = `agent:${userId}:${query}`;
-          await analyticsCache.set(cacheKey, result, PERFORMANCE_CONFIG.CACHE_TTL);
+          await analyticsCache.set(cacheKey, result, { ttl: PERFORMANCE_CONFIG.CACHE_TTL });
         }
 
         yield result;

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,201 +7,117 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// USER MODEL
-// ============================================================================
-// Maps to Supabase Auth users with UUID primary key
-// Designed for Row Level Security (RLS) integration
 model User {
-  id        String    @id @db.Uuid
-  email     String    @unique
-  name      String?
-  avatarUrl String?
-  
-  // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  
-  // Relations
-  receipts  Receipt[]
-  notifications Notification[]
+  id                      String                   @id @db.Uuid
+  email                   String                   @unique
+  name                    String?
+  avatarUrl               String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
   notificationPreferences NotificationPreferences?
-  userProfile UserProfile?
-  savedSearches SavedSearch[]
-  agentLogs AgentLog[]
-  agentErrors AgentError[]
-  
-  // Supabase Auth integration
-  // The id field will be synced with Supabase Auth users
-  // This allows for seamless RLS integration
-  
+  notifications           Notification[]
+  receipts                Receipt[]
+  savedSearches           SavedSearch[]
+  userProfile             UserProfile?
+
   @@map("users")
 }
 
-// ============================================================================
-// USER PROFILE MODEL
-// ============================================================================
-// User preferences and settings for personalization
 model UserProfile {
-  id        String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
-  userId    String   @unique @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Personal Information
-  firstName String?
-  lastName  String?
-  phone     String?
-  timezone  String   @default("UTC")
-  
-  // Preferences
-  currency  String   @default("USD") // ISO 4217 currency code
-  locale    String   @default("en-US") // BCP 47 language tag
-  dateFormat String  @default("MM/DD/YYYY") // Date format preference
-  timeFormat String  @default("12h") // 12h or 24h time format
-  
-  // UI Preferences
-  theme     String   @default("system") // light, dark, or system
-  compactMode Boolean @default(false) // Compact UI mode
-  
-  // Export Preferences
-  defaultExportFormat String @default("csv") // csv, json, pdf
-  includeAnalyticsByDefault Boolean @default(false)
-  exportDateRange String @default("30d") // 7d, 30d, 90d, 1y, all
-  
-  // Privacy and Data
-  dataRetentionDays Int @default(2555) // 7 years default
-  allowDataAnalytics Boolean @default(true) // Allow anonymous analytics
-  shareUsageData Boolean @default(false) // Share usage data for improvements
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id                        String   @id @default(uuid()) @db.Uuid
+  userId                    String   @unique @db.Uuid
+  firstName                 String?
+  lastName                  String?
+  phone                     String?
+  timezone                  String   @default("UTC")
+  currency                  String   @default("USD")
+  locale                    String   @default("en-US")
+  dateFormat                String   @default("MM/DD/YYYY")
+  timeFormat                String   @default("12h")
+  theme                     String   @default("system")
+  compactMode               Boolean  @default(false)
+  defaultExportFormat       String   @default("csv")
+  includeAnalyticsByDefault Boolean  @default(false)
+  exportDateRange           String   @default("30d")
+  dataRetentionDays         Int      @default(2555)
+  allowDataAnalytics        Boolean  @default(true)
+  shareUsageData            Boolean  @default(false)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("user_profiles")
 }
 
-// ============================================================================
-// RECEIPT EMBEDDING MODEL
-// ============================================================================
-// Vector embeddings for semantic search and RAG capabilities
 model ReceiptEmbedding {
   id        String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to Receipt
   receiptId String   @unique @db.Uuid
-  receipt   Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  
-  // Embedding data
-  embedding Float[]  // Vector embedding (1536 dimensions for OpenAI text-embedding-3-small)
-  content   String   // Text content that was embedded (for debugging/regeneration)
-  model     String   @default("text-embedding-3-small") // Embedding model used
-  
-  // Metadata
+  embedding Float[]
+  content   String
+  model     String   @default("text-embedding-3-small")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Indexes for performance
+  receipt   Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
   @@index([receiptId])
   @@index([model])
-  
   @@map("receipt_embeddings")
 }
 
-// ============================================================================
-// RECEIPT MODEL
-// ============================================================================
-// Core receipt data with AI-powered analysis
 model Receipt {
-  id           String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
-  userId       String   @db.Uuid
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Receipt data
-  imageUrl     String   // URL to stored receipt image
-  rawText      String   // OCR-extracted text
-  merchant     String   // Store/merchant name
-  total        Decimal  @db.Decimal(10, 2) // Currency amount with 2 decimal places
-  currency     String   @default("USD") // ISO 4217 currency code (multi-currency support)
-  convertedTotal Decimal? // Value in user's preferred currency (for analytics)
-  convertedCurrency String? // User's preferred currency at time of conversion
-  purchaseDate DateTime // Date of purchase
-  
-  // AI-generated content
-  summary      String?  // AI-generated summary of the receipt
-  
-  // Analytics and categorization fields (see master guide: Database Schema Design)
-  category     String?  // AI-categorized spending category (e.g., "Food & Dining", "Transportation")
-  subcategory  String?  // More specific subcategory (e.g., "Restaurants", "Gas Stations")
-  confidenceScore Decimal? @db.Decimal(3, 2) // AI confidence score (0.00-1.00)
-  
-  // Metadata
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  embedding    ReceiptEmbedding?
-  
-  // Indexes for performance (see master guide: Indexing Strategy)
+  id                String            @id @default(uuid()) @db.Uuid
+  userId            String            @db.Uuid
+  imageUrl          String
+  rawText           String
+  merchant          String
+  total             Decimal           @db.Decimal(10, 2)
+  purchaseDate      DateTime
+  summary           String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  category          String?
+  confidenceScore   Decimal?          @db.Decimal(3, 2)
+  subcategory       String?
+  convertedCurrency String?
+  convertedTotal    Decimal?
+  currency          String            @default("USD")
+  embedding         ReceiptEmbedding?
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([purchaseDate])
   @@index([merchant])
-  @@index([category]) // New index for analytics queries
-  @@index([userId, purchaseDate]) // Composite index for user date range queries
-  @@index([userId, category]) // Composite index for user category analysis
-  
+  @@index([category])
+  @@index([userId, purchaseDate])
+  @@index([userId, category])
   @@map("receipts")
 }
 
-// ============================================================================
-// NOTIFICATION MODEL (see master guide: Database Schema Design)
-// ============================================================================
-// User notifications with real-time support
 model Notification {
   id        String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
   userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Notification data
-  type      String   // Notification type (receipt_uploaded, analytics_updated, etc.)
-  title     String   // Notification title
-  message   String   // Notification message
-  metadata  Json?    // Additional metadata as JSON
+  type      String
+  title     String
+  message   String
+  metadata  Json?
   isRead    Boolean  @default(false)
-  
-  // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Indexes for performance (see master guide: Indexing Strategy)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([type])
   @@index([isRead])
   @@index([createdAt])
-  @@index([userId, isRead]) // Composite index for unread notifications
-  @@index([userId, type]) // Composite index for notification type filtering
-  @@index([userId, createdAt]) // Composite index for chronological queries
-  
+  @@index([userId, isRead])
+  @@index([userId, type])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
-// ============================================================================
-// NOTIFICATION PREFERENCES MODEL (see master guide: Database Schema Design)
-// ============================================================================
-// User notification preferences and settings
 model NotificationPreferences {
   id                  String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
   userId              String   @unique @db.Uuid
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Notification type preferences
   emailNotifications  Boolean  @default(true)
   pushNotifications   Boolean  @default(true)
   receiptUploads      Boolean  @default(true)
@@ -217,137 +127,27 @@ model NotificationPreferences {
   systemAlerts        Boolean  @default(true)
   exportNotifications Boolean  @default(true)
   backupNotifications Boolean  @default(true)
-  
-  // Timestamps
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("notification_preferences")
 }
 
-// ============================================================================
-// SAVED SEARCH MODEL
-// ============================================================================
-// User's saved search queries for quick access
 model SavedSearch {
-  id          String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Search details
-  name        String   // User-friendly name for the search
-  query       String   // The actual search query
-  filters     Json?    // Search filters as JSON
-  isDefault   Boolean  @default(false) // Whether this is the user's default search
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([userId, name])
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  query     String
+  filters   Json
+  useCount  Int      @default(1)
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lastUsed])
+  @@index([userId])
+  @@index([userId, lastUsed])
   @@map("saved_searches")
 }
-
-// ============================================================================
-// AGENT LOG MODEL
-// ============================================================================
-// Logs all agent queries and responses for monitoring and analytics
-model AgentLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
-  userId        String   @db.Uuid
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Query details
-  query         String   // The user's query
-  responseTime  Int      // Response time in milliseconds
-  success       Boolean  // Whether the query was successful
-  error         String?  // Error message if failed
-  functionsUsed String[] // Array of function names used
-  cached        Boolean  @default(false) // Whether response was cached
-  
-  // Metadata
-  metadata      Json?    // Additional metadata (user agent, IP, etc.)
-  
-  // Timestamps
-  timestamp     DateTime @default(now())
-  
-  @@index([userId, timestamp])
-  @@index([timestamp])
-  @@index([success])
-  @@map("agent_logs")
-}
-
-// ============================================================================
-// AGENT ERROR MODEL
-// ============================================================================
-// Detailed error tracking for agent failures
-model AgentError {
-  id          String   @id @default(uuid()) @db.Uuid
-  
-  // Foreign key to User (Supabase Auth)
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Error details
-  query       String   // The query that caused the error
-  error       String   // Error message
-  stackTrace  String?  // Full stack trace if available
-  context     Json     // Error context (functions used, response time, etc.)
-  severity    String   // low, medium, high, critical
-  resolved    Boolean  @default(false) // Whether the error has been resolved
-  
-  // Timestamps
-  timestamp   DateTime @default(now())
-  
-  @@index([userId, timestamp])
-  @@index([timestamp])
-  @@index([severity])
-  @@index([resolved])
-  @@map("agent_errors")
-}
-
-// ============================================================================
-// FUTURE EXTENSIONS (Commented for reference)
-// ============================================================================
-// These models can be uncommented and implemented as needed
-
-// model Category {
-//   id          String    @id @default(cuid()) @db.Uuid
-//   name        String
-//   color       String?   // Hex color for UI
-//   userId      String    @db.Uuid
-//   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-//   receipts    Receipt[]
-//   createdAt   DateTime  @default(now())
-//   updatedAt   DateTime  @updatedAt
-//   
-//   @@unique([name, userId])
-//   @@map("categories")
-// }
-
-// model Tag {
-//   id        String    @id @default(cuid()) @db.Uuid
-//   name      String
-//   userId    String    @db.Uuid
-//   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-//   receipts  Receipt[]
-//   createdAt DateTime  @default(now())
-//   updatedAt DateTime  @updatedAt
-//   
-//   @@unique([name, userId])
-//   @@map("tags")
-// }
-
-// model ReceiptTag {
-//   receiptId String  @db.Uuid
-//   tagId     String  @db.Uuid
-//   receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-//   tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-//   
-//   @@id([receiptId, tagId])
-//   @@map("receipt_tags")
-// }
