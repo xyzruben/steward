@@ -165,7 +165,7 @@ export function LoginForm() {
       {showResend && (
         <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
           <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-            Didn't receive the confirmation email?
+            Didn&apos;t receive the confirmation email?
           </p>
           <button
             type="button"
@@ -184,7 +184,7 @@ export function LoginForm() {
           onClick={toggleMode}
           className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
         >
-          {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+          {isSignUp ? 'Already have an account? Sign In' : "Don&apos;t have an account? Sign Up"}
         </button>
       </div>
     </div>

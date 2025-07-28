@@ -231,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshSession,
     resendConfirmation,
     checkAuthStatus,
-  }), [user, session, loading, isAuthenticated])
+  }), [user, session, loading, isAuthenticated, signIn, signUp, signOut, refreshSession, resendConfirmation, checkAuthStatus])
 
   return (
     <AuthContext.Provider value={value}>

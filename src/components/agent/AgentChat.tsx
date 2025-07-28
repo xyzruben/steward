@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, 
@@ -16,13 +15,8 @@ import {
   Database, 
   MessageSquare, 
   BarChart3, 
-  TrendingUp, 
   AlertTriangle,
-  CheckCircle,
-  X,
   RefreshCw,
-  Settings,
-  History,
   Trash2,
   Download,
   Copy,
@@ -85,7 +79,6 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
   } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
 
@@ -239,7 +232,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
       const decoder = new TextDecoder();
       let finalResponse: AgentResponse | null = null;
-      let functions: string[] = [];
+      const functions: string[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -633,10 +626,10 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
                       <div className="mt-4 space-y-2 text-xs">
                         <p className="text-gray-400">Try asking:</p>
                         <ul className="space-y-1 text-gray-500">
-                          <li>• "How much did I spend on food last month?"</li>
-                          <li>• "Show me my top spending categories"</li>
-                          <li>• "Detect any unusual spending patterns"</li>
-                          <li>• "Compare my spending this month vs last month"</li>
+                          <li>• &ldquo;How much did I spend on food last month?&rdquo;</li>
+                          <li>• &ldquo;Show me my top spending categories&rdquo;</li>
+                          <li>• &ldquo;Detect any unusual spending patterns&rdquo;</li>
+                          <li>• &ldquo;Compare my spending this month vs last month&rdquo;</li>
                         </ul>
                       </div>
                     </div>
