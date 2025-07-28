@@ -59,6 +59,13 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, loading])
 
+  // Ensure page scrolls to top when navigating back to home
+  useEffect(() => {
+    if (user && !loading) {
+      window.scrollTo(0, 0);
+    }
+  }, [user, loading]);
+
   // Show full screen loading for initial app load
   if (!isInitialized) {
     return (
