@@ -167,9 +167,10 @@ export async function getSpendingByCategory(params: {
 export async function getSpendingByTime(params: { 
   userId: string; 
   timeframe: { start: Date; end: Date } 
-}): Promise<{ period: { start: Date; end: Date }; total: number; currency: string }> {
+}): Promise<{ period: { start: Date; end: Date }; total: number; currency: string; count?: number }> {
   try {
-    const result = await prisma.receipt.aggregate({
+    // Add timeout handling for long-running queries
+    const queryPromise = prisma.receipt.aggregate({
       where: {
         userId: params.userId,
         purchaseDate: {
@@ -180,15 +181,28 @@ export async function getSpendingByTime(params: {
       _sum: {
         total: true,
       },
+      // Add query optimization hints
+      _count: true, // Get count for additional insights
     });
+
+    // Add timeout protection (15 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout')), 15000);
+    });
+
+    const result = await Promise.race([queryPromise, timeoutPromise]) as any;
 
     return {
       period: params.timeframe,
       total: Number(result._sum.total) || 0,
       currency: 'USD',
+      count: result._count || 0, // Add count for debugging
     };
   } catch (error) {
     console.error('Error in getSpendingByTime:', error);
+    if (error instanceof Error && error.message === 'Query timeout') {
+      throw new Error('Query took too long. Please try a more specific time period.');
+    }
     throw new Error('Failed to retrieve spending by time period');
   }
 }

@@ -127,45 +127,36 @@ async function handleStreamingResponse(
  */
 export async function GET(req: NextRequest) {
   try {
-    // 1. Authenticate user
-    const cookieStore = await cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Handle cache clearing
+    const url = new URL(req.url);
+    const action = url.searchParams.get('action');
     
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get('action');
-
-    switch (action) {
-      case 'cache-stats':
-        const stats = FinanceAgent.getCacheStats();
-        return NextResponse.json({ stats });
+    if (action === 'clear-cache') {
+      // Authenticate user before clearing cache
+      const cookieStore = await cookies();
+      const supabase = createSupabaseServerClient(cookieStore);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      case 'clear-cache':
-        FinanceAgent.clearUserCache(user.id);
-        return NextResponse.json({ message: 'Cache cleared for user' });
+      if (authError || !user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      // Clear user-specific cache
+      FinanceAgent.clearUserCache(user.id);
       
-      default:
-        return NextResponse.json({ 
-          message: 'Agent API is running',
-          endpoints: {
-            'POST /api/agent/query': 'Submit a query to the financial assistant',
-            'GET /api/agent/query?action=cache-stats': 'Get cache statistics',
-            'GET /api/agent/query?action=clear-cache': 'Clear user cache'
-          }
-        });
+      return NextResponse.json({ 
+        message: 'Cache cleared successfully',
+        userId: user.id 
+      });
     }
+    
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Agent API GET error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    console.error('Agent cache clear error:', error);
+    return NextResponse.json({ error: 'Failed to clear cache' }, { status: 500 });
   }
 }
 

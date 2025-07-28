@@ -1,6 +1,6 @@
 import { OpenAI } from 'openai';
 import { prisma } from '../prisma';
-import { analyticsCache } from './cache';
+import { analyticsCache, agentCache } from './cache';
 import { monitoringService } from './monitoring';
 import { trackPerformance, trackDatabasePerformance, trackExternalApiPerformance } from './performance';
 import * as financeFunctions from './financeFunctions';
@@ -1000,16 +1000,21 @@ Available functions are registered below. Use them to provide accurate, data-dri
    * Clear cache for a specific user
    */
   static clearUserCache(userId: string): void {
+    // Clear both analytics and agent caches
     const keysToDelete = analyticsCache.getStats().keys.filter(key => 
       key.startsWith(`agent:${userId}:`)
     );
     keysToDelete.forEach(key => analyticsCache.delete(key));
+    agentCache.clearUser(userId);
   }
 
   /**
    * Get cache statistics
    */
   static getCacheStats() {
-    return analyticsCache.getStats();
+    return {
+      analytics: analyticsCache.getStats(),
+      agent: agentCache.getStats()
+    };
   }
 } 

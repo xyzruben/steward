@@ -90,6 +90,13 @@ model Receipt {
   @@index([category])
   @@index([userId, purchaseDate])
   @@index([userId, category])
+  // New optimized indexes for AI agent queries
+  @@index([userId, purchaseDate, total])
+  @@index([userId, purchaseDate, category])
+  @@index([userId, purchaseDate, merchant])
+  @@index([purchaseDate, total])
+  @@index([category, purchaseDate])
+  @@index([merchant, purchaseDate])
   @@map("receipts")
 }
 

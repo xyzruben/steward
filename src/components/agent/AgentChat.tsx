@@ -201,76 +201,98 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
   };
 
   const handleStreamingQuery = async (userMessage: string) => {
+    if (!isAuthenticated || !user) {
+      setError('Please log in to use the AI assistant.');
+      return;
+    }
+
+    setIsStreaming(true);
+    setError(null);
+    addMessage({
+      type: 'user',
+      content: userMessage,
+    });
+
     try {
-      // Ensure user is authenticated before making API call
-      if (!isAuthenticated || !user) {
-        throw new Error('Authentication required');
-      }
-
-      setIsStreaming(true);
-      setStreamingMessage('Starting analysis...');
-
-      const res = await fetch('/api/agent/query', {
+      const response = await fetch('/api/agent/query', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: userMessage, streaming: true }),
+        body: JSON.stringify({ 
+          query: userMessage, 
+          streaming: true 
+        }),
       });
 
-      if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error('Authentication expired. Please log in again.');
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please log in again.');
+        } else if (response.status === 408) {
+          throw new Error('Request timeout. Please try a more specific query or shorter time period.');
+        } else if (response.status === 429) {
+          throw new Error('Too many requests. Please wait a moment and try again.');
+        } else {
+          throw new Error(`Server error: ${response.status}`);
         }
-        throw new Error(`HTTP error! status: ${res.status}`);
       }
 
-      const reader = res.body?.getReader();
+      const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('No response body');
+        throw new Error('Failed to start streaming response');
       }
 
       const decoder = new TextDecoder();
       let finalResponse: AgentResponse | null = null;
       const functions: string[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
-        
-        for (const line of lines) {
-          try {
-            const data: StreamingAgentResponse = JSON.parse(line);
-            
-            switch (data.type) {
-              case 'start':
-                setStreamingMessage('Analyzing your request...');
-                break;
-              case 'function_call':
-                setStreamingMessage(`Calling function: ${data.message || 'Processing data...'}`);
-                if (data.message) functions.push(data.message);
-                break;
-              case 'data_processing':
-                setStreamingMessage('Processing financial data...');
-                break;
-              case 'summary':
-                setStreamingMessage('Generating insights...');
-                break;
-              case 'complete':
-                finalResponse = data as AgentResponse;
-                setStreamingMessage('');
-                break;
-              case 'error':
-                throw new Error(data.error || 'Streaming error occurred');
+      // Add timeout for the entire streaming process
+      const streamTimeout = setTimeout(() => {
+        reader.cancel();
+        throw new Error('Streaming timeout. Please try again.');
+      }, 30000); // 30 second timeout
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            try {
+              const data: StreamingAgentResponse = JSON.parse(line);
+              
+              switch (data.type) {
+                case 'start':
+                  setStreamingMessage('Analyzing your request...');
+                  break;
+                case 'function_call':
+                  setStreamingMessage(`Calling function: ${data.message || 'Processing data...'}`);
+                  if (data.message) functions.push(data.message);
+                  break;
+                case 'data_processing':
+                  setStreamingMessage('Processing financial data...');
+                  break;
+                case 'summary':
+                  setStreamingMessage('Generating insights...');
+                  break;
+                case 'complete':
+                  finalResponse = data as AgentResponse;
+                  setStreamingMessage('');
+                  break;
+                case 'error':
+                  throw new Error(data.error || 'Streaming error occurred');
+              }
+            } catch (parseError) {
+              console.error('Error parsing streaming response:', parseError);
             }
-          } catch (parseError) {
-            console.error('Error parsing streaming response:', parseError);
           }
         }
+      } finally {
+        clearTimeout(streamTimeout);
       }
 
       if (finalResponse) {

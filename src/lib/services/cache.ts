@@ -454,3 +454,66 @@ export const analyticsCache = new CacheService({
   enableUserIsolation: true,
   enableCacheWarming: true,
 }); 
+
+/**
+ * Cache for AI agent query results
+ * Improves performance for repeated financial analysis queries
+ */
+const agentQueryCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+
+export const agentCache = {
+  /**
+   * Get cached agent query result
+   */
+  get(key: string): any | null {
+    const cached = agentQueryCache.get(key);
+    if (!cached) return null;
+    
+    const now = Date.now();
+    if (now - cached.timestamp > cached.ttl) {
+      agentQueryCache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  },
+
+  /**
+   * Set agent query result in cache
+   */
+  set(key: string, data: any, ttl: number = 5 * 60 * 1000): void { // 5 minutes default
+    agentQueryCache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
+  },
+
+  /**
+   * Clear agent query cache
+   */
+  clear(): void {
+    agentQueryCache.clear();
+  },
+
+  /**
+   * Clear cache for specific user
+   */
+  clearUser(userId: string): void {
+    for (const [key] of agentQueryCache) {
+      if (key.includes(userId)) {
+        agentQueryCache.delete(key);
+      }
+    }
+  },
+
+  /**
+   * Get cache statistics
+   */
+  getStats(): { size: number; keys: string[] } {
+    return {
+      size: agentQueryCache.size,
+      keys: Array.from(agentQueryCache.keys())
+    };
+  }
+}; 
