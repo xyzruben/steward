@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +27,9 @@ import {
   Download,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  LogIn,
+  User
 } from 'lucide-react';
 
 interface AgentResponse {
@@ -66,6 +69,7 @@ interface AgentChatProps {
 }
 
 export default function AgentChat({ className = '' }: AgentChatProps) {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [query, setQuery] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -106,10 +110,11 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     }
   }, []);
 
+  // Add message to chat history with unique ID and timestamp
   const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {
       ...message,
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       timestamp: new Date(),
     };
     setChatHistory(prev => [...prev, newMessage]);
@@ -118,6 +123,12 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || isLoading) return;
+
+    // Check authentication before proceeding
+    if (!isAuthenticated || !user) {
+      setError('Please log in to use the AI assistant');
+      return;
+    }
 
     const userMessage = query.trim();
     setQuery('');
@@ -140,6 +151,11 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
   const handleRegularQuery = async (userMessage: string) => {
     try {
+      // Ensure user is authenticated before making API call
+      if (!isAuthenticated || !user) {
+        throw new Error('Authentication required');
+      }
+
       const res = await fetch('/api/agent/query', {
         method: 'POST',
         headers: {
@@ -149,6 +165,9 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       });
 
       if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Authentication expired. Please log in again.');
+        }
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
@@ -190,6 +209,11 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
   const handleStreamingQuery = async (userMessage: string) => {
     try {
+      // Ensure user is authenticated before making API call
+      if (!isAuthenticated || !user) {
+        throw new Error('Authentication required');
+      }
+
       setIsStreaming(true);
       setStreamingMessage('Starting analysis...');
 
@@ -202,6 +226,9 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       });
 
       if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Authentication expired. Please log in again.');
+        }
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
@@ -216,66 +243,65 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
       while (true) {
         const { done, value } = await reader.read();
+        
         if (done) break;
-
+        
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n').filter(line => line.trim());
-
+        
         for (const line of lines) {
           try {
             const data: StreamingAgentResponse = JSON.parse(line);
             
             switch (data.type) {
               case 'start':
-                setStreamingMessage('Starting analysis...');
+                setStreamingMessage('Analyzing your request...');
                 break;
               case 'function_call':
-                setStreamingMessage('Determining best analysis approach...');
+                setStreamingMessage(`Calling function: ${data.message || 'Processing data...'}`);
+                if (data.message) functions.push(data.message);
                 break;
               case 'data_processing':
-                setStreamingMessage('Processing your financial data...');
-                if (data.data && Array.isArray(data.data)) {
-                  functions = data.data.map((item: any) => item.functionName || 'Unknown');
-                }
+                setStreamingMessage('Processing financial data...');
                 break;
               case 'summary':
                 setStreamingMessage('Generating insights...');
                 break;
               case 'complete':
-                finalResponse = {
-                  message: data.message || 'Analysis complete',
-                  data: data.data,
-                  insights: data.insights,
-                  error: data.error,
-                  cached: data.cached,
-                  executionTime: data.executionTime
-                };
-                addMessage({
-                  type: 'assistant',
-                  content: data.message || 'Analysis complete',
-                  data: data.data,
-                  insights: data.insights,
-                  cached: data.cached,
-                  executionTime: data.executionTime,
-                  functions,
-                });
-                setPerformanceStats({
-                  cached: data.cached || false,
-                  executionTime: data.executionTime
-                });
+                finalResponse = data as AgentResponse;
+                setStreamingMessage('');
                 break;
               case 'error':
-                addMessage({
-                  type: 'system',
-                  content: `Error: ${data.error || 'An error occurred during processing'}`,
-                  error: data.error || 'An error occurred during processing',
-                });
-                setError(data.error || 'An error occurred during processing');
-                break;
+                throw new Error(data.error || 'Streaming error occurred');
             }
           } catch (parseError) {
-            console.error('Error parsing streaming chunk:', parseError);
+            console.error('Error parsing streaming response:', parseError);
           }
+        }
+      }
+
+      if (finalResponse) {
+        if (finalResponse.error) {
+          addMessage({
+            type: 'system',
+            content: `Error: ${finalResponse.error}`,
+            error: finalResponse.error,
+          });
+          setError(finalResponse.error);
+        } else {
+          addMessage({
+            type: 'assistant',
+            content: finalResponse.message,
+            data: finalResponse.data,
+            insights: finalResponse.insights,
+            cached: finalResponse.cached,
+            executionTime: finalResponse.executionTime,
+            functions,
+          });
+          setPerformanceStats({
+            cached: finalResponse.cached || false,
+            executionTime: finalResponse.executionTime
+          });
         }
       }
     } catch (err) {
@@ -287,7 +313,6 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       });
       setError(errorMessage);
     } finally {
-      setIsLoading(false);
       setIsStreaming(false);
       setStreamingMessage('');
     }
@@ -470,6 +495,61 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     );
   };
 
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className={`h-full flex flex-col ${className}`}>
+        <Card className="flex-1 flex flex-col">
+          <CardContent className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+              <p className="text-gray-600 dark:text-gray-400">Loading authentication...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show authentication required UI for unauthenticated users
+  if (!isAuthenticated || !user) {
+    return (
+      <div className={`h-full flex flex-col ${className}`}>
+        <Card className="flex-1 flex flex-col">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-blue-500" />
+              AI Financial Assistant
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-md">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <User className="h-8 w-8 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Please log in to access the AI Financial Assistant and get personalized insights about your spending patterns.
+              </p>
+              <div className="space-y-3">
+                <Button 
+                  onClick={() => window.location.href = '/'}
+                  className="w-full"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Go to Login
+                </Button>
+                <p className="text-xs text-gray-500">
+                  The AI assistant can help you analyze spending trends, detect patterns, and provide financial insights.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className={`h-full flex flex-col ${className}`}>
       <Card className="flex-1 flex flex-col">
@@ -478,6 +558,11 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-blue-500" />
               AI Financial Assistant
+              {user && (
+                <Badge variant="outline" className="text-xs">
+                  {user.email}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button

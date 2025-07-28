@@ -117,6 +117,11 @@ export default function HomePage() {
             <p className="text-slate-600 dark:text-slate-400">
               AI-powered receipt and expense tracking
             </p>
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>New:</strong> AI Financial Assistant now available! Get personalized insights about your spending patterns.
+              </p>
+            </div>
           </div>
           <LoginForm />
           <div className="text-center mt-4">

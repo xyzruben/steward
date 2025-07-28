@@ -13,11 +13,13 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  isAuthenticated: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string) => Promise<{ error: Error | null; success?: boolean }>
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
   resendConfirmation: (email: string) => Promise<{ error: Error | null }>
+  checkAuthStatus: () => Promise<boolean>
 }
 
 // ============================================================================
@@ -32,6 +34,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [supabase, setSupabase] = useState<ReturnType<typeof createSupabaseBrowserClient> | null>(null)
 
+  // Computed authentication state
+  const isAuthenticated = useMemo(() => {
+    return !!(user && session && (!session.expires_at || new Date(session.expires_at * 1000) > new Date()))
+  }, [user, session])
+
   // Initialize Supabase client only on client side
   useEffect(() => {
     setSupabase(createSupabaseBrowserClient())
@@ -43,11 +50,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     if (!supabase) return { error: new Error('Supabase client not initialized') }
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    
+    try {
+      const { error, data } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      if (!error && data.session) {
+        setSession(data.session)
+        setUser(data.user)
+      }
+      
+      return { error }
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Sign in failed') }
+    }
   }
 
   // Helper function to get the correct redirect URL for email confirmation
@@ -60,48 +78,103 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     if (!supabase) return { error: new Error('Supabase client not initialized') }
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: getEmailRedirectUrl()
+    
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: getEmailRedirectUrl()
+        }
+      })
+      
+      if (!error && data.user && !data.session) {
+        // User created but needs email confirmation
+        return { error: null, success: true }
       }
-    })
-    
-    if (!error && data.user && !data.session) {
-      // User created but needs email confirmation
-      return { error: null, success: true }
+      
+      if (!error && data.session) {
+        setSession(data.session)
+        setUser(data.user)
+      }
+      
+      return { error }
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Sign up failed') }
     }
-    
-    return { error }
   }
 
   const signOut = async () => {
     if (!supabase) return
-    await supabase.auth.signOut()
-    // Redirect to homepage after logout
-    window.location.href = '/'
+    
+    try {
+      await supabase.auth.signOut()
+      setSession(null)
+      setUser(null)
+      // Redirect to homepage after logout
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Sign out error:', err)
+    }
   }
 
   const refreshSession = async () => {
     if (!supabase) return
-    const { data: { session }, error } = await supabase.auth.getSession()
-    if (!error && session) {
-      setSession(session)
-      setUser(session.user)
+    
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (!error && session) {
+        setSession(session)
+        setUser(session.user)
+      } else if (error) {
+        console.error('Session refresh error:', error)
+        setSession(null)
+        setUser(null)
+      }
+    } catch (err) {
+      console.error('Session refresh failed:', err)
+      setSession(null)
+      setUser(null)
+    }
+  }
+
+  const checkAuthStatus = async (): Promise<boolean> => {
+    if (!supabase) return false
+    
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (!error && session && session.user) {
+        setSession(session)
+        setUser(session.user)
+        return true
+      } else {
+        setSession(null)
+        setUser(null)
+        return false
+      }
+    } catch (err) {
+      console.error('Auth status check failed:', err)
+      setSession(null)
+      setUser(null)
+      return false
     }
   }
 
   const resendConfirmation = async (email: string) => {
     if (!supabase) return { error: new Error('Supabase client not initialized') }
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: getEmailRedirectUrl()
-      }
-    })
-    return { error }
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: getEmailRedirectUrl()
+        }
+      })
+      return { error }
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Resend confirmation failed') }
+    }
   }
 
   // ============================================================================
@@ -113,10 +186,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (!error && session) {
+          setSession(session)
+          setUser(session.user)
+        } else if (error) {
+          console.error('Initial session error:', error)
+        }
+      } catch (err) {
+        console.error('Initial session failed:', err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     getInitialSession()
@@ -124,10 +206,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes (optimized for performance)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: SupabaseAuthEvent, session: Session | null) => {
+        console.log('Auth state change:', event, session?.user?.id)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
-        // User sync moved to lazy loading - only syncs when user data is accessed
       }
     )
 
@@ -142,12 +224,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    isAuthenticated,
     signIn,
     signUp,
     signOut,
     refreshSession,
     resendConfirmation,
-  }), [user, session, loading])
+    checkAuthStatus,
+  }), [user, session, loading, isAuthenticated])
 
   return (
     <AuthContext.Provider value={value}>
