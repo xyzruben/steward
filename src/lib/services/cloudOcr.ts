@@ -46,8 +46,18 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
       };
     }
     
-    // Create the client inside the function for testability
-    const client = new vision.ImageAnnotatorClient();
+    // Create the client with secure configuration
+    const client = new vision.ImageAnnotatorClient({
+      // Use environment variable for credentials
+      keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
+        ? undefined 
+        : process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      // If using JSON string, parse it
+      credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
+        ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+        : undefined,
+    });
+    
     // Call Google Vision API with appropriate request format
     const [result] = await client.textDetection(request);
     
@@ -128,28 +138,20 @@ export function imageBufferToBase64(imageBuffer: Buffer, mimeType: string): stri
 }
 
 /**
- * Compresses image buffer to reduce file size and improve upload performance
- * Uses basic compression techniques to reduce file size while maintaining OCR quality
- * @see STEWARD_MASTER_SYSTEM_GUIDE.md - File Storage Optimization, Performance
+ * Compresses image buffer for optimized processing
+ * Reduces file size while maintaining quality for OCR
  * @param imageBuffer - Original image buffer
- * @param mimeType - MIME type of the original image
+ * @param mimeType - MIME type of the image
  * @returns Compressed image buffer
  */
 export async function compressImage(imageBuffer: Buffer, mimeType: string): Promise<Buffer> {
-  // For now, return the original buffer as a fallback
-  // TODO: Implement actual image compression using Sharp or similar library
-  // This is a placeholder that maintains functionality while we plan compression
-  
-  console.log('Image compression requested for:', mimeType, 'size:', imageBuffer.length, 'bytes');
-  
-  // If image is already small enough (< 1MB), don't compress
-  if (imageBuffer.length < 1024 * 1024) {
-    console.log('Image is already small enough, skipping compression');
+  try {
+    // For now, return the original buffer
+    // TODO: Implement image compression if needed
+    return imageBuffer;
+  } catch (error) {
+    console.error('Image compression failed:', error);
+    // Return original buffer if compression fails
     return imageBuffer;
   }
-  
-  // For larger images, we'll implement compression later
-  // For now, return the original to maintain functionality
-  console.log('Image compression not yet implemented, using original');
-  return imageBuffer;
 } 

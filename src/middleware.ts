@@ -2,9 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ============================================================================
-// NEXT.JS MIDDLEWARE
+// NEXT.JS MIDDLEWARE - ENHANCED SECURITY
 // ============================================================================
 // Handles Supabase authentication and session management
+// Adds comprehensive security headers for protection against XSS, CSRF, and other attacks
 // Refreshes user sessions and manages auth cookies
 
 export async function middleware(request: NextRequest) {
@@ -57,6 +58,43 @@ export async function middleware(request: NextRequest) {
   // Refresh session if expired - required for Server Components
   // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-user-with-client-components
   await supabase.auth.getUser()
+
+  // ============================================================================
+  // SECURITY HEADERS (see security audit report)
+  // ============================================================================
+  
+  // Prevent clickjacking attacks
+  supabaseResponse.headers.set('X-Frame-Options', 'DENY')
+  
+  // Prevent MIME type sniffing
+  supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
+  
+  // Control referrer information
+  supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  // Control browser features
+  supabaseResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  
+  // Content Security Policy - comprehensive protection against XSS
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://api.openai.com https://*.supabase.co https://*.googleapis.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests"
+  ]
+  
+  supabaseResponse.headers.set('Content-Security-Policy', cspDirectives.join('; '))
+  
+  // Additional security headers
+  supabaseResponse.headers.set('X-DNS-Prefetch-Control', 'off')
+  supabaseResponse.headers.set('X-Download-Options', 'noopen')
+  supabaseResponse.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
 
   return supabaseResponse
 }

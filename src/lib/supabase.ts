@@ -3,10 +3,11 @@ import { type CookieOptions } from '@supabase/ssr'
 import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 
 // ============================================================================
-// SUPABASE CLIENT UTILITIES
+// SUPABASE CLIENT UTILITIES - ENHANCED SECURITY
 // ============================================================================
 // Provides type-safe Supabase clients for both browser and server environments
 // Following Next.js 15 App Router and Supabase SSR best practices
+// Enhanced with secure cookie configuration
 
 export const createSupabaseBrowserClient = () => {
   // Check if we're in a build environment (no environment variables available)
@@ -46,7 +47,18 @@ export const createSupabaseServerClient = (
       set: (key: string, value: string, options?: CookieOptions) => {
         try {
           if (cookies) {
-            cookies.set(key, value, options)
+            // Enhanced secure cookie options
+            const secureOptions: CookieOptions = {
+              ...options,
+              // Security enhancements
+              httpOnly: true, // Prevent XSS access
+              secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+              sameSite: 'lax' as const, // CSRF protection
+              maxAge: 60 * 60 * 24 * 7, // 7 days
+              path: '/',
+            }
+            
+            cookies.set(key, value, secureOptions)
           }
         } catch {
           // The `set` method was called from a Server Component.
@@ -57,7 +69,17 @@ export const createSupabaseServerClient = (
       remove: (key: string, options?: CookieOptions) => {
         try {
           if (cookies) {
-            cookies.set(key, '', { ...options, maxAge: 0 })
+            // Enhanced secure cookie options for removal
+            const secureOptions: CookieOptions = {
+              ...options,
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax' as const,
+              maxAge: 0, // Immediate expiration
+              path: '/',
+            }
+            
+            cookies.set(key, '', secureOptions)
           }
         } catch {
           // The `delete` method was called from a Server Component.

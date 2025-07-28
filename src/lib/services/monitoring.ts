@@ -323,3 +323,326 @@ export class MonitoringService {
 
 // Export singleton instance
 export const monitoringService = MonitoringService.getInstance(); 
+
+// ============================================================================
+// SECURITY MONITORING & REQUEST LOGGING
+// ============================================================================
+// Enhanced monitoring for security events and request patterns
+// Tracks potential security issues and unusual activity
+
+/**
+ * Security event types for monitoring
+ */
+export enum SecurityEventType {
+  SUSPICIOUS_REQUEST = 'suspicious_request',
+  RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded',
+  AUTHENTICATION_FAILURE = 'authentication_failure',
+  AUTHORIZATION_FAILURE = 'authorization_failure',
+  INPUT_VALIDATION_FAILURE = 'input_validation_failure',
+  AI_INJECTION_ATTEMPT = 'ai_injection_attempt',
+  UNUSUAL_ACTIVITY = 'unusual_activity',
+  ERROR_RATE_SPIKE = 'error_rate_spike',
+}
+
+/**
+ * Security event interface
+ */
+export interface SecurityEvent {
+  type: SecurityEventType
+  userId?: string
+  ipAddress?: string
+  userAgent?: string
+  endpoint: string
+  method: string
+  timestamp: Date
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  details: Record<string, any>
+  requestId?: string
+}
+
+/**
+ * Request logging interface
+ */
+export interface RequestLog {
+  requestId: string
+  userId?: string
+  ipAddress?: string
+  userAgent?: string
+  endpoint: string
+  method: string
+  statusCode: number
+  responseTime: number
+  timestamp: Date
+  requestSize?: number
+  responseSize?: number
+  error?: string
+  metadata?: Record<string, any>
+}
+
+/**
+ * Security monitoring service
+ */
+class SecurityMonitoringService {
+  private events: SecurityEvent[] = []
+  private requestLogs: RequestLog[] = []
+  private readonly maxEvents = 1000
+  private readonly maxLogs = 1000
+
+  /**
+   * Log a security event
+   */
+  logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>) {
+    const securityEvent: SecurityEvent = {
+      ...event,
+      timestamp: new Date(),
+    }
+
+    this.events.push(securityEvent)
+    
+    // Keep only recent events
+    if (this.events.length > this.maxEvents) {
+      this.events = this.events.slice(-this.maxEvents)
+    }
+
+    // Log to console for immediate visibility
+    console.log('🚨 Security Event:', {
+      type: securityEvent.type,
+      severity: securityEvent.severity,
+      userId: securityEvent.userId,
+      endpoint: securityEvent.endpoint,
+      timestamp: securityEvent.timestamp.toISOString(),
+      details: securityEvent.details,
+    })
+
+    // TODO: Send to external monitoring service
+    // this.sendToMonitoringService(securityEvent)
+  }
+
+  /**
+   * Log a request for monitoring
+   */
+  logRequest(log: Omit<RequestLog, 'timestamp'>) {
+    const requestLog: RequestLog = {
+      ...log,
+      timestamp: new Date(),
+    }
+
+    this.requestLogs.push(requestLog)
+    
+    // Keep only recent logs
+    if (this.requestLogs.length > this.maxLogs) {
+      this.requestLogs = this.requestLogs.slice(-this.maxLogs)
+    }
+
+    // Check for suspicious patterns
+    this.analyzeRequestPattern(requestLog)
+  }
+
+  /**
+   * Analyze request patterns for security issues
+   */
+  private analyzeRequestPattern(log: RequestLog) {
+    // Check for rapid requests (potential DoS)
+    const recentRequests = this.requestLogs.filter(
+      req => req.userId === log.userId && 
+      req.timestamp > new Date(Date.now() - 60000) // Last minute
+    )
+
+    if (recentRequests.length > 100) {
+      this.logSecurityEvent({
+        type: SecurityEventType.RATE_LIMIT_EXCEEDED,
+        userId: log.userId,
+        endpoint: log.endpoint,
+        method: log.method,
+        severity: 'high',
+        details: {
+          requestCount: recentRequests.length,
+          timeWindow: '1 minute',
+        },
+      })
+    }
+
+    // Check for authentication failures
+    if (log.statusCode === 401 || log.statusCode === 403) {
+      this.logSecurityEvent({
+        type: log.statusCode === 401 ? SecurityEventType.AUTHENTICATION_FAILURE : SecurityEventType.AUTHORIZATION_FAILURE,
+        userId: log.userId,
+        endpoint: log.endpoint,
+        method: log.method,
+        severity: 'medium',
+        details: {
+          statusCode: log.statusCode,
+          error: log.error,
+        },
+      })
+    }
+
+    // Check for unusual response times
+    if (log.responseTime > 10000) { // 10 seconds
+      this.logSecurityEvent({
+        type: SecurityEventType.UNUSUAL_ACTIVITY,
+        userId: log.userId,
+        endpoint: log.endpoint,
+        method: log.method,
+        severity: 'low',
+        details: {
+          responseTime: log.responseTime,
+          threshold: 10000,
+        },
+      })
+    }
+  }
+
+  /**
+   * Get recent security events
+   */
+  getRecentSecurityEvents(limit: number = 50): SecurityEvent[] {
+    return this.events.slice(-limit)
+  }
+
+  /**
+   * Get recent request logs
+   */
+  getRecentRequestLogs(limit: number = 100): RequestLog[] {
+    return this.requestLogs.slice(-limit)
+  }
+
+  /**
+   * Get security statistics
+   */
+  getSecurityStats() {
+    const now = new Date()
+    const lastHour = new Date(now.getTime() - 60 * 60 * 1000)
+    const lastDay = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+    const recentEvents = this.events.filter(e => e.timestamp > lastHour)
+    const recentLogs = this.requestLogs.filter(l => l.timestamp > lastHour)
+
+    return {
+      totalEvents: this.events.length,
+      totalLogs: this.requestLogs.length,
+      eventsLastHour: recentEvents.length,
+      requestsLastHour: recentLogs.length,
+      errorRate: recentLogs.length > 0 
+        ? (recentLogs.filter(l => l.statusCode >= 400).length / recentLogs.length) * 100 
+        : 0,
+      securityEventsByType: this.groupEventsByType(recentEvents),
+    }
+  }
+
+  /**
+   * Group events by type for analysis
+   */
+  private groupEventsByType(events: SecurityEvent[]) {
+    return events.reduce((acc, event) => {
+      acc[event.type] = (acc[event.type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+  }
+}
+
+// Export singleton instance
+export const securityMonitoring = new SecurityMonitoringService()
+
+/**
+ * Middleware for request logging and security monitoring
+ */
+export function createRequestLogger() {
+  return function logRequest(
+    request: Request,
+    response: Response,
+    userId?: string,
+    metadata?: Record<string, any>
+  ) {
+    const startTime = Date.now()
+    const requestId = crypto.randomUUID()
+    
+    // Extract request details
+    const url = new URL(request.url)
+    const method = request.method
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown'
+
+    // Log the request
+    securityMonitoring.logRequest({
+      requestId,
+      userId,
+      ipAddress,
+      userAgent,
+      endpoint: url.pathname,
+      method,
+      statusCode: response.status,
+      responseTime: Date.now() - startTime,
+      metadata,
+    })
+
+    return requestId
+  }
+}
+
+/**
+ * Utility to detect suspicious input patterns
+ */
+export function detectSuspiciousInput(input: string): boolean {
+  const suspiciousPatterns = [
+    /<script>/gi,
+    /javascript:/gi,
+    /data:text\/html/gi,
+    /vbscript:/gi,
+    /onload=/gi,
+    /onerror=/gi,
+    /onclick=/gi,
+    /system:/gi,
+    /assistant:/gi,
+    /user:/gi,
+    /\/etc\/passwd/gi,
+    /\/proc\/self/gi,
+    /\/sys\/kernel/gi,
+  ]
+
+  return suspiciousPatterns.some(pattern => pattern.test(input))
+}
+
+/**
+ * Log suspicious input attempts
+ */
+export function logSuspiciousInput(
+  input: string,
+  userId?: string,
+  endpoint?: string,
+  method?: string
+) {
+  securityMonitoring.logSecurityEvent({
+    type: SecurityEventType.AI_INJECTION_ATTEMPT,
+    userId,
+    endpoint: endpoint || 'unknown',
+    method: method || 'unknown',
+    severity: 'medium',
+    details: {
+      inputLength: input.length,
+      inputPreview: input.substring(0, 100),
+      detectedPatterns: getDetectedPatterns(input),
+    },
+  })
+}
+
+/**
+ * Get detected suspicious patterns in input
+ */
+function getDetectedPatterns(input: string): string[] {
+  const patterns = [
+    { name: 'script_tag', pattern: /<script>/gi },
+    { name: 'javascript_protocol', pattern: /javascript:/gi },
+    { name: 'data_uri', pattern: /data:text\/html/gi },
+    { name: 'vbscript', pattern: /vbscript:/gi },
+    { name: 'event_handler', pattern: /on(load|error|click)=/gi },
+    { name: 'prompt_injection', pattern: /(system|assistant|user):/gi },
+    { name: 'file_path', pattern: /\/(etc\/passwd|proc\/self|sys\/kernel)/gi },
+  ]
+
+  return patterns
+    .filter(p => p.pattern.test(input))
+    .map(p => p.name)
+} 

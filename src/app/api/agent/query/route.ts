@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Instantiate agent and handle query
-    const agent = new FinanceAgent();
+    const agent = new FinanceAgent(user.id);
     
     // 4. Handle streaming response
     if (streaming) {

@@ -59,7 +59,7 @@ describe('/api/agent/query', () => { // Name kept for historical context, but no
   });
 
   it('returns 200 and expected structure for valid query', async () => {
-    const agent = new agentModule.FinanceAgent();
+    const agent = new agentModule.FinanceAgent('test-user-id');
     const result = await agent.handleQuery('How much did I spend on food?', 'test-user-123') as any;
 
     expect(result.message).toBe('mocked response');
@@ -73,7 +73,7 @@ describe('/api/agent/query', () => { // Name kept for historical context, but no
       data: null,
       error: 'Agent processing failed'
     });
-    const agent = new agentModule.FinanceAgent();
+    const agent = new agentModule.FinanceAgent('test-user-id');
     const result = await agent.handleQuery('test', 'test-user-123') as any;
 
     expect(result.error).toBe('Agent processing failed');
@@ -81,13 +81,13 @@ describe('/api/agent/query', () => { // Name kept for historical context, but no
   });
 
   it('creates FinanceAgent instance successfully', () => {
-    const agent = new agentModule.FinanceAgent();
+    const agent = new agentModule.FinanceAgent('test-user-id');
     expect(agent).toBeInstanceOf(agentModule.FinanceAgent);
   });
 
   it('handles authentication errors correctly', async () => {
     // Test that the agent can handle authentication errors gracefully
-    const agent = new agentModule.FinanceAgent();
+    const agent = new agentModule.FinanceAgent('test-user-id');
     
     // Mock an authentication error scenario
     handleQuerySpy.mockRejectedValueOnce(new Error('Authentication failed'));
