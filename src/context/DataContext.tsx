@@ -8,7 +8,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from './AuthContext'
-import { DashboardDataService } from '@/lib/services/dashboardData'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -89,8 +88,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => reject(new Error('Request timeout')), 10000) // 10 second timeout
       })
 
-      // Use the dashboard data service for batch fetching with timeout
-      const dataPromise = DashboardDataService.getDashboardData(user.id)
+      // Make direct API call instead of using DashboardDataService
+      const dataPromise = fetch('/api/dashboard/data', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Add timeout to prevent hanging requests
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch dashboard data: ${response.statusText}`)
+        }
+        return response.json()
+      })
+
       const data = await Promise.race([dataPromise, timeoutPromise]) as any
       
       setDashboardData(data)
@@ -113,43 +125,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
 
     try {
-      const stats = await DashboardDataService.getStats(user.id)
-      setDashboardData(prev => prev ? { ...prev, stats } : null)
-      setLastFetch(Date.now())
-      setIsStale(false)
+      // Refresh by fetching full dashboard data
+      await fetchDashboardData()
     } catch (err) {
       console.error('Error refreshing stats:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh stats')
     }
-  }, [user?.id])
+  }, [user?.id, fetchDashboardData])
 
   const refreshReceipts = useCallback(async () => {
     if (!user) return
 
     try {
-      const recentReceipts = await DashboardDataService.getRecentReceipts(user.id)
-      setDashboardData(prev => prev ? { ...prev, recentReceipts } : null)
-      setLastFetch(Date.now())
-      setIsStale(false)
+      // Refresh by fetching full dashboard data
+      await fetchDashboardData()
     } catch (err) {
       console.error('Error refreshing receipts:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh receipts')
     }
-  }, [user?.id])
+  }, [user?.id, fetchDashboardData])
 
   const refreshAnalytics = useCallback(async () => {
     if (!user) return
 
     try {
-      const analytics = await DashboardDataService.getAnalytics(user.id)
-      setDashboardData(prev => prev ? { ...prev, analytics } : null)
-      setLastFetch(Date.now())
-      setIsStale(false)
+      // Refresh by fetching full dashboard data
+      await fetchDashboardData()
     } catch (err) {
       console.error('Error refreshing analytics:', err)
       setError(err instanceof Error ? err.message : 'Failed to refresh analytics')
     }
-  }, [user?.id])
+  }, [user?.id, fetchDashboardData])
 
   const clearCache = useCallback(() => {
     setDashboardData(null)
