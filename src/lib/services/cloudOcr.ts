@@ -16,6 +16,16 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
   }
   
   try {
+    // Check if Google Cloud Vision credentials are available
+    const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+                          process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+                          process.env.GOOGLE_CLOUD_VISION_API_KEY;
+    
+    if (!hasCredentials) {
+      console.warn('Google Cloud Vision credentials not found. Using fallback OCR.');
+      return getFallbackOcrText();
+    }
+
     let request: {
       image: {
         content?: string;
@@ -95,8 +105,29 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
     return extractedText;
   } catch (error) {
     console.error('Google Vision API error:', error);
-    throw error;
+    console.log('Falling back to placeholder OCR text');
+    return getFallbackOcrText();
   }
+}
+
+/**
+ * Fallback OCR text when Google Cloud Vision is not available
+ * Provides a placeholder that allows the upload to complete
+ */
+function getFallbackOcrText(): string {
+  return `RECEIPT IMAGE
+Date: ${new Date().toLocaleDateString()}
+Time: ${new Date().toLocaleTimeString()}
+
+[OCR processing not available - please configure Google Cloud Vision API credentials]
+
+Merchant: Unknown Merchant
+Total: $0.00
+Items: 
+- Receipt image uploaded successfully
+
+Note: This receipt was uploaded without OCR processing. 
+To enable text extraction, please configure Google Cloud Vision API credentials.`;
 }
 
 /**

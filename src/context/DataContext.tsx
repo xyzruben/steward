@@ -85,7 +85,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // Add timeout to prevent infinite loading
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 10000) // 10 second timeout
+        setTimeout(() => reject(new Error('Request timeout')), 30000) // 30 second timeout
       })
 
       // Make direct API call instead of using DashboardDataService
@@ -95,7 +95,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
         },
         // Add timeout to prevent hanging requests
-        signal: AbortSignal.timeout(8000) // 8 second timeout
+        signal: AbortSignal.timeout(25000) // 25 second timeout
       }).then(response => {
         if (!response.ok) {
           throw new Error(`Failed to fetch dashboard data: ${response.statusText}`)

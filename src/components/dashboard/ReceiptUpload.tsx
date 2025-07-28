@@ -30,6 +30,7 @@ import {
 
 interface ReceiptUploadProps {
   className?: string
+  onUploadComplete?: (receipt: any) => void
 }
 
 interface UploadState {
@@ -58,7 +59,7 @@ const UPLOAD_STAGES = [
 // MAIN RECEIPT UPLOAD COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-export function ReceiptUpload({ className = '' }: ReceiptUploadProps) {
+export function ReceiptUpload({ className = '', onUploadComplete }: ReceiptUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
@@ -106,56 +107,71 @@ export function ReceiptUpload({ className = '' }: ReceiptUploadProps) {
       error: undefined
     }))
 
-    // Simulate upload process with stages
-    await simulateUploadProcess(file)
-  }, [])
+    // Perform real upload
+    await performRealUpload(file)
+  }, [onUploadComplete])
 
-  const simulateUploadProcess = async (file: File) => {
+  const performRealUpload = async (file: File) => {
     try {
-      // Stage 1: Uploading (faster for tests)
-      for (let i = 0; i <= 100; i += 25) {
-        await new Promise(resolve => setTimeout(resolve, 50))
-        setUploadState(prev => ({ ...prev, progress: i }))
+      // Stage 1: Uploading
+      setUploadState(prev => ({ ...prev, stage: 'uploading', progress: 0 }))
+      
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/receipts/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Upload failed: ${response.status}`)
       }
 
-      // Stage 2: Processing (faster for tests)
-      setUploadState(prev => ({ ...prev, stage: 'processing', progress: 0 }))
-      for (let i = 0; i <= 100; i += 50) {
-        await new Promise(resolve => setTimeout(resolve, 75))
-        setUploadState(prev => ({ ...prev, progress: i }))
+      const result = await response.json()
+      
+      if (result.success) {
+        // Stage 2: Processing
+        setUploadState(prev => ({ ...prev, stage: 'processing', progress: 50 }))
+        
+        // Stage 3: Analyzing
+        setUploadState(prev => ({ ...prev, stage: 'analyzing', progress: 75 }))
+        
+        // Stage 4: Complete
+        setUploadState(prev => ({ 
+          ...prev, 
+          stage: 'complete', 
+          progress: 100,
+          isUploading: false 
+        }))
+
+        // Call callback if provided
+        if (onUploadComplete && result.receipt) {
+          onUploadComplete(result.receipt)
+        }
+
+        // Reset after 3 seconds
+        setTimeout(() => {
+          setUploadState({
+            isUploading: false,
+            progress: 0,
+            stage: 'idle',
+            showPreview: false,
+            isDragOver: false
+          })
+        }, 3000)
+
+      } else {
+        throw new Error(result.error || 'Upload failed')
       }
-
-      // Stage 3: Analyzing (faster for tests)
-      setUploadState(prev => ({ ...prev, stage: 'analyzing', progress: 0 }))
-      for (let i = 0; i <= 100; i += 50) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        setUploadState(prev => ({ ...prev, progress: i }))
-      }
-
-      // Stage 4: Complete
-      setUploadState(prev => ({ 
-        ...prev, 
-        stage: 'complete', 
-        progress: 100,
-        isUploading: false 
-      }))
-
-      // Reset after 2 seconds (faster for tests)
-      setTimeout(() => {
-        setUploadState({
-          isUploading: false,
-          progress: 0,
-          stage: 'idle',
-          showPreview: false,
-          isDragOver: false
-        })
-      }, 2000)
 
     } catch (error) {
+      console.error('Upload error:', error)
       setUploadState(prev => ({
         ...prev,
         stage: 'error',
-        error: 'Upload failed. Please try again.',
+        error: error instanceof Error ? error.message : 'Upload failed. Please try again.',
         isUploading: false
       }))
     }

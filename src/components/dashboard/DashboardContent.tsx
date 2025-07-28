@@ -29,7 +29,7 @@ interface DashboardContentProps {
 // ============================================================================
 
 export function DashboardContent({ className = '' }: DashboardContentProps) {
-  const { dashboardData, isLoading, error } = useData()
+  const { dashboardData, isLoading, error, refreshData } = useData()
 
   // Track dashboard load
   const { startTimer, endTimer } = usePerformance({ 
@@ -58,6 +58,15 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     
     return () => clearTimeout(timeoutId)
   }, [isLoading, error, dashboardData])
+
+  // Handle receipt upload completion
+  const handleReceiptUploaded = React.useCallback((receipt: any) => {
+    console.log('Receipt uploaded successfully:', receipt)
+    // Refresh dashboard data to show the new receipt
+    if (refreshData) {
+      refreshData()
+    }
+  }, [refreshData])
 
   // Show loading state while data is being fetched
   if (isLoading) {
@@ -130,7 +139,7 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
 
         {/* Sidebar */}
         <div className="space-y-8">
-          <ReceiptUpload />
+          <ReceiptUpload onUploadComplete={handleReceiptUploaded} />
         </div>
       </div>
     </div>

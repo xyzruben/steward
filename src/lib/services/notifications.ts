@@ -329,9 +329,11 @@ export class NotificationService {
       })
 
       if (!preferences) {
-        // Create default preferences if none exist
-        const defaultPreferences = await prisma.notificationPreferences.create({
-          data: {
+        // Create default preferences if none exist using upsert to handle race conditions
+        const defaultPreferences = await prisma.notificationPreferences.upsert({
+          where: { userId },
+          update: {}, // No updates if exists
+          create: {
             userId,
             emailNotifications: true,
             pushNotifications: true,

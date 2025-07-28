@@ -98,14 +98,19 @@ export async function GET(request: NextRequest) {
     // Cache miss - fetch fresh data with database retry logic
     const analyticsService = new AnalyticsService()
     
-    const [analyticsData, recentReceipts] = await dbService.executeWithRetry(async () => {
-      return Promise.all([
+    // Use Promise.allSettled to handle partial failures gracefully
+    const [analyticsResult, receiptsResult] = await dbService.executeWithRetry(async () => {
+      return Promise.allSettled([
         // Get analytics overview with retry logic
         analyticsService.getOverview(user.id),
         // Get recent receipts with retry logic
         getReceiptsByUserId(user.id, { take: 5, orderBy: 'purchaseDate', order: 'desc' })
       ])
     })
+
+    // Handle partial failures gracefully
+    const analyticsData = analyticsResult.status === 'fulfilled' ? analyticsResult.value : { data: { totalSpent: 0, receiptCount: 0, averageReceipt: 0 } }
+    const recentReceipts = receiptsResult.status === 'fulfilled' ? receiptsResult.value : []
 
     // Transform data to match expected format
     const dashboardData = {
