@@ -107,6 +107,25 @@ const functionSchemas = [
     }
   },
   {
+    name: 'getDiningHistory',
+    description: 'Get dining and restaurant history for a specific time period',
+    parameters: {
+      type: 'object',
+      properties: {
+        timeframe: {
+          type: 'string',
+          description: 'Time period to analyze (e.g., "last month", "this month", "july", "last week")'
+        },
+        category: {
+          type: 'string',
+          description: 'Optional category filter (e.g., "Food & Dining", "Restaurants")',
+          default: 'Food & Dining'
+        }
+      },
+      required: ['timeframe']
+    }
+  },
+  {
     name: 'getSpendingForCustomPeriod',
     description: 'Get spending data for a custom date range',
     parameters: {
@@ -228,6 +247,7 @@ const functionRegistry = {
   getSpendingByCategory: financeFunctions.getSpendingByCategory,
   getSpendingByTime: financeFunctions.getSpendingByTime,
   getSpendingByVendor: financeFunctions.getSpendingByVendor,
+  getDiningHistory: financeFunctions.getDiningHistory,
   getSpendingForCustomPeriod: financeFunctions.getSpendingForCustomPeriod,
   getSpendingComparison: financeFunctions.getSpendingComparison,
   detectSpendingAnomalies: financeFunctions.detectSpendingAnomalies,
@@ -563,8 +583,11 @@ Available functions are registered below. Use them to provide accurate, data-dri
             content: sanitizedQuery,
           },
         ],
-        functions: functionSchemas,
-        function_call: 'auto',
+        tools: functionSchemas.map(schema => ({
+          type: 'function' as const,
+          function: schema
+        })),
+        tool_choice: 'auto',
         temperature: 0.1,
       });
       const openaiDuration = Date.now() - openaiStartTime;
@@ -588,8 +611,8 @@ Available functions are registered below. Use them to provide accurate, data-dri
       }
 
       // Track function calls
-      if (response.function_call) {
-        functionsUsed.push(response.function_call.name);
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        functionsUsed.push(...response.tool_calls.map(call => call.function.name));
       }
 
       // 3. Handle function calls if present
@@ -956,6 +979,14 @@ Available functions are registered below. Use them to provide accurate, data-dri
           case 'summarizeTopCategories':
             if (Array.isArray(result) && result.length > 0) {
               insights.push(`Top category: ${result[0]?.category || 'Unknown'} ($${result[0]?.total?.toFixed(2) || 0})`);
+            }
+            break;
+          case 'getDiningHistory':
+            if (result.restaurants && Array.isArray(result.restaurants) && result.restaurants.length > 0) {
+              insights.push(`You visited ${result.totalVisits} restaurants and spent $${result.totalSpent.toFixed(2)}`);
+              if (result.restaurants.length > 0) {
+                insights.push(`Top restaurant: ${result.restaurants[0].merchant} ($${result.restaurants[0].total.toFixed(2)})`);
+              }
             }
             break;
         }

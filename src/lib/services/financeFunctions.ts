@@ -2,6 +2,79 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Parse timeframe string into start and end dates
+ * @param timeframe Timeframe string (e.g., "last month", "july", "this year")
+ * @returns Object with start and end dates
+ */
+function parseTimeframe(timeframe: string): { start: Date; end: Date } {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  
+  timeframe = timeframe.toLowerCase().trim();
+  
+  switch (timeframe) {
+    case 'last month':
+      const lastMonth = new Date(currentYear, currentMonth - 1, 1);
+      return {
+        start: lastMonth,
+        end: new Date(currentYear, currentMonth, 0)
+      };
+    
+    case 'this month':
+      return {
+        start: new Date(currentYear, currentMonth, 1),
+        end: new Date(currentYear, currentMonth + 1, 0)
+      };
+    
+    case 'last week':
+      const lastWeekStart = new Date(now);
+      lastWeekStart.setDate(now.getDate() - 7);
+      return {
+        start: lastWeekStart,
+        end: now
+      };
+    
+    case 'this year':
+      return {
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31)
+      };
+    
+    case 'last year':
+      return {
+        start: new Date(currentYear - 1, 0, 1),
+        end: new Date(currentYear - 1, 11, 31)
+      };
+    
+    default:
+      // Handle month names
+      const monthNames = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ];
+      
+      const monthIndex = monthNames.indexOf(timeframe);
+      if (monthIndex !== -1) {
+        // If it's a past month this year, use this year
+        // If it's a future month, use last year
+        const targetYear = monthIndex <= currentMonth ? currentYear : currentYear - 1;
+        return {
+          start: new Date(targetYear, monthIndex, 1),
+          end: new Date(targetYear, monthIndex + 1, 0)
+        };
+      }
+      
+      // Default to last month if unknown
+      const defaultLastMonth = new Date(currentYear, currentMonth - 1, 1);
+      return {
+        start: defaultLastMonth,
+        end: new Date(currentYear, currentMonth, 0)
+      };
+  }
+}
+
 // Type definitions for better type safety
 interface SpendingResult {
   total: number;
@@ -43,7 +116,7 @@ interface TrendPoint {
 export async function getSpendingByCategory(params: { 
   userId: string; 
   category?: string; 
-  timeframe?: { start: Date; end: Date } 
+  timeframe?: { start: Date; end: Date } | string
 }): Promise<{ category: string; total: number; currency: string }> {
   try {
     const whereClause: any = {
@@ -55,11 +128,17 @@ export async function getSpendingByCategory(params: {
       whereClause.category = params.category;
     }
 
+    // Parse timeframe if it's a string
+    let timeframe = params.timeframe;
+    if (typeof timeframe === 'string') {
+      timeframe = parseTimeframe(timeframe);
+    }
+
     // Add date range filter if specified
-    if (params.timeframe) {
+    if (timeframe) {
       whereClause.purchaseDate = {
-        gte: params.timeframe.start,
-        lte: params.timeframe.end,
+        gte: timeframe.start,
+        lte: timeframe.end,
       };
     }
 
@@ -156,6 +235,104 @@ export async function getSpendingByVendor(params: {
   } catch (error) {
     console.error('Error in getSpendingByVendor:', error);
     throw new Error('Failed to retrieve spending by vendor');
+  }
+}
+
+/**
+ * Gets dining and restaurant history for a specific time period.
+ * @param params userId, timeframe, optional category
+ * @returns dining history with restaurants and amounts
+ */
+export async function getDiningHistory(params: { 
+  userId: string; 
+  timeframe: { start: Date; end: Date } | string;
+  category?: string;
+}): Promise<{ 
+  restaurants: Array<{ merchant: string; total: number; count: number; currency: string }>;
+  totalSpent: number;
+  totalVisits: number;
+  currency: string;
+  timeframe: { start: Date; end: Date };
+}> {
+  try {
+    // Parse timeframe if it's a string
+    let timeframe = params.timeframe;
+    if (typeof timeframe === 'string') {
+      timeframe = parseTimeframe(timeframe);
+    }
+
+    const whereClause: any = {
+      userId: params.userId,
+      purchaseDate: {
+        gte: timeframe.start,
+        lte: timeframe.end,
+      },
+    };
+
+    // Add category filter if specified
+    if (params.category) {
+      whereClause.category = params.category;
+    } else {
+      // Default to food-related categories
+      whereClause.category = {
+        in: ['Food & Dining', 'Restaurants', 'Fast Food', 'Coffee Shops', 'Bars & Pubs']
+      };
+    }
+
+    // Get all dining receipts for the period
+    const receipts = await prisma.receipt.findMany({
+      where: whereClause,
+      select: {
+        merchant: true,
+        total: true,
+        purchaseDate: true,
+      },
+      orderBy: {
+        purchaseDate: 'desc',
+      },
+    });
+
+    // Group by restaurant
+    const restaurantMap = new Map<string, { total: number; count: number }>();
+    
+    receipts.forEach(receipt => {
+      const merchant = receipt.merchant || 'Unknown Restaurant';
+      const existing = restaurantMap.get(merchant);
+      
+      if (existing) {
+        existing.total += Number(receipt.total) || 0;
+        existing.count += 1;
+      } else {
+        restaurantMap.set(merchant, {
+          total: Number(receipt.total) || 0,
+          count: 1,
+        });
+      }
+    });
+
+    // Convert to array and sort by total spent
+    const restaurants = Array.from(restaurantMap.entries())
+      .map(([merchant, data]) => ({
+        merchant,
+        total: data.total,
+        count: data.count,
+        currency: 'USD',
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    const totalSpent = restaurants.reduce((sum, restaurant) => sum + restaurant.total, 0);
+    const totalVisits = restaurants.reduce((sum, restaurant) => sum + restaurant.count, 0);
+
+    return {
+      restaurants,
+      totalSpent,
+      totalVisits,
+      currency: 'USD',
+      timeframe: timeframe,
+    };
+  } catch (error) {
+    console.error('Error in getDiningHistory:', error);
+    throw new Error('Failed to retrieve dining history');
   }
 }
 
