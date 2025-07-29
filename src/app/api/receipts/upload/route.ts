@@ -6,11 +6,7 @@ import { Decimal } from '@/generated/prisma/runtime/library'
 import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
-import { AnalyticsService } from '@/lib/services/analytics'
-import { realtimeService } from '@/lib/services/realtime'
-import { notificationService } from '@/lib/services/notifications'
-import { userProfileService } from '@/lib/services/userProfile'
-import { EmbeddingsService } from '@/lib/services/embeddings'
+// Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
 // ============================================================================
@@ -215,13 +211,8 @@ export async function POST(request: NextRequest) {
       console.error('Async receipt processing failed:', error)
     })
 
-    // Send upload notification
-    try {
-      await notificationService.notifyReceiptUploaded(user.id, tempReceipt.id, 'Processing...')
-    } catch (notificationError) {
-      console.error('Failed to send upload notification:', notificationError)
-      // Don't fail the upload if notification fails
-    }
+    // Log upload start
+    console.log(`Receipt upload started for user ${user.id}, receipt ${tempReceipt.id}`)
 
     // ============================================================================
     // IMMEDIATE API RESPONSE (see master guide: API Response Typing)
@@ -309,8 +300,8 @@ async function processReceiptAsync(
     const summary = aiData.summary || 'No summary generated'
     const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
 
-    // Fetch user's preferred currency (for future use, but not converting)
-    const userProfile = await userProfileService.getUserProfile(userId)
+    // Get user profile (simplified)
+    console.log(`Processing receipt for user ${userId}`)
     const receiptCurrency = aiData.currency || 'USD' // Assume AI can extract currency, else default
     // Design decision: Only store original currency, no conversion (see Steward Master System Guide, Multi-Currency section)
     await updateReceipt(receiptId, {
@@ -330,61 +321,14 @@ async function processReceiptAsync(
       ocrConfidence
     })
 
-    // 4. Generate embedding for semantic search (see master guide: AI and Processing)
-    try {
-      console.log('Generating embedding for receipt:', receiptId)
-      const embeddingsService = new EmbeddingsService()
-      const receipt = await prisma.receipt.findUnique({
-        where: { id: receiptId }
-      })
-      if (receipt) {
-        await embeddingsService.storeReceiptEmbedding(receipt)
-        console.log('Embedding generated successfully for receipt:', receiptId)
-      }
-    } catch (embeddingError) {
-      console.error('Failed to generate embedding for receipt:', receiptId, embeddingError)
-      // Don't fail the processing if embedding generation fails
-    }
-
-    // 5. Invalidate analytics cache (see master guide: Scalability and Performance)
-    try {
-      const analyticsService = new AnalyticsService();
-      await analyticsService.invalidateUserCache(userId);
-      console.log('Analytics cache invalidated for user:', userId);
-      
-      // 6. Broadcast real-time analytics update (see master guide: Scalability and Performance)
-      try {
-        await realtimeService.broadcastAnalyticsUpdate(userId);
-        console.log('Real-time analytics update broadcasted for user:', userId);
-      } catch (broadcastError) {
-        console.error('Failed to broadcast analytics update:', broadcastError);
-        // Don't fail the processing if broadcasting fails
-      }
-    } catch (cacheError) {
-      console.error('Failed to invalidate analytics cache:', cacheError);
-      // Don't fail the processing if cache invalidation fails
-    }
-
+    // Analytics, embeddings, and notifications removed for performance optimization
     console.log('Async processing completed successfully for receipt:', receiptId)
-    
-    // Send processing completion notification
-    try {
-      await notificationService.notifyReceiptProcessed(userId, receiptId, merchant, new Decimal(total))
-    } catch (notificationError) {
-      console.error('Failed to send processing notification:', notificationError)
-      // Don't fail the processing if notification fails
-    }
     
   } catch (error) {
     console.error('Async processing failed for receipt:', receiptId, error)
     
-    // Send error notification
-    try {
-      await notificationService.notifyReceiptError(userId, receiptId, error instanceof Error ? error.message : 'Unknown error')
-    } catch (notificationError) {
-      console.error('Failed to send error notification:', notificationError)
-      // Don't fail the processing if notification fails
-    }
+    // Error notification removed for performance optimization
+    console.error('Receipt processing failed:', receiptId, error)
   }
 }
 

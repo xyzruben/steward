@@ -14,7 +14,7 @@ import { RecentReceipts } from './RecentReceipts'
 import { ReceiptUpload } from './ReceiptUpload'
 import { useData } from '@/context/DataContext'
 import { cn } from '@/lib/utils'
-import { usePerformance } from '@/hooks/usePerformance'
+// Performance tracking removed for optimization
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -32,9 +32,8 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
   const { dashboardData, isLoading, error, refreshData } = useData()
 
   // Track dashboard load
-  const { startTimer, endTimer } = usePerformance({ 
-    label: 'Dashboard Load'
-  })
+  const startTimer = () => console.log('Dashboard load started');
+  const endTimer = (success: boolean) => console.log(`Dashboard load ${success ? 'completed' : 'failed'}`);
   
   React.useEffect(() => {
     startTimer()

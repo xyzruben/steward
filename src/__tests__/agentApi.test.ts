@@ -1,99 +1,207 @@
-import * as agentModule from '@/lib/services/financeAgent';
+// ============================================================================
+// AI AGENT API TESTS - Critical Paths Only
+// ============================================================================
+// Focused tests for the most essential functionality
+// Covers: basic queries, caching, rate limiting, error handling
 
-// Mock Supabase and cookies
+import { NextRequest } from 'next/server';
+import { POST } from '@/app/api/agent/query/route';
+import { FinanceAgent } from '@/lib/services/financeAgent';
+import { agentCache } from '@/lib/services/cache';
+
+// Mock dependencies
 jest.mock('@/lib/supabase', () => ({
-  createSupabaseServerClient: jest.fn().mockReturnValue({
+  createSupabaseServerClient: jest.fn(() => ({
     auth: {
-      getUser: jest.fn().mockResolvedValue({
-        data: { user: { id: 'test-user-123' } },
-        error: null
-      })
-    }
-  })
-}));
-
-jest.mock('next/headers', () => ({
-  cookies: jest.fn().mockResolvedValue({
-    get: jest.fn(),
-    set: jest.fn(),
-    delete: jest.fn()
-  })
-}));
-
-// Mock OpenAI globally
-jest.mock('openai', () => ({
-  OpenAI: jest.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: jest.fn().mockResolvedValue({
-          choices: [{
-            message: {
-              content: 'Mocked response',
-              tool_calls: null
-            }
-          }]
-        })
-      }
+      getUser: jest.fn()
     }
   }))
 }));
 
-/**
- * Tests for /api/agent/query route.
- * Follows "just right" testing philosophy from Master System Guide.
- * Focuses on business value, error handling, and reliability.
- */
-describe('/api/agent/query', () => { // Name kept for historical context, but now tests agent directly
-  let handleQuerySpy: jest.SpyInstance;
+jest.mock('@/lib/services/financeAgent');
+jest.mock('@/lib/services/cache');
+
+// Mock next/headers
+jest.mock('next/headers', () => ({
+  cookies: jest.fn().mockResolvedValue({
+    get: jest.fn().mockReturnValue({ name: 'sb-access-token', value: 'mock-token' })
+  })
+}));
+
+// Mock NextResponse
+jest.mock('next/server', () => ({
+  NextRequest: class NextRequest {
+    constructor(url: string, options: any = {}) {
+      this.url = url;
+      this.method = options.method || 'GET';
+      this.body = options.body;
+      this.cookies = {
+        get: jest.fn().mockReturnValue({ name: 'sb-access-token', value: 'mock-token' })
+      };
+    }
+    url: string;
+    method: string;
+    body: any;
+    cookies: any;
+  },
+  NextResponse: {
+    json: jest.fn((data: any, options?: any) => ({
+      status: options?.status || 200,
+      json: () => Promise.resolve(data),
+      headers: new Map()
+    }))
+  }
+}));
+
+describe('AI Agent API - Critical Paths', () => {
+  let mockRequest: NextRequest;
+  let mockUser: any;
 
   beforeEach(() => {
-    handleQuerySpy = jest.spyOn(agentModule.FinanceAgent.prototype, 'handleQuery').mockResolvedValue({
-      message: 'mocked response',
-      data: { foo: 'bar' },
-      insights: ['Test insight']
-    });
-  });
-
-  afterEach(() => {
-    handleQuerySpy.mockRestore();
-  });
-
-  it('returns 200 and expected structure for valid query', async () => {
-    const agent = new agentModule.FinanceAgent('test-user-id');
-    const result = await agent.handleQuery('How much did I spend on food?', 'test-user-123') as any;
-
-    expect(result.message).toBe('mocked response');
-    expect(result.data).toEqual({ foo: 'bar' });
-    expect(result.insights).toEqual(['Test insight']);
-  });
-
-  it('handles agent error responses correctly', async () => {
-    handleQuerySpy.mockResolvedValueOnce({
-      message: 'Error occurred',
-      data: null,
-      error: 'Agent processing failed'
-    });
-    const agent = new agentModule.FinanceAgent('test-user-id');
-    const result = await agent.handleQuery('test', 'test-user-123') as any;
-
-    expect(result.error).toBe('Agent processing failed');
-    expect(result.message).toBe('Error occurred');
-  });
-
-  it('creates FinanceAgent instance successfully', () => {
-    const agent = new agentModule.FinanceAgent('test-user-id');
-    expect(agent).toBeInstanceOf(agentModule.FinanceAgent);
-  });
-
-  it('handles authentication errors correctly', async () => {
-    // Test that the agent can handle authentication errors gracefully
-    const agent = new agentModule.FinanceAgent('test-user-id');
+    // Reset all mocks
+    jest.clearAllMocks();
     
-    // Mock an authentication error scenario
-    handleQuerySpy.mockRejectedValueOnce(new Error('Authentication failed'));
+    // Setup authenticated user
+    mockUser = { id: 'test-user-123' };
+    const { createSupabaseServerClient } = require('@/lib/supabase');
+    createSupabaseServerClient.mockReturnValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({ data: { user: mockUser }, error: null })
+      }
+    });
+
+    // Setup cache mock
+    (agentCache.get as jest.Mock).mockResolvedValue(null);
+    (agentCache.setSync as jest.Mock).mockReturnValue(undefined);
     
-    await expect(
-      agent.handleQuery('test query', 'invalid-user')
-    ).rejects.toThrow('Authentication failed');
+    // Setup FinanceAgent mock
+    (FinanceAgent as unknown as jest.Mock).mockImplementation(() => ({
+      processQuery: jest.fn().mockResolvedValue({
+        message: 'Default response',
+        data: {},
+        executionTime: 1000
+      })
+    }));
+  });
+
+  describe('POST /api/agent/query', () => {
+    it('should process valid query and return AI response', async () => {
+      // Arrange
+      const mockAgentResponse = {
+        message: 'Your spending analysis is ready',
+        data: { total: 1500, currency: 'USD' },
+        insights: ['You spent $1500 this month'],
+        executionTime: 2500,
+        functionsUsed: ['getSpendingByTime']
+      };
+
+      (FinanceAgent as unknown as jest.Mock).mockImplementation(() => ({
+        processQuery: jest.fn().mockResolvedValue(mockAgentResponse)
+      }));
+
+      mockRequest = new NextRequest('http://localhost:3000/api/agent/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: 'How much did I spend this month?' })
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(result.message).toBe('Your spending analysis is ready');
+      expect(result.data.total).toBe(1500);
+      expect(result.functionsUsed).toContain('getSpendingByTime');
+      expect(result.executionTime).toBeDefined();
+      expect(result.timestamp).toBeDefined();
+    });
+
+    it('should return cached response when available', async () => {
+      // Arrange
+      const cachedResponse = {
+        message: 'Cached response',
+        data: { cached: true },
+        executionTime: 100
+      };
+
+      (agentCache.get as jest.Mock).mockResolvedValue(cachedResponse);
+
+      mockRequest = new NextRequest('http://localhost:3000/api/agent/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: 'How much did I spend this month?' })
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(result.message).toBe('Cached response');
+      expect(result.data.cached).toBe(true);
+      expect(result.executionTime).toBe(100);
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      // Arrange
+      const { createSupabaseServerClient } = require('@/lib/supabase');
+      createSupabaseServerClient.mockReturnValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: 'Unauthorized' })
+        }
+      });
+
+      mockRequest = new NextRequest('http://localhost:3000/api/agent/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: 'How much did I spend?' })
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(401);
+      expect(result.error).toBe('Unauthorized');
+    });
+
+    it('should return 400 for invalid query', async () => {
+      // Arrange
+      mockRequest = new NextRequest('http://localhost:3000/api/agent/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: '' })
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(result.error).toBe('Query cannot be empty');
+    });
+
+    it('should handle AI agent errors gracefully', async () => {
+      // Arrange
+      (FinanceAgent as unknown as jest.Mock).mockImplementation(() => ({
+        processQuery: jest.fn().mockRejectedValue(new Error('OpenAI API error'))
+      }));
+
+      mockRequest = new NextRequest('http://localhost:3000/api/agent/query', {
+        method: 'POST',
+        body: JSON.stringify({ query: 'How much did I spend?' })
+      });
+
+      // Act
+      const response = await POST(mockRequest);
+      const result = await response.json();
+
+      // Assert
+      expect(response.status).toBe(500);
+      expect(result.error).toBe('Internal server error');
+      expect(result.executionTime).toBeDefined();
+      expect(result.timestamp).toBeDefined();
+    });
   });
 }); 

@@ -11,14 +11,12 @@ import { useAuth } from '@/context/AuthContext'
 import { LoginForm } from '@/components/auth/LoginForm'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { DashboardContent } from '@/components/dashboard/DashboardContent'
-import { RealtimeNotifications } from '@/components/ui/RealtimeNotifications'
 import { FullScreenLoading } from '@/components/ui/LoadingSpinner'
 import { MobileNavigation, MobileHeader } from '@/components/ui/MobileNavigation'
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { isMobileDevice } from '@/lib/utils'
-import { usePerformance } from '@/hooks/usePerformance'
 import AgentChat from '@/components/agent/AgentChat';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { OnboardingTour, useOnboardingTour } from '@/components/ui/OnboardingTour';
@@ -44,10 +42,8 @@ export default function HomePage() {
   const { isTourVisible, hasCompletedTour, startTour, completeTour, skipTour } = useOnboardingTour()
 
   // Track initial page load
-  const { startTimer, endTimer } = usePerformance({ 
-    label: 'Initial Page Load',
-    userId: user?.id 
-  })
+  const startTimer = () => console.log('Page load started');
+  const endTimer = (success: boolean) => console.log(`Page load ${success ? 'completed' : 'failed'}`);
 
   useEffect(() => {
     startTimer()
@@ -227,7 +223,7 @@ export default function HomePage() {
       />
       
       {/* Real-time notifications - positioned in top-right to avoid conflicts */}
-      <RealtimeNotifications position="top-right" />
+              {/* RealtimeNotifications removed for performance optimization */}
     </div>
   )
 }

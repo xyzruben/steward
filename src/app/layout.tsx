@@ -58,7 +58,6 @@ export default function RootLayout({
                 </PageTransition>
                 <NotificationCenter 
                   position="bottom-right" 
-                  variant="subtle"
                   className="z-40"
                 />
               </DataProvider>

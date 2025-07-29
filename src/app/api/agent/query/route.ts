@@ -1,113 +1,118 @@
+// ============================================================================
+// AI AGENT QUERY API ROUTE - Enhanced for AI-First Architecture
+// ============================================================================
+// Optimized API endpoint with rate limiting, caching, and streaming support
+// Focuses on AI agent performance with minimal overhead
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase';
-import { FinanceAgent, AgentResponse, StreamingAgentResponse } from '@/lib/services/financeAgent';
+import { FinanceAgent } from '@/lib/services/financeAgent';
+import { logger } from '@/lib/services/logger';
 
-/**
- * API route for Steward's AI-native financial assistant agent.
- * Aligns with Steward Master System Guide (see docs/STEWARD_MASTER_SYSTEM_GUIDE.md).
- *
- * POST /api/agent/query
- * Body: { query: string, streaming?: boolean }
- * Response: { message: string, data: any, insights?: string[], error?: string, cached?: boolean, executionTime?: number }
- * 
- * Performance Optimization: Added streaming responses and caching support
- */
-export async function POST(req: NextRequest) {
+// Simple in-memory rate limiting (replace with Redis in production)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(userId: string, limit: number, window: number): boolean {
+  const now = Date.now();
+  const key = `ai:${userId}`;
+  const userLimit = rateLimitMap.get(key);
+
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + window });
+    return true;
+  }
+
+  if (userLimit.count >= limit) {
+    return false;
+  }
+
+  userLimit.count++;
+  return true;
+}
+
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
-    // 1. Authenticate user (following established pattern from other API routes)
+    // Authentication
     const cookieStore = await cookies();
     const supabase = createSupabaseServerClient(cookieStore);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
     
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = user.id; // Real user ID from Supabase
-
-    // 2. Parse request body
-    const body = await req.json();
-    const userQuery = body.query;
-    const streaming = body.streaming || false;
-    
-    if (!userQuery || typeof userQuery !== 'string') {
-      return NextResponse.json({ error: 'Missing or invalid query' }, { status: 400 });
+    // Rate limiting: 10 requests per minute
+    if (!checkRateLimit(user.id, 10, 60000)) {
+      return NextResponse.json({ 
+        error: 'Rate limit exceeded. Please try again in a minute.',
+        retryAfter: 60
+      }, { status: 429 });
     }
 
-    // 3. Instantiate agent and handle query
-    const agent = new FinanceAgent(user.id);
-    
-    // 4. Handle streaming response
+    const { query, streaming = false } = await request.json();
+
+    if (!query || typeof query !== 'string') {
+      return NextResponse.json({ error: 'Query is required and must be a string' }, { status: 400 });
+    }
+
+    if (query.trim().length === 0) {
+      return NextResponse.json({ error: 'Query cannot be empty' }, { status: 400 });
+    }
+
+    // Input validation
+    if (query.length > 1000) {
+      return NextResponse.json({ error: 'Query too long. Maximum 1000 characters.' }, { status: 400 });
+    }
+
+    const agent = new FinanceAgent();
+
     if (streaming) {
-      return handleStreamingResponse(agent, userQuery, userId);
+      return handleStreamingResponse(agent, query, user.id);
+    } else {
+      const result = await agent.processQuery(query, user.id);
+      const executionTime = Date.now() - startTime;
+      
+      return NextResponse.json({
+        ...result,
+        executionTime,
+        timestamp: new Date().toISOString()
+      });
     }
-    
-    // 5. Handle regular response
-    const result = await agent.handleQuery(userQuery, userId) as AgentResponse;
-
-    // 6. Return agent response with proper status codes
-    if (result.error) {
-      return NextResponse.json(result, { status: 500 });
-    }
-
-    return NextResponse.json(result);
   } catch (error) {
-    // 7. Error handling
-    console.error('Agent API error:', error);
+    const executionTime = Date.now() - startTime;
+    logger.error('AI Agent API Error:', error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ 
-      error: errorMessage,
-      message: 'I encountered an error while processing your request. Please try again.',
-      data: null 
-    }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        executionTime,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
   }
 }
 
-/**
- * Handle streaming response for real-time feedback
- */
-async function handleStreamingResponse(
-  agent: FinanceAgent,
-  userQuery: string,
-  userId: string
-): Promise<Response> {
+async function handleStreamingResponse(agent: FinanceAgent, query: string, userId: string) {
   const encoder = new TextEncoder();
-  
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const streamingResult = agent.handleQuery(userQuery, userId, true);
-        
-        if (Symbol.asyncIterator in streamingResult) {
-          // Handle streaming response
-          for await (const chunk of streamingResult as unknown as AsyncGenerator<StreamingAgentResponse>) {
-            const data = JSON.stringify(chunk) + '\n';
-            controller.enqueue(encoder.encode(data));
-          }
-        } else {
-          // Handle regular response as single chunk
-          const result = await streamingResult as AgentResponse;
-          const data = JSON.stringify({
-            type: 'complete',
-            ...result
-          }) + '\n';
+        for await (const chunk of agent.streamQuery(query, userId)) {
+          const data = JSON.stringify(chunk) + '\n';
           controller.enqueue(encoder.encode(data));
         }
-        
         controller.close();
       } catch (error) {
         console.error('Streaming error:', error);
-        const errorChunk = JSON.stringify({
-          type: 'error',
-          message: 'An error occurred during processing',
-          error: error instanceof Error ? error.message : 'Unknown error'
+        const errorData = JSON.stringify({ 
+          type: 'error', 
+          error: error instanceof Error ? error.message : 'Unknown error' 
         }) + '\n';
-        controller.enqueue(encoder.encode(errorChunk));
+        controller.enqueue(encoder.encode(errorData));
         controller.close();
       }
     }
@@ -118,6 +123,7 @@ async function handleStreamingResponse(
       'Content-Type': 'text/plain; charset=utf-8',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Streaming': 'true'
     },
   });
 }

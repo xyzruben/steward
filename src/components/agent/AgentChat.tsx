@@ -206,6 +206,9 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       return;
     }
 
+    const requestId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[${requestId}] 🚀 Client: Starting streaming query`, { userMessage: userMessage.substring(0, 50) + '...' });
+
     setIsStreaming(true);
     setError(null);
     addMessage({
@@ -214,6 +217,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     });
 
     try {
+      console.log(`[${requestId}] 📡 Client: Making API request to /api/agent/query`);
       const response = await fetch('/api/agent/query', {
         method: 'POST',
         headers: {
@@ -223,6 +227,12 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
           query: userMessage, 
           streaming: true 
         }),
+      });
+
+      console.log(`[${requestId}] 📡 Client: API response received`, { 
+        status: response.status, 
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
@@ -242,28 +252,47 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
         throw new Error('Failed to start streaming response');
       }
 
+      console.log(`[${requestId}] 📡 Client: Starting to read streaming response`);
+
       const decoder = new TextDecoder();
       let finalResponse: AgentResponse | null = null;
       const functions: string[] = [];
 
       // Add timeout for the entire streaming process
       const streamTimeout = setTimeout(() => {
+        console.error(`[${requestId}] ⏰ Client: Streaming timeout after 30 seconds`);
         reader.cancel();
         throw new Error('Streaming timeout. Please try again.');
       }, 30000); // 30 second timeout
 
       try {
+        let chunkCount = 0;
         while (true) {
           const { done, value } = await reader.read();
           
-          if (done) break;
+          if (done) {
+            console.log(`[${requestId}] ✅ Client: Stream reading complete after ${chunkCount} chunks`);
+            break;
+          }
           
+          chunkCount++;
           const chunk = decoder.decode(value);
+          // Only log every 5th chunk to reduce console spam
+          if (chunkCount % 5 === 0) {
+            console.log(`[${requestId}] 📦 Client: Received chunk ${chunkCount}`, { 
+              chunkLength: chunk.length,
+              chunkPreview: chunk.substring(0, 100) + (chunk.length > 100 ? '...' : '')
+            });
+          }
+          
           const lines = chunk.split('\n').filter(line => line.trim());
           
           for (const line of lines) {
             try {
+              console.log(`[${requestId}] 📝 Client: Parsing line`, { line: line.substring(0, 100) + (line.length > 100 ? '...' : '') });
               const data: StreamingAgentResponse = JSON.parse(line);
+              
+              console.log(`[${requestId}] 📝 Client: Parsed streaming data`, { type: data.type, message: data.message?.substring(0, 50) });
               
               switch (data.type) {
                 case 'start':
@@ -282,12 +311,18 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
                 case 'complete':
                   finalResponse = data as AgentResponse;
                   setStreamingMessage('');
+                  console.log(`[${requestId}] ✅ Client: Received complete response`, { 
+                    messageLength: finalResponse.message?.length,
+                    hasData: !!finalResponse.data,
+                    hasInsights: !!finalResponse.insights
+                  });
                   break;
                 case 'error':
+                  console.error(`[${requestId}] 💥 Client: Received error from server`, data.error);
                   throw new Error(data.error || 'Streaming error occurred');
               }
             } catch (parseError) {
-              console.error('Error parsing streaming response:', parseError);
+              console.error(`[${requestId}] 💥 Client: Error parsing streaming response`, parseError, { line });
             }
           }
         }
@@ -297,6 +332,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
       if (finalResponse) {
         if (finalResponse.error) {
+          console.error(`[${requestId}] 💥 Client: Final response contains error`, finalResponse.error);
           addMessage({
             type: 'system',
             content: `Error: ${finalResponse.error}`,
@@ -304,6 +340,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
           });
           setError(finalResponse.error);
         } else {
+          console.log(`[${requestId}] ✅ Client: Adding successful response to chat`);
           addMessage({
             type: 'assistant',
             content: finalResponse.message,
@@ -318,9 +355,14 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
             executionTime: finalResponse.executionTime
           });
         }
+      } else {
+        console.error(`[${requestId}] 💥 Client: No final response received`);
+        throw new Error('No final response received from server');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      console.error(`[${requestId}] 💥 Client: Query failed`, { error: errorMessage, stack: err instanceof Error ? err.stack : undefined });
+      
       addMessage({
         type: 'system',
         content: `Error: ${errorMessage}`,
@@ -328,6 +370,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       });
       setError(errorMessage);
     } finally {
+      console.log(`[${requestId}] 🏁 Client: Query completed, cleaning up`);
       setIsStreaming(false);
       setStreamingMessage('');
     }

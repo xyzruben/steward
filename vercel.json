@@ -1,4 +1,37 @@
 {
   "version": 2,
-  "framework": "nextjs"
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/agent/(.*)",
+      "dest": "/api/agent/$1",
+      "headers": {
+        "X-Priority": "high"
+      }
+    },
+    {
+      "src": "/api/receipts/(.*)",
+      "dest": "/api/receipts/$1",
+      "headers": {
+        "X-Priority": "medium"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/app/api/agent/query/route.ts": {
+      "maxDuration": 30
+    }
+  }
 } 

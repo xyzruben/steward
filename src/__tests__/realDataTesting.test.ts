@@ -64,7 +64,7 @@ describe('Real Data Testing - FinanceAgent', () => {
   const testUserId = 'test-user-1';
 
   beforeEach(() => {
-    agent = new FinanceAgent('test-user-id');
+    agent = new FinanceAgent();
     jest.clearAllMocks();
   });
 

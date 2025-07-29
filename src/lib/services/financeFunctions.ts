@@ -168,6 +168,18 @@ export async function getSpendingByTime(params: {
   userId: string; 
   timeframe: { start: Date; end: Date } 
 }): Promise<{ period: { start: Date; end: Date }; total: number; currency: string; count?: number }> {
+  const queryId = `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+  
+  console.log(`[${queryId}] 🗄️ Database Query Started: getSpendingByTime`, {
+    userId: params.userId,
+    timeframe: {
+      start: params.timeframe.start.toISOString(),
+      end: params.timeframe.end.toISOString()
+    },
+    timestamp: new Date().toISOString()
+  });
+
   try {
     // Add timeout handling for long-running queries
     const queryPromise = prisma.receipt.aggregate({
@@ -185,12 +197,23 @@ export async function getSpendingByTime(params: {
       _count: true, // Get count for additional insights
     });
 
+    console.log(`[${queryId}] 🔍 Executing database query...`);
+
     // Add timeout protection (15 seconds)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Query timeout')), 15000);
     });
 
     const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+    const executionTime = Date.now() - startTime;
+
+    console.log(`[${queryId}] ✅ Database query completed successfully`, {
+      executionTime,
+      result: {
+        total: Number(result._sum.total) || 0,
+        count: result._count || 0
+      }
+    });
 
     return {
       period: params.timeframe,
@@ -199,7 +222,15 @@ export async function getSpendingByTime(params: {
       count: result._count || 0, // Add count for debugging
     };
   } catch (error) {
-    console.error('Error in getSpendingByTime:', error);
+    const executionTime = Date.now() - startTime;
+    console.error(`[${queryId}] 💥 Database query failed`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      executionTime,
+      userId: params.userId,
+      timeframe: params.timeframe
+    });
+    
     if (error instanceof Error && error.message === 'Query timeout') {
       throw new Error('Query took too long. Please try a more specific time period.');
     }
