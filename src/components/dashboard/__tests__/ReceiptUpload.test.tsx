@@ -1,27 +1,8 @@
 // ============================================================================
-// RECEIPT UPLOAD COMPONENT TESTS (see STEWARD_MASTER_SYSTEM_GUIDE.md - Testing and Quality Assurance)
+// RECEIPT UPLOAD COMPONENT TESTS - AI-First Architecture
 // ============================================================================
 // Tests for ReceiptUpload component functionality
-// Uses global mocks from jest.setup.js for consistent isolation
-
-// ============================================================================
-// E2E TESTING COVERAGE TODO (see master guide: E2E Testing Strategy)
-// ============================================================================
-// The following features require E2E testing in a real browser environment:
-// - Drag and drop overlay animations (Framer Motion not fully supported in JSDOM)
-// - File validation error states (browser file input behavior differs in JSDOM)
-// - Component reset timing and multiple upload flows (timing-sensitive in JSDOM)
-// - Real file upload integration (currently simulated in unit tests)
-//
-// TODO: Implement Playwright E2E tests for:
-// 1. Complete drag-and-drop workflow with visual feedback
-// 2. File type validation with error message display
-// 3. File size validation with error message display
-// 4. Multiple file upload scenarios
-// 5. Component state reset after successful upload
-// 6. Real file upload integration with backend API
-//
-// See STEWARD_MASTER_SYSTEM_GUIDE.md - E2E Testing Strategy for implementation details
+// Aligned with AI-First Architecture - no notification dependencies
 
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -29,7 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { ReceiptUpload } from '../ReceiptUpload'
 
 // ============================================================================
-// TEST SETUP (see master guide: Unit Testing Strategy)
+// TEST SETUP - AI-First Architecture
 // ============================================================================
 
 const mockUser = {
@@ -50,7 +31,7 @@ const mockReceipt = {
 }
 
 // ============================================================================
-// UNIT TESTS (see master guide: Unit Testing Strategy)
+// UNIT TESTS - AI-First Architecture
 // ============================================================================
 
 describe('ReceiptUpload Component', () => {
@@ -71,12 +52,8 @@ describe('ReceiptUpload Component', () => {
       }),
     })
     
-    // Setup service mocks
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { notificationService } = require('@/lib/services/notifications')
-    notificationService.notifyReceiptUploaded.mockResolvedValue(undefined)
-    notificationService.notifyReceiptProcessed.mockResolvedValue(undefined)
-    notificationService.notifyReceiptError.mockResolvedValue(undefined)
+    // AI-First Architecture: No notification service dependencies
+    // Removed notification service setup as it was eliminated in Phase 0
   })
 
   afterEach(() => {
@@ -85,7 +62,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // RENDERING TESTS (see master guide: Component Testing)
+  // RENDERING TESTS - Core Functionality Only
   // ============================================================================
 
   describe('Rendering', () => {
@@ -118,7 +95,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // FILE SELECTION TESTS (see master guide: Component Testing)
+  // FILE SELECTION TESTS - Core Functionality Only
   // ============================================================================
 
   describe('File Selection', () => {
@@ -182,7 +159,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // UPLOAD PROCESSING TESTS (see master guide: Component Testing)
+  // UPLOAD PROCESSING TESTS - Core Functionality Only
   // ============================================================================
 
   describe('Upload Processing', () => {
@@ -245,7 +222,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // USER INTERACTION TESTS (see master guide: Component Testing)
+  // USER INTERACTION TESTS - Core Functionality Only
   // ============================================================================
 
   describe('User Interactions', () => {
@@ -295,7 +272,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // ACCESSIBILITY TESTS (see master guide: Component Testing)
+  // ACCESSIBILITY TESTS - Core Functionality Only
   // ============================================================================
 
   describe('Accessibility', () => {
@@ -336,7 +313,7 @@ describe('ReceiptUpload Component', () => {
   })
 
   // ============================================================================
-  // ERROR HANDLING TESTS (see master guide: Component Testing)
+  // ERROR HANDLING TESTS - Core Functionality Only
   // ============================================================================
 
   describe('Error Handling', () => {
