@@ -485,12 +485,10 @@ global.resetAllMocks = () => {
   
   // Reset service mocks
   const services = [
-    '@/lib/services/notifications',
     '@/lib/services/export',
-    '@/lib/services/analytics',
-    '@/lib/services/bulkOperations',
-    '@/lib/services/userProfile',
-    '@/lib/services/realtime',
+    '@/lib/services/search',
+    '@/lib/services/health',
+    '@/lib/services/logger',
   ]
   
   services.forEach((servicePath) => {
