@@ -258,19 +258,4 @@ export class Cache {
 // Agent cache for AI responses
 export const agentCache = new Cache();
 
-// Analytics cache (simplified for performance)
-export const analyticsCache = {
-  get: (key: string) => agentCache.get(key),
-  set: (key: string, value: any, options?: any) => agentCache.set(key, value, options),
-  delete: (key: string) => agentCache.delete(key),
-  clear: () => agentCache.clear(),
-  clearUser: (userId: string) => agentCache.clearUserSync(userId),
-  getStats: () => agentCache.getStats(),
-  generateKey: (prefix: string, params: Record<string, unknown>, userId?: string) => {
-    const paramString = Object.entries(params)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}:${v}`)
-      .join('|');
-    return userId ? `${userId}:${prefix}:${paramString}` : `${prefix}:${paramString}`;
-  }
-}; 
+ 

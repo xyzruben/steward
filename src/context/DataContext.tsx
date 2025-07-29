@@ -28,14 +28,6 @@ interface DashboardData {
     category: string
     imageUrl?: string
   }>
-  analytics: {
-    totalSpent: number
-    totalReceipts: number
-    averagePerReceipt: number
-    monthlyGrowth: number
-    topCategory: string
-    topMerchant: string
-  }
 }
 
 interface DataContextType {
@@ -48,7 +40,6 @@ interface DataContextType {
   refreshData: () => Promise<void>
   refreshStats: () => Promise<void>
   refreshReceipts: () => Promise<void>
-  refreshAnalytics: () => Promise<void>
   
   // Cache management
   clearCache: () => void
@@ -145,17 +136,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, fetchDashboardData])
 
-  const refreshAnalytics = useCallback(async () => {
-    if (!user) return
 
-    try {
-      // Refresh by fetching full dashboard data
-      await fetchDashboardData()
-    } catch (err) {
-      console.error('Error refreshing analytics:', err)
-      setError(err instanceof Error ? err.message : 'Failed to refresh analytics')
-    }
-  }, [user?.id, fetchDashboardData])
 
   const clearCache = useCallback(() => {
     setDashboardData(null)
@@ -219,7 +200,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData,
     refreshStats,
     refreshReceipts,
-    refreshAnalytics,
     clearCache,
     isStale
   }), [
@@ -229,7 +209,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData,
     refreshStats,
     refreshReceipts,
-    refreshAnalytics,
     clearCache,
     isStale
   ])

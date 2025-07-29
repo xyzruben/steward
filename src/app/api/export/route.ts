@@ -7,8 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase'
-import { exportService, type ExportOptions } from '@/lib/services/export'
-import { analyticsRateLimiter } from '@/lib/rate-limiter'
+import { ExportService, type ExportOptions } from '@/lib/services/export'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,36 +24,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Rate limiting (see master guide: Rate Limiting and Validation)
-    const rateLimitKey = `export:${user.id}`
-    const rateLimit = analyticsRateLimiter.isAllowed(rateLimitKey)
-    
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { 
-          error: 'Rate limit exceeded',
-          retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
-        },
-        { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': '10',
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
-            'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
-          }
-        }
-      )
-    }
+
 
     // Parse request body
     const body = await request.json()
-    const { format, includeAnalytics, dateRange, categories, merchants, minAmount, maxAmount } = body
+    const { format, dateRange, categories, merchants } = body
 
     // Validate required fields
-    if (!format || !['csv', 'json', 'pdf'].includes(format)) {
+    if (!format || format !== 'csv') {
       return NextResponse.json(
-        { error: 'Invalid format. Must be csv, json, or pdf' },
+        { error: 'Invalid format. Only CSV export is supported' },
         { status: 400 }
       )
     }
@@ -80,41 +60,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate amount range if provided
-    if (minAmount !== undefined && (isNaN(minAmount) || minAmount < 0)) {
-      return NextResponse.json(
-        { error: 'Invalid minAmount parameter' },
-        { status: 400 }
-      )
-    }
-    if (maxAmount !== undefined && (isNaN(maxAmount) || maxAmount < 0)) {
-      return NextResponse.json(
-        { error: 'Invalid maxAmount parameter' },
-        { status: 400 }
-      )
-    }
-    if (minAmount !== undefined && maxAmount !== undefined && minAmount > maxAmount) {
-      return NextResponse.json(
-        { error: 'minAmount cannot be greater than maxAmount' },
-        { status: 400 }
-      )
-    }
+
 
     // Build export options
     const exportOptions: ExportOptions = {
       format,
-      includeAnalytics: includeAnalytics || false,
       dateRange: dateRange ? {
         start: new Date(dateRange.start),
         end: new Date(dateRange.end)
       } : undefined,
       categories: categories || undefined,
-      merchants: merchants || undefined,
-      minAmount: minAmount || undefined,
-      maxAmount: maxAmount || undefined
+      merchants: merchants || undefined
     }
 
     // Perform export
+    const exportService = new ExportService()
     const result = await exportService.exportData(user.id, exportOptions)
 
     // Create response with file download
@@ -125,10 +85,7 @@ export async function POST(request: NextRequest) {
     response.headers.set('Content-Disposition', `attachment; filename="${result.filename}"`)
     response.headers.set('Content-Length', result.size.toString())
     
-    // Add rate limit headers
-    response.headers.set('X-RateLimit-Limit', '10')
-    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
-    response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString())
+
 
     return response
   } catch (error) {
@@ -166,13 +123,12 @@ export async function GET(request: NextRequest) {
         { value: 'json', label: 'JSON', description: 'Structured data format for developers and integrations' },
         { value: 'pdf', label: 'PDF', description: 'Portable document format for printing and sharing' }
       ],
-      features: {
-        includeAnalytics: true,
-        dateRange: true,
-        categories: true,
-        merchants: true,
-        amountRange: true
-      },
+              features: {
+          dateRange: true,
+          categories: true,
+          merchants: true,
+          amountRange: true
+        },
       limits: {
         maxRecords: 10000,
         maxDateRange: 365, // days

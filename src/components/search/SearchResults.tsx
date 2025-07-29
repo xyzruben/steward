@@ -7,19 +7,7 @@ import { Clock, BarChart3, TrendingUp, Filter, Sparkles } from 'lucide-react'
 // TYPES AND INTERFACES
 // ============================================================================
 
-interface SearchAnalytics {
-  totalResults: number
-  categories: Record<string, number>
-  merchants: Record<string, number>
-  dateRange: {
-    start: string
-    end: string
-  }
-  amountRange: {
-    min: number
-    max: number
-  }
-}
+
 
 interface SearchMetadata {
   queryTime: number
@@ -29,7 +17,6 @@ interface SearchMetadata {
 
 interface SearchResultsProps {
   totalResults: number
-  searchAnalytics?: SearchAnalytics
   metadata?: SearchMetadata
   query?: string
   filters?: any
@@ -42,7 +29,6 @@ interface SearchResultsProps {
 
 export function SearchResults({
   totalResults,
-  searchAnalytics,
   metadata,
   query,
   filters,
@@ -53,7 +39,6 @@ export function SearchResults({
   }
 
   const hasFilters = filters && Object.keys(filters).length > 0
-  const hasAnalytics = searchAnalytics && Object.keys(searchAnalytics).length > 0
 
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 ${className}`}>
@@ -115,92 +100,7 @@ export function SearchResults({
         </div>
       )}
 
-      {/* Search Analytics */}
-      {hasAnalytics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Categories Distribution */}
-          {searchAnalytics.categories && Object.keys(searchAnalytics.categories).length > 0 && (
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Categories
-              </h4>
-              <div className="space-y-1">
-                {Object.entries(searchAnalytics.categories)
-                  .sort(([,a], [,b]) => b - a)
-                  .slice(0, 3)
-                  .map(([category, count]) => (
-                    <div key={category} className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400 truncate">
-                        {category}
-                      </span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
 
-          {/* Merchants Distribution */}
-          {searchAnalytics.merchants && Object.keys(searchAnalytics.merchants).length > 0 && (
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Top Merchants
-              </h4>
-              <div className="space-y-1">
-                {Object.entries(searchAnalytics.merchants)
-                  .sort(([,a], [,b]) => b - a)
-                  .slice(0, 3)
-                  .map(([merchant, count]) => (
-                    <div key={merchant} className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400 truncate">
-                        {merchant}
-                      </span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">
-                        {count}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Date Range */}
-          {searchAnalytics.dateRange && (
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Date Range
-              </h4>
-              <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                <div>
-                  <span className="font-medium">From:</span> {new Date(searchAnalytics.dateRange.start).toLocaleDateString()}
-                </div>
-                <div>
-                  <span className="font-medium">To:</span> {new Date(searchAnalytics.dateRange.end).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Amount Range */}
-          {searchAnalytics.amountRange && (
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Amount Range
-              </h4>
-              <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                <div>
-                  <span className="font-medium">Min:</span> ${searchAnalytics.amountRange.min.toFixed(2)}
-                </div>
-                <div>
-                  <span className="font-medium">Max:</span> ${searchAnalytics.amountRange.max.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Metadata Footer */}
       {metadata && (

@@ -53,7 +53,7 @@ export function useExport(): UseExportReturn {
       // Prepare request body - always include all fields for type safety (see Master System Guide)
       const requestBody: any = {
         format: options.format,
-        includeAnalytics: options.includeAnalytics,
+
         dateRange: options.dateRange ?? null,
         categories: options.categories ?? [],
         merchants: options.merchants ?? [],

@@ -11,19 +11,49 @@
       "src": "/api/agent/(.*)",
       "dest": "/api/agent/$1",
       "headers": {
-        "X-Priority": "high"
+        "X-Priority": "high",
+        "Cache-Control": "no-cache",
+        "X-AI-Optimized": "true"
       }
     },
     {
       "src": "/api/receipts/(.*)",
       "dest": "/api/receipts/$1",
       "headers": {
-        "X-Priority": "medium"
+        "X-Priority": "medium",
+        "Cache-Control": "public, max-age=300"
+      }
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "X-Health-Check": "true"
+      }
+    },
+    {
+      "src": "/api/export",
+      "dest": "/api/export",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "X-Export-Optimized": "true"
+      }
+    },
+    {
+      "src": "/api/search",
+      "dest": "/api/search",
+      "headers": {
+        "Cache-Control": "public, max-age=60",
+        "X-Search-Optimized": "true"
       }
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=3600"
+      }
     }
   ],
   "env": {
@@ -31,7 +61,40 @@
   },
   "functions": {
     "src/app/api/agent/query/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "src/app/api/receipts/upload/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "src/app/api/export/route.ts": {
+      "maxDuration": 45,
+      "memory": 512
+    },
+    "src/app/api/search/route.ts": {
+      "maxDuration": 15,
+      "memory": 512
     }
-  }
+  },
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
 } 

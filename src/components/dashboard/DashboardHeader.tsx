@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BarChart3, Home, Receipt, TrendingUp, User, Settings, LogOut } from 'lucide-react'
+import { Home, Receipt, User, Settings, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import {
@@ -71,20 +71,7 @@ export function DashboardHeader() {
               <Receipt className="h-4 w-4" />
               <span>Receipts</span>
             </Link>
-            <Link
-              href="/analytics"
-              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span>Analytics</span>
-            </Link>
-            <Link
-              href="/analytics/advanced"
-              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
-            >
-              <TrendingUp className="h-4 w-4" />
-              <span>Advanced</span>
-            </Link>
+
           </nav>
 
           {/* User menu and theme toggle */}

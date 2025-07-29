@@ -24,19 +24,9 @@ export interface RecentReceipt {
   imageUrl?: string
 }
 
-export interface DashboardAnalytics {
-  totalSpent: number
-  totalReceipts: number
-  averagePerReceipt: number
-  monthlyGrowth: number
-  topCategory: string
-  topMerchant: string
-}
-
 export interface DashboardData {
   stats: DashboardStats
   recentReceipts: RecentReceipt[]
-  analytics: DashboardAnalytics
 }
 
 // ============================================================================
@@ -134,16 +124,14 @@ export class DashboardDataService {
    * Fallback method using individual API calls
    */
   private static async getDashboardDataFallback(userId: string): Promise<DashboardData> {
-    const [stats, recentReceipts, analytics] = await Promise.all([
+    const [stats, recentReceipts] = await Promise.all([
       this.getStats(userId),
-      this.getRecentReceipts(userId),
-      this.getAnalytics(userId)
+      this.getRecentReceipts(userId)
     ])
 
     return {
       stats,
-      recentReceipts,
-      analytics
+      recentReceipts
     }
   }
 
@@ -164,7 +152,7 @@ export class DashboardDataService {
     }
 
     try {
-      const response = await fetch('/api/analytics/overview')
+      const response = await fetch('/api/dashboard/data')
       if (!response.ok) {
         throw new Error(`Failed to fetch stats: ${response.statusText}`)
       }
@@ -230,50 +218,7 @@ export class DashboardDataService {
     }
   }
 
-  /**
-   * Get analytics data
-   */
-  static async getAnalytics(userId: string): Promise<DashboardAnalytics> {
-    const cacheKey = `${userId}:analytics`
-    
-    // Check cache first
-    const cached = DashboardCache.get<DashboardAnalytics>(cacheKey)
-    if (cached) {
-      return cached
-    }
 
-    try {
-      const response = await fetch('/api/analytics/overview')
-      if (!response.ok) {
-        throw new Error(`Failed to fetch analytics: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      const analytics: DashboardAnalytics = {
-        totalSpent: data.totalSpent || 0,
-        totalReceipts: data.receiptCount || 0,
-        averagePerReceipt: data.averageReceipt || 0,
-        monthlyGrowth: data.monthlyGrowth || 0,
-        topCategory: data.topCategory || 'Food & Dining',
-        topMerchant: data.topMerchant || 'Amazon.com'
-      }
-
-      DashboardCache.set(cacheKey, analytics)
-      return analytics
-    } catch (error) {
-      console.error('Error fetching analytics:', error)
-      
-      // Return zero values instead of mock data
-      return {
-        totalSpent: 0,
-        totalReceipts: 0,
-        averagePerReceipt: 0,
-        monthlyGrowth: 0,
-        topCategory: 'No data',
-        topMerchant: 'No data'
-      }
-    }
-  }
 
   // ============================================================================
   // CACHE MANAGEMENT
@@ -296,7 +241,7 @@ export class DashboardDataService {
   /**
    * Invalidate specific cache keys
    */
-  static invalidateCache(userId: string, type: 'stats' | 'receipts' | 'analytics' | 'dashboard'): void {
+  static invalidateCache(userId: string, type: 'stats' | 'receipts' | 'dashboard'): void {
     const keysToDelete = DashboardCache.getCacheKeys().filter(key => 
       key === `${userId}:${type}` || (type === 'dashboard' && key.startsWith(userId))
     )

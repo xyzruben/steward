@@ -1,4 +1,4 @@
-// Rate limiter for analytics API endpoints
+// Rate limiter for API endpoints
 // See: Master System Guide - Security Requirements, Rate Limiting and Validation
 
 interface RateLimitConfig {
@@ -81,13 +81,4 @@ export class RateLimiter {
   }
 }
 
-// Global rate limiter instances
-export const analyticsRateLimiter = new RateLimiter({
-  windowMs: 60000, // 1 minute
-  maxRequests: 50, // 50 requests per minute
-});
-
-// Clean up expired entries every 5 minutes
-setInterval(() => {
-  analyticsRateLimiter.cleanup();
-}, 5 * 60 * 1000); 
+ 

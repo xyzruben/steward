@@ -5,7 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { DataProvider } from "@/context/DataContext";
 import { AnimationPreferenceProvider } from "@/context/AnimationPreferenceContext";
-import { NotificationCenter } from "@/components/ui/NotificationCenter";
+
 import { PageTransition } from "@/components/ui/PageTransition";
 
 const geistSans = Geist({
@@ -56,10 +56,7 @@ export default function RootLayout({
                 <PageTransition transitionType="fade">
                   {children}
                 </PageTransition>
-                <NotificationCenter 
-                  position="bottom-right" 
-                  className="z-40"
-                />
+
               </DataProvider>
             </AnimationPreferenceProvider>
           </AuthProvider>

@@ -48,9 +48,7 @@ export function EnhancedSearch({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [filters, setFilters] = useState<SearchFilters>({})
   const [searchOptions, setSearchOptions] = useState<SearchOptions>({
-    fuzzyMatch: true,
-    includeSuggestions: true,
-    sortBy: 'relevance',
+    sortBy: 'date',
     sortOrder: 'desc'
   })
   const [savedSearches, setSavedSearches] = useState<any[]>([])
@@ -329,57 +327,17 @@ export function EnhancedSearch({
             />
           </div>
 
-          {/* Amount Range */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Min Amount
-            </label>
-            <input
-              type="number"
-              value={filters.minAmount || ''}
-              onChange={(e) => handleFilterChange('minAmount', e.target.value ? parseFloat(e.target.value) : undefined)}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Max Amount
-            </label>
-            <input
-              type="number"
-              value={filters.maxAmount || ''}
-              onChange={(e) => handleFilterChange('maxAmount', e.target.value ? parseFloat(e.target.value) : undefined)}
-              placeholder="1000.00"
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
         </div>
 
         {/* Search Options */}
         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
           <div className="flex items-center space-x-6">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={searchOptions.fuzzyMatch}
-                onChange={(e) => handleOptionChange('fuzzyMatch', e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-slate-700 dark:text-slate-300">Fuzzy Match</span>
-            </label>
-
             <select
               value={searchOptions.sortBy}
               onChange={(e) => handleOptionChange('sortBy', e.target.value)}
               className="px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="relevance">Sort by Relevance</option>
               <option value="date">Sort by Date</option>
               <option value="amount">Sort by Amount</option>
               <option value="merchant">Sort by Merchant</option>
