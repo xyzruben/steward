@@ -359,29 +359,42 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
     const { name, arguments: args } = functionCall;
     const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
 
-    switch (name) {
-      case 'getSpendingByCategory':
-        return await financeFunctions.getSpendingByCategory({
-          userId,
-          category: parsedArgs.category,
-          timeframe: parsedArgs.timeframe
-        });
-      
-      case 'getSpendingByTime':
-        return await financeFunctions.getSpendingByTime({
-          userId,
-          timeframe: parsedArgs.timeframe
-        });
-      
-             case 'getTopMerchants':
-         return await financeFunctions.summarizeTopVendors({
-           userId,
-           timeframe: parseTimeframe(parsedArgs.timeframe),
-           N: parsedArgs.limit
-         });
-      
-      default:
-        throw new Error(`Unknown function: ${name}`);
+    try {
+      switch (name) {
+        case 'getSpendingByCategory':
+          return await financeFunctions.getSpendingByCategory({
+            userId,
+            category: parsedArgs.category,
+            timeframe: parsedArgs.timeframe
+          });
+        
+        case 'getSpendingByTime':
+          // Parse timeframe string into Date objects
+          if (!parsedArgs.timeframe) {
+            throw new Error('Timeframe parameter is required for getSpendingByTime');
+          }
+          const timeframe = parseTimeframe(parsedArgs.timeframe);
+          return await financeFunctions.getSpendingByTime({
+            userId,
+            timeframe
+          });
+        
+        case 'getTopMerchants':
+          if (!parsedArgs.timeframe) {
+            throw new Error('Timeframe parameter is required for getTopMerchants');
+          }
+          return await financeFunctions.summarizeTopVendors({
+            userId,
+            timeframe: parseTimeframe(parsedArgs.timeframe),
+            N: parsedArgs.limit
+          });
+        
+        default:
+          throw new Error(`Unknown function: ${name}`);
+      }
+    } catch (error) {
+      console.error(`Error executing function ${name}:`, error);
+      throw error;
     }
   }
 
