@@ -19,7 +19,8 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
     // Check if Google Cloud Vision credentials are available
     const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS || 
                           process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
-                          process.env.GOOGLE_CLOUD_VISION_API_KEY;
+                          process.env.GOOGLE_CLOUD_VISION_API_KEY ||
+                          process.env.GOOGLE_CLOUD_PROJECT;
     
     if (!hasCredentials) {
       console.warn('Google Cloud Vision credentials not found. Using fallback OCR.');
@@ -57,16 +58,25 @@ export async function extractTextFromImage(imageUrl: string): Promise<string> {
     }
     
     // Create the client with secure configuration
-    const client = new vision.ImageAnnotatorClient({
-      // Use environment variable for credentials
-      keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
-        ? undefined 
-        : process.env.GOOGLE_APPLICATION_CREDENTIALS,
-      // If using JSON string, parse it
-      credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON 
-        ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
-        : undefined,
-    });
+    let client;
+    
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      // Use JSON credentials string
+      console.log('Using Google Cloud Vision with JSON credentials string');
+      client = new vision.ImageAnnotatorClient({
+        credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+      });
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // Use key file path
+      console.log('Using Google Cloud Vision with key file path');
+      client = new vision.ImageAnnotatorClient({
+        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
+      });
+    } else {
+      // Use default credentials (for local development)
+      console.log('Using Google Cloud Vision with default credentials');
+      client = new vision.ImageAnnotatorClient();
+    }
     
     // Call Google Vision API with appropriate request format
     const [result] = await client.textDetection(request);

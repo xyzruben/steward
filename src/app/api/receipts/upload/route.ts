@@ -211,7 +211,9 @@ export async function POST(request: NextRequest) {
     
     // Use a more robust async processing approach
     setImmediate(async () => {
+      console.log(`⚡ setImmediate triggered for receipt ${tempReceipt.id}`)
       try {
+        console.log(`🔄 About to call processReceiptAsync for receipt ${tempReceipt.id}`)
         await processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id)
         console.log(`✅ Async processing completed successfully for receipt ${tempReceipt.id}`)
       } catch (error) {
@@ -231,17 +233,64 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // FALLBACK: If setImmediate doesn't work, process immediately
+    // This ensures processing happens even in serverless environments
+    setTimeout(async () => {
+      console.log(`⏰ Fallback timeout triggered for receipt ${tempReceipt.id}`)
+      try {
+        // Check if receipt is still in processing state
+        const currentReceipt = await prisma.receipt.findUnique({
+          where: { id: tempReceipt.id },
+          select: { merchant: true }
+        })
+        
+        if (currentReceipt && currentReceipt.merchant === 'Processing...') {
+          console.log(`🔄 Fallback processing for receipt ${tempReceipt.id}`)
+          await processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id)
+          console.log(`✅ Fallback processing completed for receipt ${tempReceipt.id}`)
+        } else {
+          console.log(`✅ Receipt ${tempReceipt.id} already processed, skipping fallback`)
+        }
+      } catch (error) {
+        console.error(`❌ Fallback processing failed for receipt ${tempReceipt.id}:`, error)
+      }
+    }, 1000) // 1 second fallback
+
     // ============================================================================
     // RETRY STUCK RECEIPTS (NEW: Process any receipts stuck in "Processing..." state)
     // ============================================================================
     // Check for and retry any receipts stuck in processing state
     setImmediate(async () => {
+      console.log(`🔄 About to retry stuck receipts for user ${user.id}`)
       try {
         await retryStuckReceipts(user.id)
+        console.log(`✅ Retry stuck receipts completed for user ${user.id}`)
       } catch (error) {
         console.error('❌ Failed to retry stuck receipts:', error)
       }
     })
+
+    // IMMEDIATE PROCESSING: Process the current receipt right away
+    // This ensures the receipt gets processed even if async fails
+    console.log(`⚡ Starting immediate processing for receipt ${tempReceipt.id}`)
+    try {
+      await processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id)
+      console.log(`✅ Immediate processing completed for receipt ${tempReceipt.id}`)
+    } catch (error) {
+      console.error(`❌ Immediate processing failed for receipt ${tempReceipt.id}:`, error)
+      
+      // Update receipt with error state
+      try {
+        await updateReceipt(tempReceipt.id, {
+          merchant: 'Processing Failed',
+          total: new Decimal(0),
+          summary: 'Receipt processing failed. Please try uploading again.'
+        })
+        console.log(`📝 Updated receipt ${tempReceipt.id} with error state`)
+      } catch (updateError) {
+        console.error(`❌ Failed to update receipt ${tempReceipt.id} with error state:`, updateError)
+      }
+    }
 
     // Log upload start
     console.log(`Receipt upload started for user ${user.id}, receipt ${tempReceipt.id}`)
