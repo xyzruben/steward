@@ -25,6 +25,19 @@ export async function GET(request: NextRequest) {
     // Fetch basic dashboard data
     const receipts = await getReceiptsByUserId(user.id, { take: 10 })
     
+    // DEBUG: Log what we're getting from the database
+    console.log('🔍 DASHBOARD DEBUG:', {
+      userId: user.id,
+      receiptsCount: receipts.length,
+      receipts: receipts.map(r => ({
+        id: r.id,
+        merchant: r.merchant,
+        total: r.total,
+        purchaseDate: r.purchaseDate,
+        createdAt: r.createdAt
+      }))
+    })
+    
     // Calculate basic stats
     const totalSpent = receipts.reduce((sum, receipt) => sum + Number(receipt.total || 0), 0)
     const totalReceipts = receipts.length
@@ -39,6 +52,17 @@ export async function GET(request: NextRequest) {
       category: (receipt as any).category || 'Uncategorized',
       imageUrl: receipt.imageUrl || undefined
     }))
+    
+    // DEBUG: Log what we're sending to the UI
+    console.log('🔍 DASHBOARD RESPONSE:', {
+      totalReceipts,
+      recentReceiptsCount: recentReceipts.length,
+      recentReceipts: recentReceipts.map(r => ({
+        id: r.id,
+        merchant: r.merchant,
+        amount: r.amount
+      }))
+    })
     
     const dashboardData = {
       stats: {

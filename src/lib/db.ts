@@ -53,6 +53,13 @@ export async function createReceipt(data: {
   summary?: string
   currency?: string // NEW: currency support
 }): Promise<Receipt> {
+  console.log('🔍 CREATE RECEIPT DEBUG:', {
+    userId: data.userId,
+    merchant: data.merchant,
+    total: data.total,
+    purchaseDate: data.purchaseDate
+  })
+  
   console.log('Data being sent to prisma.receipt.create:', {
     userId: data.userId,
     imageUrl: data.imageUrl,
@@ -63,7 +70,8 @@ export async function createReceipt(data: {
     summary: data.summary,
     currency: data.currency // NEW: log currency
   })
-  return prisma.receipt.create({
+  
+  const result = await prisma.receipt.create({
     data: {
       userId: data.userId,
       imageUrl: data.imageUrl,
@@ -75,6 +83,16 @@ export async function createReceipt(data: {
       currency: data.currency || 'USD' // NEW: persist currency
     }
   })
+  
+  console.log('🔍 RECEIPT CREATED SUCCESSFULLY:', {
+    id: result.id,
+    userId: result.userId,
+    merchant: result.merchant,
+    total: result.total,
+    createdAt: result.createdAt
+  })
+  
+  return result
 }
 
 export async function getReceiptsByUserId(
