@@ -207,8 +207,28 @@ export async function POST(request: NextRequest) {
     })
 
     // Start async processing in the background (see master guide: Concurrent Upload Handling)
-    processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id).catch(error => {
-      console.error('Async receipt processing failed:', error)
+    console.log(`🚀 Starting async processing for receipt ${tempReceipt.id}`)
+    
+    // Use a more robust async processing approach
+    setImmediate(async () => {
+      try {
+        await processReceiptAsync(tempReceipt.id, processedBuffer, contentType, user.id)
+        console.log(`✅ Async processing completed successfully for receipt ${tempReceipt.id}`)
+      } catch (error) {
+        console.error(`❌ Async processing failed for receipt ${tempReceipt.id}:`, error)
+        
+        // Update receipt with error state so user knows something went wrong
+        try {
+          await updateReceipt(tempReceipt.id, {
+            merchant: 'Processing Failed',
+            total: new Decimal(0),
+            summary: 'Receipt processing failed. Please try uploading again.'
+          })
+          console.log(`📝 Updated receipt ${tempReceipt.id} with error state`)
+        } catch (updateError) {
+          console.error(`❌ Failed to update receipt ${tempReceipt.id} with error state:`, updateError)
+        }
+      }
     })
 
     // Log upload start
@@ -258,29 +278,33 @@ async function processReceiptAsync(
   contentType: string, 
   userId: string
 ) {
-  console.log('Starting async processing for receipt:', receiptId)
+  console.log(`🔍 Starting async processing for receipt: ${receiptId}`)
   
   try {
     // 1. Run OCR on the uploaded image (using Google Cloud Vision API)
     let ocrText: string
     try {
-      console.log('Starting OCR processing for receipt:', receiptId)
+      console.log(`📸 Starting OCR processing for receipt: ${receiptId}`)
       const base64Image = imageBufferToBase64(imageBuffer, contentType)
       ocrText = await extractTextFromImage(base64Image)
-      console.log('OCR completed for receipt:', receiptId)
+      console.log(`✅ OCR completed for receipt: ${receiptId}, text length: ${ocrText.length}`)
     } catch (error) {
-      console.error('OCR extraction failed for receipt:', receiptId, error)
+      console.error(`❌ OCR extraction failed for receipt: ${receiptId}`, error)
       ocrText = 'OCR processing failed'
     }
 
     // 2. Use OpenAI to extract structured data and summary (see master guide: AI Categorization)
     let aiData
     try {
-      console.log('Starting AI processing for receipt:', receiptId)
+      console.log(`🤖 Starting AI processing for receipt: ${receiptId}`)
       aiData = await extractReceiptDataWithAI(ocrText)
-      console.log('AI processing completed for receipt:', receiptId)
+      console.log(`✅ AI processing completed for receipt: ${receiptId}`, {
+        merchant: aiData.merchant,
+        total: aiData.total,
+        category: aiData.category
+      })
     } catch (err) {
-      console.error('OpenAI extraction failed for receipt:', receiptId, err)
+      console.error(`❌ OpenAI extraction failed for receipt: ${receiptId}`, err)
       // Defensive: fallback to basic fields if AI fails (see master guide: Error Handling)
       aiData = {
         merchant: null,
@@ -300,8 +324,15 @@ async function processReceiptAsync(
     const summary = aiData.summary || 'No summary generated'
     const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
 
+    console.log(`💾 Updating receipt ${receiptId} with processed data:`, {
+      merchant,
+      total,
+      purchaseDate: purchaseDate.toISOString(),
+      summary: summary.substring(0, 50) + '...'
+    })
+
     // Get user profile (simplified)
-    console.log(`Processing receipt for user ${userId}`)
+    console.log(`👤 Processing receipt for user ${userId}`)
     const receiptCurrency = aiData.currency || 'USD' // Assume AI can extract currency, else default
     // Design decision: Only store original currency, no conversion (see Steward Master System Guide, Multi-Currency section)
     await updateReceipt(receiptId, {
@@ -312,7 +343,7 @@ async function processReceiptAsync(
       currency: receiptCurrency
     })
     
-    console.log('Receipt processing completed and database updated:', {
+    console.log(`✅ Receipt processing completed and database updated: ${receiptId}`, {
       receiptId,
       merchant,
       total,
@@ -322,13 +353,16 @@ async function processReceiptAsync(
     })
 
     // Analytics, embeddings, and notifications removed for performance optimization
-    console.log('Async processing completed successfully for receipt:', receiptId)
+    console.log(`🎉 Async processing completed successfully for receipt: ${receiptId}`)
     
   } catch (error) {
-    console.error('Async processing failed for receipt:', receiptId, error)
+    console.error(`💥 Async processing failed for receipt: ${receiptId}`, error)
     
     // Error notification removed for performance optimization
-    console.error('Receipt processing failed:', receiptId, error)
+    console.error(`❌ Receipt processing failed: ${receiptId}`, error)
+    
+    // Re-throw the error so the caller can handle it
+    throw error
   }
 }
 
