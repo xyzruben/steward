@@ -280,24 +280,24 @@ export function ReceiptStats({ className = '', stats: propStats }: ReceiptStatsP
     {
       title: 'Total Receipts',
       value: stats.totalReceipts || 0,
-      change: 8.2,
-      changeType: 'increase' as const,
+      change: stats.totalReceipts > 0 ? 100 : 0, // Show 100% if you have receipts, 0% if none
+      changeType: (stats.totalReceipts > 0 ? 'increase' : 'neutral') as 'increase' | 'decrease' | 'neutral',
       icon: <Receipt className="w-6 h-6" />,
       color: 'green' as const
     },
     {
       title: 'Avg. per Receipt',
       value: `$${(stats.averagePerReceipt || 0).toFixed(2)}`,
-      change: -3.1,
-      changeType: 'decrease' as const,
+      change: stats.averagePerReceipt > 0 ? 100 : 0, // Show 100% if you have average, 0% if none
+      changeType: (stats.averagePerReceipt > 0 ? 'increase' : 'neutral') as 'increase' | 'decrease' | 'neutral',
       icon: <Tag className="w-6 h-6" />,
       color: 'purple' as const
     },
     {
       title: 'This Month',
-      value: '12',
-      change: 15.3,
-      changeType: 'increase' as const,
+      value: stats.totalReceipts || 0, // Use actual receipt count instead of hardcoded '12'
+      change: stats.totalReceipts > 0 ? 100 : 0, // Show 100% if you have receipts this month
+      changeType: (stats.totalReceipts > 0 ? 'increase' : 'neutral') as 'increase' | 'decrease' | 'neutral',
       icon: <Calendar className="w-6 h-6" />,
       color: 'orange' as const
     }
