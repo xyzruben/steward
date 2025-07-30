@@ -231,6 +231,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // ============================================================================
+    // RETRY STUCK RECEIPTS (NEW: Process any receipts stuck in "Processing..." state)
+    // ============================================================================
+    // Check for and retry any receipts stuck in processing state
+    setImmediate(async () => {
+      try {
+        await retryStuckReceipts(user.id)
+      } catch (error) {
+        console.error('❌ Failed to retry stuck receipts:', error)
+      }
+    })
+
     // Log upload start
     console.log(`Receipt upload started for user ${user.id}, receipt ${tempReceipt.id}`)
 
@@ -262,6 +274,80 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// ============================================================================
+// RETRY STUCK RECEIPTS FUNCTION (NEW: Process receipts stuck in "Processing..." state)
+// ============================================================================
+/**
+ * Finds and retries processing for any receipts stuck in "Processing..." state
+ * This helps recover from failed async processing
+ */
+async function retryStuckReceipts(userId: string) {
+  console.log(`🔍 Checking for stuck receipts for user: ${userId}`)
+  
+  try {
+    // Find receipts stuck in processing state
+    const stuckReceipts = await prisma.receipt.findMany({
+      where: {
+        userId,
+        merchant: 'Processing...'
+      },
+      select: {
+        id: true,
+        imageUrl: true,
+        createdAt: true
+      }
+    })
+    
+    if (stuckReceipts.length === 0) {
+      console.log(`✅ No stuck receipts found for user: ${userId}`)
+      return
+    }
+    
+    console.log(`🔄 Found ${stuckReceipts.length} stuck receipts, attempting to retry processing`)
+    
+    // Process each stuck receipt
+    for (const receipt of stuckReceipts) {
+      try {
+        console.log(`🔄 Retrying processing for stuck receipt: ${receipt.id}`)
+        
+        // Download the image from storage
+        const imageResponse = await fetch(receipt.imageUrl)
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to download image: ${imageResponse.status}`)
+        }
+        
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg'
+        
+        // Retry processing
+        await processReceiptAsync(receipt.id, imageBuffer, contentType, userId)
+        console.log(`✅ Successfully retried processing for receipt: ${receipt.id}`)
+        
+      } catch (error) {
+        console.error(`❌ Failed to retry processing for receipt ${receipt.id}:`, error)
+        
+        // Update with error state
+        try {
+          await updateReceipt(receipt.id, {
+            merchant: 'Processing Failed',
+            total: new Decimal(0),
+            summary: 'Receipt processing failed. Please try uploading again.'
+          })
+          console.log(`📝 Updated stuck receipt ${receipt.id} with error state`)
+        } catch (updateError) {
+          console.error(`❌ Failed to update stuck receipt ${receipt.id}:`, updateError)
+        }
+      }
+    }
+    
+    console.log(`✅ Completed retry processing for ${stuckReceipts.length} stuck receipts`)
+    
+  } catch (error) {
+    console.error(`💥 Error in retryStuckReceipts for user ${userId}:`, error)
+    throw error
   }
 }
 
