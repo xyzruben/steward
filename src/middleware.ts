@@ -26,12 +26,12 @@ export async function middleware(request: NextRequest) {
       // Check for auth cookie directly in middleware
       const authCookie = request.cookies.get('sb-access-token');
       if (!authCookie?.value) {
-        const redirectUrl = new URL('/auth', request.url);
+        const redirectUrl = new URL('/', request.url);
         return NextResponse.redirect(redirectUrl);
       }
     } catch (error) {
       console.error('Middleware authentication error:', error);
-      const redirectUrl = new URL('/auth', request.url);
+      const redirectUrl = new URL('/', request.url);
       return NextResponse.redirect(redirectUrl);
     }
   }
