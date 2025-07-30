@@ -171,11 +171,20 @@ export async function getSpendingByTime(params: {
   const queryId = `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
   
+  // Validate timeframe dates
+  if (!params.timeframe.start || !params.timeframe.end) {
+    throw new Error('Invalid timeframe: start and end dates are required');
+  }
+  
+  if (!(params.timeframe.start instanceof Date) || !(params.timeframe.end instanceof Date)) {
+    throw new Error('Invalid timeframe: start and end must be Date objects');
+  }
+  
   console.log(`[${queryId}] 🗄️ Database Query Started: getSpendingByTime`, {
     userId: params.userId,
     timeframe: {
-      start: params.timeframe.start.toISOString(),
-      end: params.timeframe.end.toISOString()
+      start: params.timeframe.start?.toISOString() || 'undefined',
+      end: params.timeframe.end?.toISOString() || 'undefined'
     },
     timestamp: new Date().toISOString()
   });
