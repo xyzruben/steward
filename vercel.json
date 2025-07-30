@@ -1,53 +1,25 @@
 {
   "version": 2,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/agent/(.*)",
-      "dest": "/api/agent/$1",
-      "headers": {
-        "X-Priority": "high",
-        "Cache-Control": "no-cache",
-        "X-AI-Optimized": "true"
-      }
+      "source": "/api/agent/(.*)",
+      "destination": "/api/agent/$1"
     },
     {
-      "src": "/api/receipts/(.*)",
-      "dest": "/api/receipts/$1",
-      "headers": {
-        "X-Priority": "medium",
-        "Cache-Control": "public, max-age=300"
-      }
+      "source": "/api/receipts/(.*)",
+      "destination": "/api/receipts/$1"
     },
     {
-      "src": "/api/health",
-      "dest": "/api/health",
-      "headers": {
-        "Cache-Control": "no-cache",
-        "X-Health-Check": "true"
-      }
+      "source": "/api/health",
+      "destination": "/api/health"
     },
     {
-      "src": "/api/export",
-      "dest": "/api/export",
-      "headers": {
-        "Cache-Control": "no-cache",
-        "X-Export-Optimized": "true"
-      }
+      "source": "/api/export",
+      "destination": "/api/export"
     },
     {
-      "src": "/api/search",
-      "dest": "/api/search",
-      "headers": {
-        "Cache-Control": "public, max-age=60",
-        "X-Search-Optimized": "true"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=3600"
-      }
+      "source": "/api/search",
+      "destination": "/api/search"
     }
   ],
   "env": {
@@ -74,8 +46,81 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/api/agent/(.*)",
+      "headers": [
+        {
+          "key": "X-Priority",
+          "value": "high"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "X-AI-Optimized",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "source": "/api/receipts/(.*)",
+      "headers": [
+        {
+          "key": "X-Priority",
+          "value": "medium"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/api/health",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "X-Health-Check",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "source": "/api/export",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "X-Export-Optimized",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "source": "/api/search",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60"
+        },
+        {
+          "key": "X-Search-Optimized",
+          "value": "true"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
