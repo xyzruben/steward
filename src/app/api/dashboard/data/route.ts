@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { getReceiptsByUserId } from '@/lib/db'
-import { dbService } from '@/lib/services/db'
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,15 +27,27 @@ export async function GET(request: NextRequest) {
     
     // Calculate basic stats
     const totalSpent = receipts.reduce((sum, receipt) => sum + Number(receipt.total || 0), 0)
-    const receiptCount = receipts.length
+    const totalReceipts = receipts.length
+    const averagePerReceipt = totalReceipts > 0 ? totalSpent / totalReceipts : 0
+    
+    // Transform receipts to match expected format
+    const recentReceipts = receipts.slice(0, 5).map(receipt => ({
+      id: receipt.id,
+      merchant: receipt.merchant || 'Unknown Merchant',
+      amount: Number(receipt.total || 0),
+      date: receipt.purchaseDate ? new Date(receipt.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      category: (receipt as any).category || 'Uncategorized',
+      imageUrl: receipt.imageUrl || undefined
+    }))
     
     const dashboardData = {
-      receipts: receipts.slice(0, 5), // Recent receipts
       stats: {
         totalSpent,
-        receiptCount,
-        averageSpent: receiptCount > 0 ? totalSpent / receiptCount : 0
+        totalReceipts,
+        averagePerReceipt,
+        monthlyGrowth: 0 // Placeholder - can be calculated later
       },
+      recentReceipts,
       metadata: {
         timestamp: new Date().toISOString(),
         userId: user.id

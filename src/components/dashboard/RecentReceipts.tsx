@@ -146,49 +146,8 @@ export function RecentReceipts({ className = '', receipts: propReceipts }: Recen
       setReceipts(propReceipts)
       setIsLoading(false)
     } else {
-      // Fallback to local data if no props provided
-      setReceipts([
-        {
-          id: '1',
-          merchant: 'Starbucks Coffee',
-          amount: 12.45,
-          date: '2024-01-15',
-          category: 'Food & Dining',
-          imageUrl: undefined
-        },
-        {
-          id: '2',
-          merchant: 'Amazon.com',
-          amount: 89.99,
-          date: '2024-01-14',
-          category: 'Shopping',
-          imageUrl: undefined
-        },
-        {
-          id: '3',
-          merchant: 'Shell Gas Station',
-          amount: 45.67,
-          date: '2024-01-13',
-          category: 'Transportation',
-          imageUrl: undefined
-        },
-        {
-          id: '4',
-          merchant: 'Walmart',
-          amount: 156.78,
-          date: '2024-01-12',
-          category: 'Shopping',
-          imageUrl: undefined
-        },
-        {
-          id: '5',
-          merchant: 'Netflix',
-          amount: 15.99,
-          date: '2024-01-11',
-          category: 'Entertainment',
-          imageUrl: undefined
-        }
-      ])
+      // Show empty state instead of fake data
+      setReceipts([])
       setIsLoading(false)
     }
   }, [propReceipts])
