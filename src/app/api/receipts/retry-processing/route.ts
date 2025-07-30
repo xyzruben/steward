@@ -5,17 +5,19 @@
 // Useful for debugging and recovery from failed async processing
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { updateReceipt } from '@/lib/db'
-import { extractTextFromImage, extractReceiptDataWithAI } from '@/lib/services/cloudOcr'
-import { imageBufferToBase64 } from '@/lib/utils'
+import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr'
+import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { Decimal } from 'decimal.js'
 
 export async function POST(request: NextRequest) {
   try {
     // Authentication
-    const supabase = createSupabaseServerClient(request.cookies)
+    const cookieStore = await cookies()
+    const supabase = createSupabaseServerClient(cookieStore)
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error || !user) {
