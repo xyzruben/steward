@@ -87,6 +87,13 @@ function ReceiptItem({
             <Receipt className="w-6 h-6 text-slate-400 dark:text-slate-500" />
           </div>
         )}
+        
+        {/* Processing indicator */}
+        {merchant === 'Processing...' && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center animate-pulse">
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+          </div>
+        )}
       </div>
 
       {/* Receipt Details */}
@@ -95,6 +102,11 @@ function ReceiptItem({
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {merchant}
+              {merchant === 'Processing...' && (
+                <span className="ml-2 text-xs text-orange-600 font-medium">
+                  (AI Processing)
+                </span>
+              )}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               {category}

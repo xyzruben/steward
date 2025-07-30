@@ -64,6 +64,19 @@ export function DashboardContent({ className = '' }: DashboardContentProps) {
     // Refresh dashboard data to show the new receipt
     if (refreshData) {
       refreshData()
+      
+      // Set up polling to refresh data periodically for the next 30 seconds
+      // This catches when async processing completes
+      const pollInterval = setInterval(() => {
+        console.log('Polling for receipt processing updates...')
+        refreshData()
+      }, 5000) // Poll every 5 seconds
+      
+      // Stop polling after 30 seconds
+      setTimeout(() => {
+        clearInterval(pollInterval)
+        console.log('Stopped polling for receipt updates')
+      }, 30000)
     }
   }, [refreshData])
 

@@ -2,6 +2,7 @@
 // AUTH PAGE - Redirects to main page for authentication
 // ============================================================================
 // Simple redirect page since main page handles auth
+// DEPLOYMENT TRIGGER: Force Vercel to pick up auth page changes
 
 'use client'
 
