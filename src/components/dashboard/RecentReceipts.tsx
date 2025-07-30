@@ -102,7 +102,7 @@ function ReceiptItem({
           </div>
           <div className="text-right ml-4">
             <p className="text-lg font-bold text-slate-900 dark:text-white">
-              ${amount.toFixed(2)}
+              ${(amount || 0).toFixed(2)}
             </p>
           </div>
         </div>

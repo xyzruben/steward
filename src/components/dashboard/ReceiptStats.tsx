@@ -271,15 +271,15 @@ export function ReceiptStats({ className = '', stats: propStats }: ReceiptStatsP
   const statsData = [
     {
       title: 'Total Spent',
-      value: `$${stats.totalSpent.toLocaleString()}`,
-      change: stats.monthlyGrowth,
-      changeType: (stats.monthlyGrowth > 0 ? 'increase' : 'decrease') as 'increase' | 'decrease',
+      value: `$${(stats.totalSpent || 0).toLocaleString()}`,
+      change: stats.monthlyGrowth || 0,
+      changeType: ((stats.monthlyGrowth || 0) > 0 ? 'increase' : 'decrease') as 'increase' | 'decrease',
       icon: <DollarSign className="w-6 h-6" />,
       color: 'blue' as const
     },
     {
       title: 'Total Receipts',
-      value: stats.totalReceipts,
+      value: stats.totalReceipts || 0,
       change: 8.2,
       changeType: 'increase' as const,
       icon: <Receipt className="w-6 h-6" />,
@@ -287,7 +287,7 @@ export function ReceiptStats({ className = '', stats: propStats }: ReceiptStatsP
     },
     {
       title: 'Avg. per Receipt',
-      value: `$${stats.averagePerReceipt.toFixed(2)}`,
+      value: `$${(stats.averagePerReceipt || 0).toFixed(2)}`,
       change: -3.1,
       changeType: 'decrease' as const,
       icon: <Tag className="w-6 h-6" />,
