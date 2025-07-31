@@ -30,16 +30,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('✅ Buckets found:', buckets.map(b => b.name));
+    console.log('✅ Buckets found:', buckets.map((b: any) => b.name));
 
     // Step 2: Check if receipts bucket exists
-    const receiptsBucket = buckets.find(b => b.name === 'receipts');
+    const receiptsBucket = buckets.find((b: any) => b.name === 'receipts');
     if (!receiptsBucket) {
       return NextResponse.json({
         success: false,
         step: 'bucket_check',
         error: 'Receipts bucket not found',
-        availableBuckets: buckets.map(b => b.name)
+        availableBuckets: buckets.map((b: any) => b.name)
       });
     }
 
@@ -120,12 +120,12 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email
       },
-      buckets: buckets.map(b => ({
+      buckets: buckets.map((b: any) => ({
         name: b.name,
         public: b.public
       })),
       totalFiles: files.length,
-      userFiles: userFiles.map(f => ({
+      userFiles: userFiles.map((f: any) => ({
         name: f.name,
         size: f.metadata?.size,
         updatedAt: f.updated_at
