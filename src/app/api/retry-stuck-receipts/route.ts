@@ -6,6 +6,52 @@ import { Decimal } from '@/generated/prisma/runtime/library';
 import { extractReceiptDataWithAI } from '@/lib/services/openai';
 import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr';
 
+export async function GET(request: NextRequest) {
+  try {
+    console.log('=== RETRY STUCK RECEIPTS (GET) START ===');
+    
+    // Authentication
+    const supabase = createSupabaseServerClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Find all stuck receipts for this user
+    const stuckReceipts = await prisma.receipt.findMany({
+      where: {
+        userId: user.id,
+        merchant: 'Processing...'
+      },
+      select: {
+        id: true,
+        imageUrl: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`Found ${stuckReceipts.length} stuck receipts for user ${user.id}`);
+
+    return NextResponse.json({
+      success: true,
+      message: `Found ${stuckReceipts.length} stuck receipts`,
+      stuckReceipts: stuckReceipts.map(r => ({
+        id: r.id,
+        createdAt: r.createdAt
+      })),
+      instructions: 'Use POST method to process these receipts'
+    });
+
+  } catch (error) {
+    console.error('Retry stuck receipts (GET) failed:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('=== RETRY STUCK RECEIPTS START ===');
