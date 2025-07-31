@@ -5,13 +5,15 @@ import { updateReceipt } from '@/lib/db';
 import { Decimal } from '@/generated/prisma/runtime/library';
 import { extractReceiptDataWithAI } from '@/lib/services/openai';
 import { extractTextFromImage, imageBufferToBase64 } from '@/lib/services/cloudOcr';
+import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
     console.log('=== RETRY STUCK RECEIPTS (GET) START ===');
     
     // Authentication
-    const supabase = createSupabaseServerClient();
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user) {
@@ -57,7 +59,8 @@ export async function POST(request: NextRequest) {
     console.log('=== RETRY STUCK RECEIPTS START ===');
     
     // Authentication
-    const supabase = createSupabaseServerClient();
+    const cookieStore = await cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user) {
