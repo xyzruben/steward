@@ -57,12 +57,25 @@ export async function POST(request: NextRequest) {
         // Step 1: Download the image using Supabase client
         console.log(`Step 1: Downloading image for receipt ${receipt.id}`);
         
-        // Extract the file path from the URL
-        const urlParts = receipt.imageUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const filePath = `receipts/${user.id}/${fileName}`;
+        // Extract the file path from the URL - FIXED PATH LOGIC
+        console.log(`Original imageUrl: ${receipt.imageUrl}`);
         
-        console.log(`File path: ${filePath}`);
+        // Handle different URL formats
+        let fileName;
+        if (receipt.imageUrl.includes('/storage/v1/object/public/')) {
+          // Supabase public URL format
+          const urlParts = receipt.imageUrl.split('/');
+          fileName = urlParts[urlParts.length - 1];
+        } else {
+          // Direct filename or other format
+          fileName = receipt.imageUrl.split('/').pop() || `receipt-${receipt.id}.jpg`;
+        }
+        
+        // Use the working path format from test-supabase
+        const filePath = `${user.id}/${fileName}`;
+        
+        console.log(`Extracted fileName: ${fileName}`);
+        console.log(`Using filePath: ${filePath}`);
         
         // Download using Supabase storage client
         const { data: imageData, error: downloadError } = await supabase.storage
