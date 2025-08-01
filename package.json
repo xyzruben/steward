@@ -23,6 +23,10 @@
     "validate:env": "node scripts/production-validation.js --env-only",
     "validate:build": "node scripts/production-validation.js --build-only",
     "validate:test": "node scripts/production-validation.js --test-only",
+    "validate:foundation": "node scripts/validate-foundation.js",
+    "validate:foundation:local": "BASE_URL=http://localhost:3000 node scripts/validate-foundation.js",
+    "validate:foundation:production": "BASE_URL=https://www.hellosteward.org node scripts/validate-foundation.js",
+    "validate:foundation:production-compatible": "BASE_URL=https://www.hellosteward.org node scripts/validate-foundation-production.js",
     "deploy:production": "./scripts/deploy-production.sh",
     "deploy:rollback": "./scripts/deploy-production.sh --rollback",
     "deploy:verify": "./scripts/deploy-production.sh --verify"
