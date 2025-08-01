@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== CHECK RECEIPTS START ===');
+    console.log('=== CHECK RECEIPTS DATABASE STATE ===');
     
     // Authentication
     const cookieStore = await cookies();
@@ -18,42 +18,50 @@ export async function GET(request: NextRequest) {
 
     // Get all receipts for this user
     const receipts = await prisma.receipt.findMany({
-      where: {
-        userId: user.id
-      },
+      where: { userId: user.id },
       select: {
         id: true,
         merchant: true,
         total: true,
+        purchaseDate: true,
         summary: true,
-        createdAt: true,
-        purchaseDate: true
+        imageUrl: true,
+        createdAt: true
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`Found ${receipts.length} total receipts for user ${user.id}`);
+    console.log(`Found ${receipts.length} receipts for user ${user.id}`);
 
-    // Categorize receipts by status
-    const processingReceipts = receipts.filter(r => r.merchant === 'Processing...');
-    const failedReceipts = receipts.filter(r => r.merchant === 'Processing Failed');
-    const successfulReceipts = receipts.filter(r => r.merchant !== 'Processing...' && r.merchant !== 'Processing Failed');
+    // Categorize receipts
+    const processingFailed = receipts.filter(r => r.merchant?.includes('Processing Failed'));
+    const successful = receipts.filter(r => !r.merchant?.includes('Processing Failed') && r.merchant !== 'Processing...');
+    const processing = receipts.filter(r => r.merchant === 'Processing...');
+
+    console.log('Receipt breakdown:', {
+      total: receipts.length,
+      processingFailed: processingFailed.length,
+      successful: successful.length,
+      processing: processing.length
+    });
 
     return NextResponse.json({
       success: true,
-      totalReceipts: receipts.length,
-      processing: processingReceipts.length,
-      failed: failedReceipts.length,
-      successful: successfulReceipts.length,
+      user: { id: user.id, email: user.email },
+      summary: {
+        total: receipts.length,
+        processingFailed: processingFailed.length,
+        successful: successful.length,
+        processing: processing.length
+      },
       receipts: receipts.map(r => ({
         id: r.id,
         merchant: r.merchant,
         total: Number(r.total),
+        purchaseDate: r.purchaseDate,
         summary: r.summary,
-        createdAt: r.createdAt,
-        purchaseDate: r.purchaseDate
+        imageUrl: r.imageUrl,
+        createdAt: r.createdAt
       }))
     });
 
