@@ -114,7 +114,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim() || isLoading) return;
+    if (!query.trim() || isLoading || isStreaming) return;
 
     // Check authentication before proceeding
     if (!isAuthenticated || !user) {
@@ -125,6 +125,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     const userMessage = query.trim();
     setQuery('');
     setIsLoading(true);
+    setIsStreaming(false); // Ensure streaming is reset
     setError(null);
 
     // Add user message to chat history
@@ -191,6 +192,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
       setError(errorMessage);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false); // Ensure streaming is also reset for non-streaming queries
     }
   };
 
@@ -375,6 +377,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     } finally {
       console.log(`[${requestId}] 🏁 Client: Query completed, cleaning up`);
       setIsStreaming(false);
+      setIsLoading(false);
       setStreamingMessage('');
     }
   };
@@ -398,6 +401,10 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
   const clearChatHistory = () => {
     setChatHistory([]);
     setError(null);
+    // Also reset any stuck states
+    setIsLoading(false);
+    setIsStreaming(false);
+    setStreamingMessage('');
   };
 
   const copyToClipboard = (text: string) => {
@@ -639,7 +646,7 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
                   ref={inputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Ask about your spending patterns, e.g., 'How much did I spend on food last month?'"
+                  placeholder={isLoading || isStreaming ? "AI is processing your request..." : "Ask about your spending patterns, e.g., 'How much did I spend on food last month?'"}
                   disabled={isLoading || isStreaming}
                   className="flex-1"
                 />
@@ -653,9 +660,14 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
-                  <span>Send</span>
+                  <span>{isLoading || isStreaming ? "Processing..." : "Send"}</span>
                 </Button>
               </form>
+              {(isLoading || isStreaming) && (
+                <div className="text-xs text-gray-500 text-center">
+                  {isStreaming ? "AI is responding..." : "Processing your request..."}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="data" className="space-y-4">
