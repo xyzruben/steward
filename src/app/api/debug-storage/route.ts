@@ -17,53 +17,30 @@ export async function GET(request: NextRequest) {
 
     console.log(`Debugging storage for user: ${user.id}`);
 
-    // Step 1: List all buckets
-    console.log('Step 1: Listing storage buckets...');
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    // Step 1: Try direct access to receipts bucket (skip listBuckets)
+    console.log('Step 1: Testing direct access to receipts bucket...');
     
-    if (bucketsError) {
-      console.error('❌ Failed to list buckets:', bucketsError);
-      return NextResponse.json({
-        success: false,
-        step: 'list_buckets',
-        error: bucketsError.message
-      });
-    }
-
-    console.log('✅ Buckets found:', buckets.map((b: any) => b.name));
-
-    // Step 2: Check if receipts bucket exists
-    const receiptsBucket = buckets.find((b: any) => b.name === 'receipts');
-    if (!receiptsBucket) {
-      return NextResponse.json({
-        success: false,
-        step: 'bucket_check',
-        error: 'Receipts bucket not found',
-        availableBuckets: buckets.map((b: any) => b.name)
-      });
-    }
-
-    console.log('✅ Receipts bucket found');
-
-    // Step 3: List files in receipts bucket
-    console.log('Step 3: Listing files in receipts bucket...');
+    // Try to list files in receipts bucket directly
     const { data: files, error: filesError } = await supabase.storage
       .from('receipts')
       .list('', { limit: 100 });
 
     if (filesError) {
-      console.error('❌ Failed to list files:', filesError);
+      console.error('❌ Failed to access receipts bucket:', filesError);
       return NextResponse.json({
         success: false,
-        step: 'list_files',
-        error: filesError.message
+        step: 'bucket_access',
+        error: `Failed to access receipts bucket: ${filesError.message}`
       });
     }
 
-    console.log('✅ Files found:', files.length);
+    console.log('✅ Receipts bucket accessible, files found:', files.length);
 
-    // Step 4: Check user-specific folder
-    console.log('Step 4: Checking user folder...');
+    // Step 2: List files in receipts bucket (already done above)
+    console.log('Step 2: Files already listed above, count:', files.length);
+
+    // Step 3: Check user-specific folder
+    console.log('Step 3: Checking user folder...');
     const userFolder = `receipts/${user.id}`;
     const { data: userFiles, error: userFilesError } = await supabase.storage
       .from('receipts')
@@ -120,11 +97,11 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email
       },
-      buckets: buckets.map((b: any) => ({
-        name: b.name,
-        public: b.public
-      })),
-      totalFiles: files.length,
+      receiptsBucket: {
+        name: 'receipts',
+        accessible: true,
+        totalFiles: files.length
+      },
       userFiles: userFiles.map((f: any) => ({
         name: f.name,
         size: f.metadata?.size,
