@@ -226,12 +226,14 @@ export class FinanceAgent {
       }
 
       // Execute function calls if any
+      const functionResults: any[] = [];
       if (functionCalls.length > 0) {
         yield { type: 'function_call', message: 'Executing financial analysis...' };
         
         for (const toolCall of functionCalls) {
           try {
             const result = await this.executeFunction(toolCall.function, userId);
+            functionResults.push({ functionName: toolCall.function.name, result });
             yield { type: 'data_processing', data: result };
           } catch (error) {
             yield { type: 'error', error: error instanceof Error ? error.message : 'Function execution failed' };
@@ -239,9 +241,14 @@ export class FinanceAgent {
         }
       }
 
+      // Generate meaningful response based on function results
+      const meaningfulMessage = this.generateMeaningfulResponse(query, functionResults, assistantMessage);
+      
       yield { 
         type: 'complete', 
-        message: assistantMessage || 'Analysis complete.',
+        message: meaningfulMessage,
+        data: functionResults.length > 0 ? functionResults[0].result : null,
+        insights: this.extractInsights(functionResults),
         executionTime: Date.now() - startTime
       };
     } catch (error) {
@@ -271,7 +278,7 @@ export class FinanceAgent {
       temperature: 0.1,
     });
 
-    return this.formatResponse(completion, userId);
+    return await this.formatResponse(completion, userId);
   }
 
   private generateCacheKey(query: string, userId: string): string {
@@ -398,7 +405,7 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
     }
   }
 
-  private formatResponse(completion: any, userId: string): AgentResponse {
+  private async formatResponse(completion: any, userId: string): Promise<AgentResponse> {
     const message = completion.choices[0]?.message;
     if (!message) {
       return {
@@ -408,21 +415,90 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
       };
     }
 
-    const data = null;
+    let data = null;
     let functionsUsed: string[] = [];
+    const functionResults: Array<{ functionName: string; result: any }> = [];
 
     if (message.tool_calls && message.tool_calls.length > 0) {
       // Handle function calls
       functionsUsed = message.tool_calls.map((call: any) => call.function.name);
-      // Note: Function results would be handled in the streaming version
+      
+      // Execute function calls and collect results
+      for (const toolCall of message.tool_calls) {
+        try {
+          const result = await this.executeFunction(toolCall.function, userId);
+          functionResults.push({ functionName: toolCall.function.name, result });
+          if (!data) data = result; // Use first result as primary data
+        } catch (error) {
+          console.error(`Error executing function ${toolCall.function.name}:`, error);
+        }
+      }
     }
 
+    // Generate meaningful message
+    const meaningfulMessage = this.generateMeaningfulResponse('', functionResults, message.content || '');
+
     return {
-      message: message.content || 'Analysis complete.',
+      message: meaningfulMessage,
       data,
       functionsUsed,
-      insights: this.extractInsights([])
+      insights: this.extractInsights(functionResults)
     };
+  }
+
+  private generateMeaningfulResponse(query: string, functionResults: Array<{ functionName: string; result: any }>, assistantMessage: string): string {
+    // If there's already a meaningful assistant message, use it
+    if (assistantMessage && assistantMessage.trim() !== '') {
+      return assistantMessage;
+    }
+
+    // Generate response based on function results
+    if (functionResults.length === 0) {
+      return 'I couldn\'t find any relevant financial data for your query. Please try asking about a specific category or time period.';
+    }
+
+    const result = functionResults[0].result;
+    const functionName = functionResults[0].functionName;
+
+    switch (functionName) {
+      case 'getSpendingByCategory':
+        if (result && result.total !== undefined) {
+          const amount = result.total === 0 ? '$0' : `$${result.total.toFixed(2)}`;
+          const category = result.category || 'this category';
+          const timeframe = this.extractTimeframeFromQuery(query);
+          return `You spent ${amount} on ${category}${timeframe}.`;
+        }
+        break;
+      
+      case 'getSpendingByTime':
+        if (result && result.total !== undefined) {
+          const amount = result.total === 0 ? '$0' : `$${result.total.toFixed(2)}`;
+          const timeframe = this.extractTimeframeFromQuery(query);
+          return `Your total spending${timeframe} was ${amount}.`;
+        }
+        break;
+      
+      case 'getTopMerchants':
+        if (result && result.merchants && result.merchants.length > 0) {
+          const topMerchant = result.merchants[0];
+          const timeframe = this.extractTimeframeFromQuery(query);
+          return `Your top merchant${timeframe} was ${topMerchant.merchant} with $${topMerchant.total.toFixed(2)} in spending.`;
+        }
+        break;
+    }
+
+    return 'Analysis complete. Check the data section below for detailed results.';
+  }
+
+  private extractTimeframeFromQuery(query: string): string {
+    const lowerQuery = query.toLowerCase();
+    if (lowerQuery.includes('july 2025')) return ' in July 2025';
+    if (lowerQuery.includes('last month')) return ' last month';
+    if (lowerQuery.includes('this month')) return ' this month';
+    if (lowerQuery.includes('last week')) return ' last week';
+    if (lowerQuery.includes('this year')) return ' this year';
+    if (lowerQuery.includes('last year')) return ' last year';
+    return '';
   }
 
   private extractInsights(results: Array<{ functionName: string; result: any }>): string[] {
