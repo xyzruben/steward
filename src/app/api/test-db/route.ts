@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 // Tests Prisma database functionality
 // Follows FOUNDATION_VALIDATION_CHECKLIST.md requirements
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   console.log('🗄️ Database test endpoint called');
   
   try {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       FROM information_schema.tables 
       WHERE table_schema = 'public'
       ORDER BY table_name
-    `;
+    ` as any[];
     console.log('✅ Database schema check completed');
     
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           createdAt: r.createdAt
         })),
         schema: {
-          tables: (tables as any[]).map(t => t.table_name)
+          tables: tables.map((t: any) => t.table_name)
         }
       }
     });

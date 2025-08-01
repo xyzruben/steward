@@ -7,11 +7,11 @@ import { createSupabaseServerClient } from '@/lib/supabase';
 // Tests Supabase storage functionality
 // Follows FOUNDATION_VALIDATION_CHECKLIST.md requirements
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   console.log('📦 Storage test endpoint called');
   
   try {
-    const supabase = createSupabaseServerClient(request.cookies as any);
+    const supabase = createSupabaseServerClient(_request.cookies as any);
     
     // Test 1: List buckets
     console.log('🔍 Testing bucket listing...');
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log('✅ Buckets listed successfully:', buckets?.map(b => b.name));
+    console.log('✅ Buckets listed successfully:', buckets?.map((b: any) => b.name));
     
     // Test 2: Check for receipts bucket
     const receiptsBucket = buckets?.find((bucket: any) => bucket.name === 'receipts');
@@ -64,6 +64,9 @@ export async function GET(request: NextRequest) {
     const { data: uploadTest, error: uploadError } = await supabase.storage
       .from('receipts')
       .list('', { limit: 1 });
+    
+    // Suppress unused variable warning
+    void uploadTest;
     
     if (uploadError) {
       console.error('❌ Upload permissions test failed:', uploadError);

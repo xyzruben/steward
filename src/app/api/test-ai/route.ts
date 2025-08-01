@@ -7,7 +7,7 @@ import { extractReceiptDataWithAI } from '@/lib/services/openai';
 // Tests OpenAI integration functionality
 // Follows FOUNDATION_VALIDATION_CHECKLIST.md requirements
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   console.log('🤖 AI test endpoint called');
   
   try {

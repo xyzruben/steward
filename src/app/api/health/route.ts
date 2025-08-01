@@ -106,6 +106,9 @@ export async function GET(request: NextRequest) {
       // Test OCR with minimal text extraction
       const ocrText = await extractTextFromImage(base64Image);
       
+      // Suppress unused variable warning
+      void ocrText;
+      
       healthStatus.services.ocr = 'healthy';
       healthStatus.details.ocr = `OCR service working. Test completed successfully.`;
       console.log('✅ OCR service test successful');
