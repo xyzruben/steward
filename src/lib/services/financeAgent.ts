@@ -466,7 +466,12 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
           const amount = result.total === 0 ? '$0' : `$${result.total.toFixed(2)}`;
           const category = result.category || 'this category';
           const timeframe = this.extractTimeframeFromQuery(query);
-          return `You spent ${amount} on ${category}${timeframe}.`;
+          
+          if (result.total > 0) {
+            return `You spent ${amount} on ${category}${timeframe}. This includes receipts from coffee shops and related merchants.`;
+          } else {
+            return `You spent ${amount} on ${category}${timeframe}. Note: This search includes both categorized receipts and receipts from coffee-related merchants.`;
+          }
         }
         break;
       

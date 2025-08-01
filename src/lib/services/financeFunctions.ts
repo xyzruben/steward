@@ -123,11 +123,6 @@ export async function getSpendingByCategory(params: {
       userId: params.userId,
     };
 
-    // Add category filter if specified
-    if (params.category) {
-      whereClause.category = params.category;
-    }
-
     // Parse timeframe if it's a string
     let timeframe = params.timeframe;
     if (typeof timeframe === 'string') {
@@ -142,12 +137,49 @@ export async function getSpendingByCategory(params: {
       };
     }
 
-    const result = await prisma.receipt.aggregate({
-      where: whereClause,
-      _sum: {
-        total: true,
-      },
-    });
+    let result;
+    
+    // If category is specified, use intelligent category matching
+    if (params.category) {
+      const category = params.category.toLowerCase();
+      
+      // Define category-to-merchant mappings for better matching
+      const categoryMappings: { [key: string]: string[] } = {
+        'coffee': ['coffee', 'tierra mia', 'starbucks', 'dunkin', 'peets', 'caribou', 'tim hortons'],
+        'food': ['restaurant', 'mcdonalds', 'burger king', 'wendys', 'subway', 'pizza', 'taco'],
+        'gas': ['gas', 'shell', 'exxon', 'mobil', 'chevron', 'bp', 'arco'],
+        'groceries': ['walmart', 'target', 'kroger', 'safeway', 'albertsons', 'whole foods', 'trader joes'],
+        'entertainment': ['netflix', 'spotify', 'amazon prime', 'hulu', 'disney+', 'movie', 'theater']
+      };
+
+      const merchantKeywords = categoryMappings[category] || [category];
+      
+      // Use OR condition to match either category field OR merchant name
+      result = await prisma.receipt.aggregate({
+        where: {
+          ...whereClause,
+          OR: [
+            { category: { equals: params.category, mode: 'insensitive' } },
+            { category: { equals: 'Uncategorized', mode: 'insensitive' } },
+            { category: null },
+            ...merchantKeywords.map(keyword => ({
+              merchant: { contains: keyword, mode: 'insensitive' }
+            }))
+          ]
+        },
+        _sum: {
+          total: true,
+        },
+      });
+    } else {
+      // No category specified, get all receipts
+      result = await prisma.receipt.aggregate({
+        where: whereClause,
+        _sum: {
+          total: true,
+        },
+      });
+    }
 
     return {
       category: params.category || 'all',
