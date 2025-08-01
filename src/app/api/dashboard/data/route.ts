@@ -78,7 +78,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(dashboardData)
+    return NextResponse.json(dashboardData, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   } catch (error) {
     console.error('Dashboard data error:', error)
     return NextResponse.json(
