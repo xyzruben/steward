@@ -6,6 +6,7 @@ import { Decimal } from '@/generated/prisma/runtime/library'
 import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
+import { categorizeReceipt } from '@/lib/services/financeFunctions'
 // Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
@@ -459,9 +460,14 @@ async function processReceiptAsync(
     const summary = aiData.summary || 'No summary generated'
     const ocrConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0
 
+    // 4. Apply intelligent categorization using our categorizeReceipt function
+    const category = categorizeReceipt(merchant)
+    console.log(`🏷️ Categorized receipt: ${merchant} -> ${category}`)
+
     console.log(`💾 Updating receipt ${receiptId} with processed data:`, {
       merchant,
       total,
+      category,
       purchaseDate: purchaseDate.toISOString(),
       summary: summary.substring(0, 50) + '...'
     })
@@ -475,6 +481,7 @@ async function processReceiptAsync(
       total: new Decimal(total),
       purchaseDate,
       summary,
+      category,
       currency: receiptCurrency
     })
     

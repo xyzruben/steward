@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
-import type { User, Receipt } from '../generated/prisma'
-import { Decimal } from '../generated/prisma/runtime/library'
+import type { User, Receipt } from '@prisma/client'
+import { Decimal } from '@prisma/client/runtime/library'
 
 // ============================================================================
 // USER OPERATIONS
@@ -212,7 +212,7 @@ export async function getReceiptById(id: string): Promise<Receipt | null> {
 
 export async function updateReceipt(
   id: string,
-  data: Partial<Pick<Receipt, 'merchant' | 'total' | 'purchaseDate' | 'summary'>> & { currency?: string }
+  data: Partial<Pick<Receipt, 'merchant' | 'total' | 'purchaseDate' | 'summary' | 'category'>> & { currency?: string }
 ): Promise<Receipt> {
   const updateData: any = { ...data }
   if (data.total !== undefined) {
