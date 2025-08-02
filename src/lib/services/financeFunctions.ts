@@ -295,7 +295,11 @@ export async function getSpendingByVendor(params: {
 
     // Add vendor filter if specified
     if (params.vendor) {
-      whereClause.merchant = params.vendor;
+      // Use case-insensitive exact matching for vendor names
+      whereClause.merchant = {
+        equals: params.vendor,
+        mode: 'insensitive'
+      };
     }
 
     // Add date range filter if specified

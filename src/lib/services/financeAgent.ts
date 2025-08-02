@@ -358,6 +358,27 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
             required: ['limit', 'timeframe']
           }
         }
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'getSpendingByVendor',
+          description: 'Get total spending by specific vendor/merchant name',
+          parameters: {
+            type: 'object',
+            properties: {
+              vendor: {
+                type: 'string',
+                description: 'The exact vendor/merchant name to search for'
+              },
+              timeframe: {
+                type: 'string',
+                description: 'Time period to analyze (e.g., "last month", "this year")'
+              }
+            },
+            required: ['vendor', 'timeframe']
+          }
+        }
       }
     ];
   }
@@ -394,6 +415,16 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
             userId,
             timeframe: parseTimeframe(parsedArgs.timeframe),
             N: parsedArgs.limit
+          });
+        
+        case 'getSpendingByVendor':
+          if (!parsedArgs.vendor || !parsedArgs.timeframe) {
+            throw new Error('Vendor and timeframe parameters are required for getSpendingByVendor');
+          }
+          return await financeFunctions.getSpendingByVendor({
+            userId,
+            vendor: parsedArgs.vendor,
+            timeframe: parseTimeframe(parsedArgs.timeframe)
           });
         
         default:
@@ -488,6 +519,20 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
           const topMerchant = result.merchants[0];
           const timeframe = this.extractTimeframeFromQuery(query);
           return `Your top merchant${timeframe} was ${topMerchant.merchant} with $${topMerchant.total.toFixed(2)} in spending.`;
+        }
+        break;
+      
+      case 'getSpendingByVendor':
+        if (result && result.total !== undefined) {
+          const amount = result.total === 0 ? '$0' : `$${result.total.toFixed(2)}`;
+          const vendor = result.vendor || 'this vendor';
+          const timeframe = this.extractTimeframeFromQuery(query);
+          
+          if (result.total > 0) {
+            return `You spent ${amount} at ${vendor}${timeframe}.`;
+          } else {
+            return `You spent ${amount} at ${vendor}${timeframe}.`;
+          }
         }
         break;
     }
