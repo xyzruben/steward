@@ -143,16 +143,8 @@ export async function getSpendingByCategory(params: {
     if (params.category) {
       const category = params.category.toLowerCase();
       
-      // Define category-to-merchant mappings for better matching
-      const categoryMappings: { [key: string]: string[] } = {
-        'coffee': ['coffee', 'tierra mia', 'starbucks', 'dunkin', 'peets', 'caribou', 'tim hortons'],
-        'food': ['restaurant', 'mcdonalds', 'burger king', 'wendys', 'subway', 'pizza', 'taco'],
-        'gas': ['gas', 'shell', 'exxon', 'mobil', 'chevron', 'bp', 'arco'],
-        'groceries': ['walmart', 'target', 'kroger', 'safeway', 'albertsons', 'whole foods', 'trader joes'],
-        'entertainment': ['netflix', 'spotify', 'amazon prime', 'hulu', 'disney+', 'movie', 'theater']
-      };
-
-      const merchantKeywords = categoryMappings[category] || [category];
+      // Use shared category mappings for consistency
+      const merchantKeywords = CATEGORY_MAPPINGS[category] || [category];
       
       // Use OR condition to match either category field OR merchant name
       result = await prisma.receipt.aggregate({
@@ -840,4 +832,41 @@ export async function summarizeTopCategories(params: {
     console.error('Error in summarizeTopCategories:', error);
     throw new Error('Failed to retrieve top categories summary');
   }
-} 
+}
+
+/**
+ * Category-to-merchant mappings for intelligent categorization.
+ * Used by both getSpendingByCategory and categorizeReceipt functions.
+ */
+const CATEGORY_MAPPINGS: { [key: string]: string[] } = {
+  'coffee': ['coffee', 'tierra mia', 'starbucks', 'dunkin', 'peets', 'caribou', 'tim hortons'],
+  'food': ['restaurant', 'mcdonalds', 'burger king', 'wendys', 'subway', 'pizza', 'taco', 'chick-fil-a', 'chick fil a'],
+  'gas': ['gas', 'shell', 'exxon', 'mobil', 'chevron', 'bp', 'arco'],
+  'groceries': ['walmart', 'target', 'kroger', 'safeway', 'albertsons', 'whole foods', 'trader joes'],
+  'entertainment': ['netflix', 'spotify', 'amazon prime', 'hulu', 'disney+', 'movie', 'theater']
+};
+
+/**
+ * Categorizes a receipt based on merchant name using intelligent matching.
+ * This function uses the same logic as getSpendingByCategory for consistency.
+ * 
+ * @param merchantName - The merchant name extracted from the receipt
+ * @returns The appropriate category or 'Uncategorized' if no match found
+ */
+export function categorizeReceipt(merchantName: string): string {
+  if (!merchantName || typeof merchantName !== 'string') {
+    return 'Uncategorized';
+  }
+
+  const merchant = merchantName.toLowerCase().trim();
+  
+  // Check each category's keywords for matches
+  for (const [category, keywords] of Object.entries(CATEGORY_MAPPINGS)) {
+    if (keywords.some(keyword => merchant.includes(keyword))) {
+      // Return capitalized category name
+      return category.charAt(0).toUpperCase() + category.slice(1);
+    }
+  }
+  
+  return 'Uncategorized';
+}
