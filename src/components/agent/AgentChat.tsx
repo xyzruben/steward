@@ -470,12 +470,6 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
           
           <div className="whitespace-pre-wrap">{message.content}</div>
           
-          {message.data && (
-            <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-              <strong>Data:</strong> {JSON.stringify(message.data, null, 2)}
-            </div>
-          )}
-          
           {message.insights && message.insights.length > 0 && (
             <div className="mt-2">
               <strong className="text-sm">Insights:</strong>
