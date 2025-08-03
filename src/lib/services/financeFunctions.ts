@@ -300,9 +300,9 @@ export async function getSpendingByVendor(params: {
 
     // Add vendor filter if specified
     if (params.vendor) {
-      // Use case-insensitive exact matching for vendor names
+      // Use case-insensitive contains matching for vendor names to handle variations
       whereClause.merchant = {
-        equals: params.vendor,
+        contains: params.vendor,
         mode: 'insensitive'
       };
     }
@@ -322,9 +322,19 @@ export async function getSpendingByVendor(params: {
       },
     });
 
+    const total = Number(result._sum.total) || 0;
+    
+    // Debug logging for transparency
+    console.log(`🔍 getSpendingByVendor Debug:`, {
+      vendor: params.vendor,
+      timeframe: params.timeframe,
+      total: total,
+      whereClause: whereClause
+    });
+
     return {
       vendor: params.vendor || 'all',
-      total: Number(result._sum.total) || 0,
+      total: total,
       currency: 'USD',
     };
   } catch (error) {
