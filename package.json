@@ -27,6 +27,7 @@
     "validate:foundation:local": "BASE_URL=http://localhost:3000 node scripts/validate-foundation.js",
     "validate:foundation:production": "BASE_URL=https://www.hellosteward.org node scripts/validate-foundation.js",
     "validate:foundation:production-compatible": "BASE_URL=https://www.hellosteward.org node scripts/validate-foundation-production.js",
+    "test:critical-fixes": "node scripts/test-critical-fixes.js",
     "deploy:production": "./scripts/deploy-production.sh",
     "deploy:rollback": "./scripts/deploy-production.sh --rollback",
     "deploy:verify": "./scripts/deploy-production.sh --verify"

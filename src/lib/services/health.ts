@@ -19,6 +19,72 @@ export interface HealthStatus {
   responseTime: number;
 }
 
+// ============================================================================
+// CRITICAL FIX #1: SAFE AUDIT FUNCTION
+// ============================================================================
+// Prevents methodology from failing completely when audits fail
+
+export async function safeAudit(auditFunction: Function, auditName: string = 'Unknown'): Promise<any> {
+  try {
+    console.log(`🔍 Starting audit: ${auditName}`);
+    const result = await auditFunction();
+    console.log(`✅ Audit completed: ${auditName}`);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error(`❌ Audit failed: ${auditName}`, error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      auditName 
+    };
+  }
+}
+
+// ============================================================================
+// CRITICAL FIX #2: ENHANCED DATABASE HEALTH CHECK
+// ============================================================================
+// Prevents silent failures and provides detailed database status
+
+export async function validateDatabaseHealth(): Promise<{ success: boolean; details?: any; error?: string }> {
+  try {
+    console.log('🔍 Validating database health...');
+    
+    // Test basic connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    // Test schema access
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'receipts'
+    ` as any[];
+    
+    if (tables.length === 0) {
+      throw new Error('Receipts table not found');
+    }
+    
+    // Test basic query
+    const receiptCount = await prisma.receipt.count();
+    
+    console.log('✅ Database health check passed');
+    return { 
+      success: true, 
+      details: { 
+        connection: 'healthy',
+        schema: 'valid',
+        receiptCount 
+      } 
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+    console.error('❌ Database health check failed:', errorMessage);
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
+  }
+}
+
 export class HealthService {
   async checkSystemHealth(): Promise<HealthStatus> {
     const startTime = Date.now();
