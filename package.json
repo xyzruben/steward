@@ -31,6 +31,7 @@
   "phase-0": "node scripts/phase-0-validation.js",
   "phase-1": "node scripts/phase-1-foundation-validation.js",
   "phase-2": "node scripts/phase-2-targeted-intervention.js",
+  "phase-3": "node scripts/phase-3-comprehensive-validation.js",
   "commit-phase": "./scripts/commit-phase.sh",
     "deploy:production": "./scripts/deploy-production.sh",
     "deploy:rollback": "./scripts/deploy-production.sh --rollback",
