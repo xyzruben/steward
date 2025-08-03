@@ -300,11 +300,15 @@ export async function getSpendingByVendor(params: {
 
     // Add vendor filter if specified
     if (params.vendor) {
-      // Use case-insensitive contains matching for vendor names to handle variations
-      whereClause.merchant = {
-        contains: params.vendor,
-        mode: 'insensitive'
-      };
+      // FUZZY MATCHING: Handle multiple variations of vendor names
+      const vendorVariations = generateVendorVariations(params.vendor);
+      
+      whereClause.OR = vendorVariations.map((variation: string) => ({
+        merchant: {
+          contains: variation,
+          mode: 'insensitive'
+        }
+      }));
     }
 
     // Add date range filter if specified
@@ -892,4 +896,40 @@ export function categorizeReceipt(merchantName: string): string {
   }
   
   return 'Uncategorized';
+}
+
+/**
+ * Generates multiple variations of a vendor name for fuzzy matching
+ * @param vendorName The original vendor name
+ * @returns Array of vendor name variations
+ */
+function generateVendorVariations(vendorName: string): string[] {
+  if (!vendorName || typeof vendorName !== 'string') {
+    return [];
+  }
+
+  const variations: string[] = [];
+  const normalized = vendorName.toLowerCase().trim();
+
+  // Add the original name
+  variations.push(normalized);
+
+  // Common variations for Chick-fil-A
+  if (normalized.includes('chick') && normalized.includes('fil')) {
+    variations.push('chick-fil-a');
+    variations.push('chick fil a');
+    variations.push('chickfila');
+    variations.push('chick fil-a');
+    variations.push('chick-fil a');
+  }
+
+  // Common variations for coffee shops
+  if (normalized.includes('tierra') && normalized.includes('mia')) {
+    variations.push('tierra mia');
+    variations.push('tierra mia coffee');
+    variations.push('tierra mia coffee company');
+  }
+
+  // Remove duplicates and return
+  return [...new Set(variations)];
 }
