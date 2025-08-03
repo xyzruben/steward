@@ -369,13 +369,13 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
         type: 'function' as const,
         function: {
           name: 'getSpendingByVendor',
-          description: 'Get total spending by specific vendor/merchant name (e.g., "Tierra Mia Coffee Company", "Chick-fil-A"). Use this for exact merchant matching.',
+          description: 'Get total spending by specific vendor/merchant name (e.g., "Tierra Mia Coffee Company", "Chick-fil-A"). Use this for specific merchant queries with fuzzy matching support.',
           parameters: {
             type: 'object',
             properties: {
               vendor: {
                 type: 'string',
-                description: 'The exact vendor/merchant name to search for (e.g., "Tierra Mia Coffee Company", "Chick-fil-A")'
+                description: 'The vendor/merchant name to search for (e.g., "Chick-fil-A", "chick fil a", "Tierra Mia"). Supports fuzzy matching for variations.'
               },
               timeframe: {
                 type: 'string',
@@ -427,6 +427,10 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
           if (!parsedArgs.vendor || !parsedArgs.timeframe) {
             throw new Error('Vendor and timeframe parameters are required for getSpendingByVendor');
           }
+          console.log(`🔍 AI calling getSpendingByVendor with:`, {
+            vendor: parsedArgs.vendor,
+            timeframe: parsedArgs.timeframe
+          });
           return await financeFunctions.getSpendingByVendor({
             userId,
             vendor: parsedArgs.vendor,
@@ -460,9 +464,12 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
       // Handle function calls
       functionsUsed = message.tool_calls.map((call: any) => call.function.name);
       
+      console.log(`🔍 AI called functions:`, functionsUsed);
+      
       // Execute function calls and collect results
       for (const toolCall of message.tool_calls) {
         try {
+          console.log(`🔍 Executing function: ${toolCall.function.name} with args:`, toolCall.function.arguments);
           const result = await this.executeFunction(toolCall.function, userId);
           functionResults.push({ functionName: toolCall.function.name, result });
           if (!data) data = result; // Use first result as primary data
