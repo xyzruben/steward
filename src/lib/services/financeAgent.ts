@@ -289,6 +289,12 @@ export class FinanceAgent {
   private getSystemPrompt(): string {
     return `You are an AI financial assistant that helps users understand their spending patterns and financial data. You have access to various financial functions to analyze their data.
 
+IMPORTANT FUNCTION SELECTION RULES:
+- Use 'getSpendingByVendor' when the user asks about a specific merchant/vendor (e.g., "Tierra Mia Coffee Company", "Chick-fil-A", "Starbucks")
+- Use 'getSpendingByCategory' when the user asks about a general category (e.g., "coffee", "food", "gas") without mentioning specific merchants
+- Use 'getSpendingByTime' when the user asks about total spending in a time period
+- Use 'getTopMerchants' when the user asks about top spending merchants
+
 Key capabilities:
 - Analyze spending by category, merchant, and time periods
 - Provide insights on spending patterns
@@ -304,13 +310,13 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
         type: 'function' as const,
         function: {
           name: 'getSpendingByCategory',
-          description: 'Get total spending by category for a specific timeframe',
+          description: 'Get total spending by general category (e.g., "coffee", "food", "gas") for a specific timeframe. Use this for broad category analysis, not specific merchants.',
           parameters: {
             type: 'object',
             properties: {
               category: {
                 type: 'string',
-                description: 'The spending category to analyze'
+                description: 'The general spending category to analyze (e.g., "coffee", "food", "gas")'
               },
               timeframe: {
                 type: 'string',
@@ -363,13 +369,13 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
         type: 'function' as const,
         function: {
           name: 'getSpendingByVendor',
-          description: 'Get total spending by specific vendor/merchant name',
+          description: 'Get total spending by specific vendor/merchant name (e.g., "Tierra Mia Coffee Company", "Chick-fil-A"). Use this for exact merchant matching.',
           parameters: {
             type: 'object',
             properties: {
               vendor: {
                 type: 'string',
-                description: 'The exact vendor/merchant name to search for'
+                description: 'The exact vendor/merchant name to search for (e.g., "Tierra Mia Coffee Company", "Chick-fil-A")'
               },
               timeframe: {
                 type: 'string',

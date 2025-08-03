@@ -146,14 +146,17 @@ export async function getSpendingByCategory(params: {
       // Use shared category mappings for consistency
       const merchantKeywords = CATEGORY_MAPPINGS[category] || [category];
       
-      // Use OR condition to match either category field OR merchant name
+      // MORE PRECISE: Only include receipts that are actually categorized OR have matching merchant names
+      // This prevents including unrelated "Uncategorized" receipts
       result = await prisma.receipt.aggregate({
         where: {
           ...whereClause,
           OR: [
+            // Exact category match (case insensitive)
             { category: { equals: params.category, mode: 'insensitive' } },
-            { category: { equals: 'Uncategorized', mode: 'insensitive' } },
-            { category: null },
+            // Category match with first letter capitalized
+            { category: { equals: params.category.charAt(0).toUpperCase() + params.category.slice(1), mode: 'insensitive' } },
+            // Merchant name contains any of the category keywords
             ...merchantKeywords.map(keyword => ({
               merchant: { contains: keyword, mode: 'insensitive' }
             }))
@@ -173,9 +176,19 @@ export async function getSpendingByCategory(params: {
       });
     }
 
+    const total = Number(result._sum.total) || 0;
+    
+    // Debug logging for transparency
+    console.log(`🔍 getSpendingByCategory Debug:`, {
+      category: params.category,
+      timeframe: timeframe,
+      total: total,
+      merchantKeywords: params.category ? CATEGORY_MAPPINGS[params.category.toLowerCase()] || [params.category] : 'N/A'
+    });
+    
     return {
       category: params.category || 'all',
-      total: Number(result._sum.total) || 0,
+      total: total,
       currency: 'USD', // TODO: Get from user preferences
     };
   } catch (error) {
