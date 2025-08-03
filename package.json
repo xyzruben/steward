@@ -29,6 +29,7 @@
     "validate:foundation:production-compatible": "BASE_URL=https://www.hellosteward.org node scripts/validate-foundation-production.js",
     "test:critical-fixes": "node scripts/test-critical-fixes.js",
   "phase-0": "node scripts/phase-0-validation.js",
+  "commit-phase": "./scripts/commit-phase.sh",
     "deploy:production": "./scripts/deploy-production.sh",
     "deploy:rollback": "./scripts/deploy-production.sh --rollback",
     "deploy:verify": "./scripts/deploy-production.sh --verify"
