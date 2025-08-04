@@ -1,7 +1,94 @@
 import { PrismaClient } from '@prisma/client';
-import { parseTimeframe, type TimeframeRange } from '@/lib/utils/timeframeParser';
 
 const prisma = new PrismaClient();
+
+// Unified timeframe parsing - inline to avoid import issues in CI/CD
+interface TimeframeRange {
+  start: Date;
+  end: Date;
+}
+
+function parseTimeframe(timeframe: string): TimeframeRange {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  
+  const normalizedTimeframe = timeframe.toLowerCase().trim();
+  
+  switch (normalizedTimeframe) {
+    case 'last month':
+      return {
+        start: new Date(currentYear, currentMonth - 1, 1),
+        end: new Date(currentYear, currentMonth, 0)
+      };
+    
+    case 'this month':
+      return {
+        start: new Date(currentYear, currentMonth, 1),
+        end: new Date(currentYear, currentMonth + 1, 0)
+      };
+    
+    case 'last week':
+      const lastWeekStart = new Date(now);
+      lastWeekStart.setDate(now.getDate() - 7);
+      return {
+        start: lastWeekStart,
+        end: now
+      };
+    
+    case 'last 3 months':
+      const last3MonthsStart = new Date(now);
+      last3MonthsStart.setMonth(now.getMonth() - 3);
+      return {
+        start: last3MonthsStart,
+        end: now
+      };
+    
+    case 'last 6 months':
+      const last6MonthsStart = new Date(now);
+      last6MonthsStart.setMonth(now.getMonth() - 6);
+      return {
+        start: last6MonthsStart,
+        end: now
+      };
+    
+    case 'this year':
+      return {
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31)
+      };
+    
+    case 'last year':
+      return {
+        start: new Date(currentYear - 1, 0, 1),       
+        end: new Date(currentYear - 1, 11, 31)
+      };
+    
+    default:
+      // Handle month names
+      const monthNames = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ];
+      
+      const monthIndex = monthNames.indexOf(normalizedTimeframe);
+      if (monthIndex !== -1) {
+        const targetYear = monthIndex <= currentMonth ? currentYear : currentYear - 1;
+        return {
+          start: new Date(targetYear, monthIndex, 1),
+          end: new Date(targetYear, monthIndex + 1, 0)
+        };
+      }
+      
+      // Default to last 90 days for better data coverage
+      const defaultStart = new Date(now);
+      defaultStart.setDate(now.getDate() - 90);
+      return {
+        start: defaultStart,
+        end: now
+      };
+  }
+}
 
 
 // Type definitions for better type safety
