@@ -9,6 +9,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 import { 
   Home, 
   Receipt, 
@@ -86,9 +87,13 @@ export function MobileNavigation({
   className = ''
 }: MobileNavigationProps) {
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false)
+  const router = useRouter()
 
-  const handleTabPress = (tabId: string) => {
-    onTabChange(tabId)
+  const handleTabPress = (tabId: string, href: string) => {
+    // Navigate using Next.js router
+    router.push(href)
+    // Also call the callback if provided
+    onTabChange?.(tabId)
     // Add haptic feedback for mobile
     if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
       navigator.vibrate(10)
@@ -206,7 +211,7 @@ export function MobileNavigation({
               <motion.button
                 key={item.id}
                 className="relative flex flex-col items-center justify-center flex-1 py-2 px-1"
-                onClick={() => handleTabPress(item.id)}
+                onClick={() => handleTabPress(item.id, item.href)}
                 whileTap={{ scale: 0.95 }}
                 aria-label={item.label}
                 aria-pressed={isActive}
