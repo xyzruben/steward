@@ -8,37 +8,8 @@ import { OpenAI } from 'openai';
 import { prisma } from '../prisma';
 import { agentCache } from './cache';
 import * as financeFunctions from './financeFunctions';
+import { parseTimeframe } from '../utils/timeframeParser';
 
-// Helper function to parse timeframe strings
-function parseTimeframe(timeframe: string): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now);
-  
-  switch (timeframe.toLowerCase()) {
-    case 'last week':
-      start.setDate(now.getDate() - 7);
-      break;
-    case 'last month':
-      start.setMonth(now.getMonth() - 1);
-      break;
-    case 'last 3 months':
-      start.setMonth(now.getMonth() - 3);
-      break;
-    case 'last 6 months':
-      start.setMonth(now.getMonth() - 6);
-      break;
-    case 'this year':
-      start.setMonth(0, 1);
-      break;
-    case 'last year':
-      start.setFullYear(now.getFullYear() - 1, 0, 1);
-      break;
-    default:
-      start.setDate(now.getDate() - 30); // Default to last 30 days
-  }
-  
-  return { start, end: now };
-}
 
 // ============================================================================
 // TYPES AND INTERFACES
@@ -295,6 +266,13 @@ IMPORTANT FUNCTION SELECTION RULES:
 - Use 'getSpendingByTime' when the user asks about total spending in a time period
 - Use 'getTopMerchants' when the user asks about top spending merchants
 
+CRITICAL TIMEFRAME GUIDELINES:
+- For vendor queries without a specific timeframe, default to "this year" to ensure comprehensive data coverage
+- For category queries without a specific timeframe, use "last 3 months" for recent trends
+- If the user doesn't specify a timeframe, choose a broad enough range to capture relevant spending data
+- Avoid using very narrow timeframes (like "last week") unless specifically requested
+- Remember that users may have data going back several months, so be inclusive
+
 Key capabilities:
 - Analyze spending by category, merchant, and time periods
 - Provide insights on spending patterns
@@ -379,7 +357,7 @@ Always be helpful, accurate, and provide actionable insights. Use the available 
               },
               timeframe: {
                 type: 'string',
-                description: 'Time period to analyze (e.g., "last month", "this year")'
+                description: 'Time period to analyze. For vendor queries without user-specified timeframe, use "this year" to ensure comprehensive data coverage. Examples: "this year", "last 3 months", "july"'
               }
             },
             required: ['vendor', 'timeframe']
