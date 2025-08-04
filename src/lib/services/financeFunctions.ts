@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { parseTimeframe } from '../utils/timeframeParser';
+import { parseTimeframe, type TimeframeRange } from '@/lib/utils/timeframeParser';
 
 const prisma = new PrismaClient();
 
@@ -45,7 +45,7 @@ interface TrendPoint {
 export async function getSpendingByCategory(params: { 
   userId: string; 
   category?: string; 
-  timeframe?: { start: Date; end: Date } | string
+  timeframe?: TimeframeRange | string
 }): Promise<{ category: string; total: number; currency: string }> {
   try {
     const whereClause: any = {
@@ -53,16 +53,18 @@ export async function getSpendingByCategory(params: {
     };
 
     // Parse timeframe if it's a string
-    let timeframe = params.timeframe;
-    if (typeof timeframe === 'string') {
-      timeframe = parseTimeframe(timeframe);
+    let parsedTimeframe: TimeframeRange | undefined;
+    if (typeof params.timeframe === 'string') {
+      parsedTimeframe = parseTimeframe(params.timeframe);
+    } else if (params.timeframe && typeof params.timeframe === 'object') {
+      parsedTimeframe = params.timeframe;
     }
 
     // Add date range filter if specified
-    if (timeframe) {
+    if (parsedTimeframe) {
       whereClause.purchaseDate = {
-        gte: timeframe.start,
-        lte: timeframe.end,
+        gte: parsedTimeframe.start,
+        lte: parsedTimeframe.end,
       };
     }
 
@@ -110,7 +112,7 @@ export async function getSpendingByCategory(params: {
     // Debug logging for transparency
     console.log(`🔍 getSpendingByCategory Debug:`, {
       category: params.category,
-      timeframe: timeframe,
+      timeframe: parsedTimeframe,
       total: total,
       merchantKeywords: params.category ? CATEGORY_MAPPINGS[params.category.toLowerCase()] || [params.category] : 'N/A'
     });
@@ -132,8 +134,8 @@ export async function getSpendingByCategory(params: {
  */
 export async function getSpendingByTime(params: { 
   userId: string; 
-  timeframe: { start: Date; end: Date } 
-}): Promise<{ period: { start: Date; end: Date }; total: number; currency: string; count?: number }> {
+  timeframe: TimeframeRange 
+}): Promise<{ period: TimeframeRange; total: number; currency: string; count?: number }> {
   const queryId = `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
   
@@ -220,7 +222,7 @@ export async function getSpendingByTime(params: {
 export async function getSpendingByVendor(params: { 
   userId: string; 
   vendor?: string; 
-  timeframe?: { start: Date; end: Date } 
+  timeframe?: TimeframeRange 
 }): Promise<{ vendor: string; total: number; currency: string }> {
   try {
     const whereClause: any = {
@@ -283,27 +285,29 @@ export async function getSpendingByVendor(params: {
  */
 export async function getDiningHistory(params: { 
   userId: string; 
-  timeframe: { start: Date; end: Date } | string;
+  timeframe: TimeframeRange | string;
   category?: string;
 }): Promise<{ 
   restaurants: Array<{ merchant: string; total: number; count: number; currency: string }>;
   totalSpent: number;
   totalVisits: number;
   currency: string;
-  timeframe: { start: Date; end: Date };
+  timeframe: TimeframeRange;
 }> {
   try {
     // Parse timeframe if it's a string
-    let timeframe = params.timeframe;
-    if (typeof timeframe === 'string') {
-      timeframe = parseTimeframe(timeframe);
+    let parsedTimeframe: TimeframeRange;
+    if (typeof params.timeframe === 'string') {
+      parsedTimeframe = parseTimeframe(params.timeframe);
+    } else {
+      parsedTimeframe = params.timeframe;
     }
 
     const whereClause: any = {
       userId: params.userId,
       purchaseDate: {
-        gte: timeframe.start,
-        lte: timeframe.end,
+        gte: parsedTimeframe.start,
+        lte: parsedTimeframe.end,
       },
     };
 
@@ -366,7 +370,7 @@ export async function getDiningHistory(params: {
       totalSpent,
       totalVisits,
       currency: 'USD',
-      timeframe: timeframe,
+      timeframe: parsedTimeframe,
     };
   } catch (error) {
     console.error('Error in getDiningHistory:', error);

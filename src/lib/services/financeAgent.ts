@@ -8,7 +8,7 @@ import { OpenAI } from 'openai';
 import { prisma } from '../prisma';
 import { agentCache } from './cache';
 import * as financeFunctions from './financeFunctions';
-import { parseTimeframe } from '../utils/timeframeParser';
+import { parseTimeframe } from '@/lib/utils/timeframeParser';
 
 
 // ============================================================================
