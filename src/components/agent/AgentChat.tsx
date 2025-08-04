@@ -22,8 +22,7 @@ import {
   Copy,
   Eye,
   EyeOff,
-  LogIn,
-  User
+  LogIn
 } from 'lucide-react';
 
 interface AgentResponse {
@@ -534,19 +533,24 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
   }
 
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`}>
-      <Card>
-        <CardHeader>
+    <div className={`w-full max-w-6xl mx-auto ${className}`}>
+      <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-900/50">
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Zap className="h-6 w-6 text-blue-500" />
-              <CardTitle>AI Financial Assistant</CardTitle>
-              {user && (
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <User className="h-4 w-4" />
-                  <span>{user.email}</span>
-                </div>
-              )}
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                <Zap className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Steward AI Assistant
+                </CardTitle>
+                {user && (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Welcome back, {user.email?.split('@')[0]}
+                  </p>
+                )}
+              </div>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -635,27 +639,69 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="flex space-x-2">
-                <Input
-                  ref={inputRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={isLoading || isStreaming ? "AI is processing your request..." : "Ask about your spending patterns, e.g., 'How much did I spend on food last month?'"}
-                  disabled={isLoading || isStreaming}
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  disabled={!query.trim() || isLoading || isStreaming}
-                  className="flex items-center space-x-2"
-                >
-                  {isLoading || isStreaming ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                  <span>{isLoading || isStreaming ? "Processing..." : "Send"}</span>
-                </Button>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="relative">
+                  <Input
+                    ref={inputRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={isLoading || isStreaming ? "🤔 AI is thinking..." : "💬 Ask me anything about your finances! e.g., 'How much did I spend at Chick-fil-A?'"}
+                    disabled={isLoading || isStreaming}
+                    className="flex-1 pr-24 py-6 text-lg border-2 border-blue-200 dark:border-blue-800 focus:border-blue-500 dark:focus:border-blue-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl shadow-lg"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={!query.trim() || isLoading || isStreaming}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg shadow-lg transition-all duration-200"
+                  >
+                    {isLoading || isStreaming ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Send className="h-5 w-5" />
+                    )}
+                    <span className="ml-2 hidden sm:inline">{isLoading || isStreaming ? "Processing..." : "Send"}</span>
+                  </Button>
+                </div>
+                
+                {/* Quick action buttons */}
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuery("How much did I spend this month?")}
+                    className="text-xs hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+                  >
+                    💰 Monthly spending
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuery("What are my top expenses?")}
+                    className="text-xs hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+                  >
+                    📊 Top expenses
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuery("Show me my coffee spending")}
+                    className="text-xs hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+                  >
+                    ☕ Coffee spending
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuery("Find receipts from last week")}
+                    className="text-xs hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
+                  >
+                    🧾 Recent receipts
+                  </Button>
+                </div>
               </form>
               {(isLoading || isStreaming) && (
                 <div className="text-xs text-gray-500 text-center">

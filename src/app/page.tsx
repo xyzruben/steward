@@ -15,8 +15,10 @@ import { FullScreenLoading } from '@/components/ui/LoadingSpinner'
 import { MobileNavigation, MobileHeader } from '@/components/ui/MobileNavigation'
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { isMobileDevice } from '@/lib/utils'
+import { Zap } from 'lucide-react'
 import AgentChat from '@/components/agent/AgentChat';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { OnboardingTour, useOnboardingTour } from '@/components/ui/OnboardingTour';
@@ -176,11 +178,37 @@ export default function HomePage() {
         isMobile && 'pb-32' // Space for mobile navigation
       )}>
         <ErrorBoundary>
+          {/* AI Agent - Primary Feature (Tier 4: AI-native, see Master System Guide & TIER4_UPGRADE_PLAN.md) */}
+          <div className="mb-12">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center space-x-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full border border-blue-200 dark:border-blue-800 mb-4">
+                <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  AI Financial Assistant
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  Beta
+                </Badge>
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+                Ask me anything about your finances
+              </h2>
+              <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                Get instant insights about your spending patterns, find specific transactions, or analyze your financial trends with natural language queries.
+              </p>
+            </div>
+            <AgentChat />
+          </div>
+
+          {/* Dashboard Content - Secondary */}
           <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
-            <DashboardContent />
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-12">
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">
+                Your Financial Overview
+              </h3>
+              <DashboardContent />
+            </div>
           </PullToRefresh>
-          {/* Tier 4: AI-native AgentChat (see Master System Guide & TIER4_UPGRADE_PLAN.md) */}
-          <AgentChat />
         </ErrorBoundary>
       </main>
       
