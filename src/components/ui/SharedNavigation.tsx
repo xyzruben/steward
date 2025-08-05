@@ -60,14 +60,6 @@ export function SharedNavigation() {
               <Home className="h-4 w-4" />
               <span>Home</span>
             </Link>
-            <Link
-              href="/receipts"
-              className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors duration-200"
-            >
-              <Receipt className="h-4 w-4" />
-              <span>Receipts</span>
-            </Link>
-
           </nav>
 
           {/* User menu and theme toggle */}

@@ -24,6 +24,7 @@ import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { OnboardingTour, useOnboardingTour } from '@/components/ui/OnboardingTour';
 import { HelpSystem, HelpTrigger } from '@/components/ui/HelpSystem';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { ReceiptViewerModal } from '@/components/receipts/ReceiptViewerModal';
 
 // ============================================================================
 // MAIN PAGE COMPONENT (see master guide: Component Hierarchy)
@@ -37,6 +38,8 @@ export default function HomePage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated' | 'error'>('checking')
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false)
+  const [receiptViewerFilters, setReceiptViewerFilters] = useState({})
   
   // Memoize expensive computations to prevent re-renders
   const isMobile = React.useMemo(() => isMobileDevice(), [])
@@ -93,6 +96,12 @@ export default function HomePage() {
       window.scrollTo(0, 0);
     }
   }, [user, loading]);
+
+  // Handle opening receipt viewer with filters
+  const handleViewReceipts = (filters = {}) => {
+    setReceiptViewerFilters(filters)
+    setShowReceiptViewer(true)
+  }
 
   // Show full screen loading for initial app load
   if (!isInitialized) {
@@ -254,15 +263,24 @@ export default function HomePage() {
                 Get instant insights about your spending patterns, find specific transactions, or analyze your financial trends with natural language queries.
               </p>
             </div>
-            <AgentChat />
+            <AgentChat onViewReceipts={handleViewReceipts} />
           </div>
 
           {/* Dashboard Content - Secondary */}
           <PullToRefresh onRefresh={handleRefresh} disabled={isRefreshing}>
             <div className="border-t border-slate-200 dark:border-slate-700 pt-12">
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">
-                Your Financial Overview
-              </h3>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  Your Financial Overview
+                </h3>
+                <Button
+                  variant="outline"
+                  onClick={() => handleViewReceipts()}
+                  className="flex items-center space-x-2"
+                >
+                  <span>View All Receipts</span>
+                </Button>
+              </div>
               <DashboardContent />
             </div>
           </PullToRefresh>
@@ -279,6 +297,13 @@ export default function HomePage() {
           onNotifications={handleNotifications}
         />
       )}
+      
+      {/* Receipt Viewer Modal */}
+      <ReceiptViewerModal
+        isOpen={showReceiptViewer}
+        onClose={() => setShowReceiptViewer(false)}
+        initialFilters={receiptViewerFilters}
+      />
       
       {/* Help and Tour Components */}
       <div className="fixed bottom-4 right-4 z-40 flex flex-col space-y-2">

@@ -62,9 +62,10 @@ interface ChatMessage {
 
 interface AgentChatProps {
   className?: string;
+  onViewReceipts?: (filters?: any) => void;
 }
 
-export default function AgentChat({ className = '' }: AgentChatProps) {
+export default function AgentChat({ className = '', onViewReceipts }: AgentChatProps) {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [query, setQuery] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -442,6 +443,38 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
     const isSystem = message.type === 'system';
     const isError = message.error;
 
+    // Check if this is an AI response with spending data
+    const hasSpendingData = message.data && (
+      message.data.spending || 
+      message.data.receipts || 
+      message.data.categories ||
+      message.content.toLowerCase().includes('spent') ||
+      message.content.toLowerCase().includes('spending')
+    );
+
+    // Extract potential filters from the message content
+    const extractFilters = () => {
+      const filters: any = {};
+      
+      // Extract category from content
+      if (message.content.toLowerCase().includes('coffee')) {
+        filters.category = 'coffee';
+      } else if (message.content.toLowerCase().includes('food')) {
+        filters.category = 'food';
+      } else if (message.content.toLowerCase().includes('gas')) {
+        filters.category = 'gas';
+      }
+      
+      // Extract date range
+      if (message.content.toLowerCase().includes('this month')) {
+        filters.dateRange = 'this-month';
+      } else if (message.content.toLowerCase().includes('last month')) {
+        filters.dateRange = 'last-month';
+      }
+      
+      return filters;
+    };
+
     return (
       <div
         key={message.id}
@@ -468,6 +501,32 @@ export default function AgentChat({ className = '' }: AgentChatProps) {
           </div>
           
           <div className="whitespace-pre-wrap">{message.content}</div>
+          
+          {/* Contextual Action Buttons for AI responses with spending data */}
+          {!isUser && !isSystem && !isError && hasSpendingData && onViewReceipts && (
+            <div className="mt-3 pt-2 border-t border-gray-200">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onViewReceipts(extractFilters())}
+                  className="text-xs"
+                >
+                  View All Receipts
+                </Button>
+                {extractFilters().category && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onViewReceipts({ category: extractFilters().category })}
+                    className="text-xs"
+                  >
+                    View {extractFilters().category} Receipts
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           
           {message.insights && message.insights.length > 0 && (
             <div className="mt-2">
