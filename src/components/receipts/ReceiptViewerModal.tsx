@@ -179,8 +179,8 @@ export function ReceiptViewerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Receipt className="h-5 w-5" />
@@ -212,51 +212,52 @@ export function ReceiptViewerModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col h-full">
-          {/* Search and Filters */}
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search receipts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            >
-              <Filter className="h-4 w-4 mr-1" />
-              {viewMode === 'grid' ? 'List' : 'Grid'}
-            </Button>
+        {/* Search and Filters */}
+        <div className="flex items-center space-x-4 mb-4 flex-shrink-0">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search receipts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          >
+            <Filter className="h-4 w-4 mr-1" />
+            {viewMode === 'grid' ? 'List' : 'Grid'}
+          </Button>
+        </div>
 
-          {/* Receipts Content */}
-          <div className="flex-1 overflow-auto">
-            {loading && receipts.length === 0 ? (
-              <div className="flex items-center justify-center h-64">
-                <LoadingSpinner />
-              </div>
-            ) : error ? (
-              <div className="text-center py-8">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Button onClick={() => fetchReceipts(1, false)}>
-                  Try Again
-                </Button>
-              </div>
-            ) : receipts.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No receipts found</h3>
-                <p className="text-gray-600">
-                  {searchTerm ? 'Try adjusting your search terms' : 'Upload your first receipt to get started'}
-                </p>
-              </div>
-            ) : (
+        {/* Receipts Content - This is the scrollable area */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+          {loading && receipts.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={() => fetchReceipts(1, false)}>
+                Try Again
+              </Button>
+            </div>
+          ) : receipts.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No receipts found</h3>
+              <p className="text-gray-600">
+                {searchTerm ? 'Try adjusting your search terms' : 'Upload your first receipt to get started'}
+              </p>
+            </div>
+          ) : (
+            <>
               <div className={cn(
+                "pb-4",
                 viewMode === 'grid'
                   ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
                   : 'space-y-2'
@@ -271,40 +272,40 @@ export function ReceiptViewerModal({
                   />
                 ))}
               </div>
-            )}
 
-            {/* Load More Button */}
-            {hasMore && receipts.length > 0 && (
-              <div className="text-center mt-6">
-                <Button
-                  onClick={loadMore}
-                  disabled={loading}
-                  variant="outline"
-                >
-                  {loading ? (
-                    <>
-                      <LoadingSpinner className="w-4 h-4 mr-2" />
-                      Loading...
-                    </>
-                  ) : (
-                    'Load More'
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
+              {/* Load More Button */}
+              {hasMore && (
+                <div className="text-center py-6 border-t">
+                  <Button
+                    onClick={loadMore}
+                    disabled={loading}
+                    variant="outline"
+                  >
+                    {loading ? (
+                      <>
+                        <LoadingSpinner className="w-4 h-4 mr-2" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More'
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
-          {/* Footer */}
-          <div className="border-t pt-4 mt-4">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Showing {receipts.length} receipt{receipts.length !== 1 ? 's' : ''}
-                {hasMore && ' (scroll for more)'}
-              </span>
-              <span>
-                {searchTerm && `Searching for "${searchTerm}"`}
-              </span>
-            </div>
+        {/* Footer */}
+        <div className="border-t pt-4 flex-shrink-0 bg-background">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              Showing {receipts.length} receipt{receipts.length !== 1 ? 's' : ''}
+              {hasMore && ' (more available)'}
+            </span>
+            <span>
+              {searchTerm && `Searching for "${searchTerm}"`}
+            </span>
           </div>
         </div>
       </DialogContent>
