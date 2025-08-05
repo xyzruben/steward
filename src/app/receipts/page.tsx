@@ -18,18 +18,40 @@ export default function ReceiptsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [reCategorizing, setReCategorizing] = useState(false)
   const [categorizationStats, setCategorizationStats] = useState<any>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+
+  // Check authentication status with server
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/test')
+      const data = await response.json()
+      
+      if (!data.authenticated) {
+        setAuthError('Authentication required. Please log in again.')
+        console.error('🔍 Auth check failed:', data.error)
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error('🔍 Auth check error:', error)
+      setAuthError('Unable to verify authentication status.')
+      return false
+    }
+  }, [])
 
   const fetchReceipts = useCallback(async () => {
-    if (!user) {
-      console.warn('🔍 Receipts: No user found, skipping fetch')
-      return
-    }
-
-    console.log('🔍 Receipts: Starting fetch for user:', user.id)
+    if (!user) return
 
     try {
       setLoading(true)
       setError(null)
+      
+      // First check authentication status
+      const isAuthenticated = await checkAuthStatus()
+      if (!isAuthenticated) {
+        setLoading(false)
+        return
+      }
       
       // Build query parameters
       const params = new URLSearchParams()
@@ -67,45 +89,31 @@ export default function ReceiptsPage() {
         params.append('minConfidence', filters.minConfidence.toString())
       }
       
-      const url = `/api/receipts?${params.toString()}`
-      console.log('🔍 Receipts: Fetching from URL:', url)
-      
-      const response = await fetch(url)
-      
-      console.log('🔍 Receipts: Response status:', response.status)
-      console.log('🔍 Receipts: Response headers:', Object.fromEntries(response.headers.entries()))
+      console.log('🔍 Fetching receipts with params:', params.toString())
+      const response = await fetch(`/api/receipts?${params.toString()}`)
       
       if (response.ok) {
         const data = await response.json()
-        console.log('🔍 Receipts: Received data:', {
-          isArray: Array.isArray(data),
-          length: Array.isArray(data) ? data.length : 'N/A',
-          sample: Array.isArray(data) ? data.slice(0, 2) : data
-        })
-        setReceipts(Array.isArray(data) ? data : [])
+        console.log('🔍 Receipts fetched successfully:', data.length, 'receipts')
+        setReceipts(data)
       } else {
-        const errorText = await response.text()
-        console.error('🔍 Receipts: API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        })
-        throw new Error(`API returned ${response.status}: ${errorText}`)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('🔍 Receipts fetch failed:', response.status, errorData)
+        throw new Error(errorData.error || 'Failed to fetch receipts')
       }
     } catch (error) {
-      console.error('🔍 Receipts: Fetch error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      setError(`Failed to load receipts: ${errorMessage}`)
+      console.error('Failed to fetch receipts:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load receipts. Please try again.')
     } finally {
       setLoading(false)
     }
-  }, [user, searchQuery, filters])
+  }, [user, searchQuery, filters, checkAuthStatus])
 
   useEffect(() => {
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchReceipts()
     }
-  }, [fetchReceipts, authLoading])
+  }, [fetchReceipts, user, authLoading])
 
   const handleFiltersChange = (newFilters: ReceiptFiltersType) => {
     setFilters(newFilters)
@@ -164,7 +172,49 @@ export default function ReceiptsPage() {
     fetchCategorizationStats()
   }, [fetchCategorizationStats])
 
-  if (authLoading || loading) {
+  // Show authentication error
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <SharedNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <p className="text-gray-600 mb-4">{authError}</p>
+            <div className="space-x-4">
+              <button 
+                onClick={() => window.location.href = '/'}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Go to Dashboard
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <SharedNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <LoadingSpinner />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <SharedNavigation />
@@ -185,10 +235,10 @@ export default function ReceiptsPage() {
           <div className="text-center">
             <h2 className="text-xl font-semibold mb-2">Error Loading Receipts</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <div className="space-y-2 mb-6">
+            <div className="space-x-4">
               <button 
                 onClick={fetchReceipts}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mr-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Try Again
               </button>
@@ -199,13 +249,6 @@ export default function ReceiptsPage() {
                 Debug Info
               </button>
             </div>
-            {!user && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-yellow-800">
-                  You may need to <a href="/login" className="text-blue-600 hover:underline">sign in</a> to view your receipts.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -266,19 +309,7 @@ export default function ReceiptsPage() {
           />
         </div>
 
-        <ReceiptList 
-          receipts={receipts.map(receipt => ({
-            id: receipt.id,
-            merchant: receipt.merchant,
-            amount: Number(receipt.total),
-            date: receipt.purchaseDate.split('T')[0],
-            category: receipt.category || 'Uncategorized',
-            imageUrl: receipt.imageUrl
-          }))}
-          loading={loading}
-          error={error}
-          onRefresh={fetchReceipts}
-        />
+        <ReceiptList receipts={receipts} />
       </div>
     </div>
   )

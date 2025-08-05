@@ -15,13 +15,37 @@ export async function GET(request: NextRequest) {
     },
     auth: {},
     database: {},
-    receipts: {}
+    receipts: {},
+    cookies: {},
+    headers: {}
   }
 
   try {
+    // 0. Debug cookies and headers
+    console.log('🔍 Debug: Analyzing request cookies and headers...')
+    const cookieStore = await cookies()
+    const allCookies = cookieStore.getAll()
+    
+    debugInfo.cookies = {
+      totalCookies: allCookies.length,
+      cookieNames: allCookies.map(c => c.name),
+      supabaseCookies: allCookies.filter(c => c.name.startsWith('sb-')).map(c => ({
+        name: c.name,
+        value: c.value ? 'SET' : 'NOT SET',
+        path: c.path,
+        httpOnly: c.httpOnly
+      }))
+    }
+    
+    debugInfo.headers = {
+      userAgent: request.headers.get('user-agent'),
+      referer: request.headers.get('referer'),
+      origin: request.headers.get('origin'),
+      host: request.headers.get('host')
+    }
+
     // 1. Test Supabase Auth
     console.log('🔍 Debug: Testing Supabase Auth...')
-    const cookieStore = await cookies()
     const supabase = createSupabaseServerClient(cookieStore)
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -30,13 +54,20 @@ export async function GET(request: NextRequest) {
       debugInfo.auth = {
         status: 'ERROR',
         error: authError.message,
+        errorCode: authError.status,
         user: null
       }
     } else if (!user) {
       debugInfo.auth = {
         status: 'UNAUTHENTICATED',
         error: 'No user session found',
-        user: null
+        user: null,
+        possibleReasons: [
+          'User not logged in',
+          'Session expired',
+          'Cookies not being set properly',
+          'Middleware blocking request'
+        ]
       }
     } else {
       debugInfo.auth = {
@@ -112,7 +143,7 @@ export async function GET(request: NextRequest) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id }
         })
-        
+
         debugInfo.receipts.userInDatabase = dbUser ? 'EXISTS' : 'NOT FOUND'
 
       } catch (receiptError) {
@@ -139,9 +170,9 @@ export async function GET(request: NextRequest) {
             'Cookie': request.headers.get('Cookie') || ''
           }
         })
-        
+
         const apiData = await apiResponse.json()
-        
+
         debugInfo.apiTest = {
           status: apiResponse.ok ? 'SUCCESS' : 'ERROR',
           statusCode: apiResponse.status,

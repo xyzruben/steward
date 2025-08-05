@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 
 interface ReceiptListProps {
   className?: string
-  receipts?: ReceiptItemProps[]
+  receipts?: any[]
   loading?: boolean
   error?: string | null
   onRefresh?: () => void
@@ -134,11 +134,21 @@ function ReceiptItem({
 export function ReceiptList({ 
   className = '', 
   receipts = [], 
-  loading = false, 
-  error = null, 
-  onRefresh 
+  loading = false,
+  error = null,
+  onRefresh
 }: ReceiptListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid')
+
+  // Format receipts for display
+  const formattedReceipts = receipts.map((receipt: any) => ({
+    id: receipt.id,
+    merchant: receipt.merchant,
+    amount: Number(receipt.total),
+    date: receipt.purchaseDate ? receipt.purchaseDate.split('T')[0] : 'Unknown',
+    category: receipt.category || 'Uncategorized',
+    imageUrl: receipt.imageUrl
+  }))
 
   const renderContent = () => {
     if (loading) {
@@ -155,15 +165,17 @@ export function ReceiptList({
     if (error) {
       return (
         <div className="text-center py-12">
-          <Receipt className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <div className="text-red-500 mb-4">
+            <Receipt className="w-16 h-16 mx-auto mb-4" />
+          </div>
           <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
             Error loading receipts
           </h3>
-          <p className="text-red-600 dark:text-red-400 mb-6">
+          <p className="text-slate-600 dark:text-slate-400 mb-6">
             {error}
           </p>
           {onRefresh && (
-            <button 
+            <button
               onClick={onRefresh}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
@@ -174,7 +186,7 @@ export function ReceiptList({
       )
     }
 
-    if (receipts.length === 0) {
+    if (formattedReceipts.length === 0) {
       return (
         <div className="text-center py-12">
           <Receipt className="w-16 h-16 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
@@ -204,7 +216,7 @@ export function ReceiptList({
                 </tr>
               </thead>
               <tbody>
-                {receipts.map((receipt) => (
+                {formattedReceipts.map((receipt) => (
                   <tr key={receipt.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="p-4">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center">
@@ -235,7 +247,7 @@ export function ReceiptList({
       case 'list':
         return (
           <div className="space-y-4">
-            {receipts.map((receipt) => (
+            {formattedReceipts.map((receipt) => (
               <ReceiptItem
                 key={receipt.id}
                 {...receipt}
@@ -248,7 +260,7 @@ export function ReceiptList({
       default:
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {receipts.map((receipt) => (
+            {formattedReceipts.map((receipt) => (
               <ReceiptItem
                 key={receipt.id}
                 {...receipt}
@@ -269,7 +281,7 @@ export function ReceiptList({
             All Receipts
           </h2>
           <p className="text-slate-600 dark:text-slate-400 mt-1">
-            {loading ? 'Loading your receipts...' : `${receipts.length} receipts found`}
+            {loading ? 'Loading your receipts...' : `${formattedReceipts.length} receipts found`}
           </p>
         </div>
 

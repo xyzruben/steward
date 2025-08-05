@@ -36,6 +36,7 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated' | 'error'>('checking')
   
   // Memoize expensive computations to prevent re-renders
   const isMobile = React.useMemo(() => isMobileDevice(), [])
@@ -46,6 +47,35 @@ export default function HomePage() {
   // Track initial page load
   const startTimer = () => console.log('Page load started');
   const endTimer = (success: boolean) => console.log(`Page load ${success ? 'completed' : 'failed'}`);
+
+  // Check authentication status with server
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      if (!user) {
+        setAuthStatus('unauthenticated')
+        return
+      }
+
+      try {
+        const response = await fetch('/api/auth/test')
+        const data = await response.json()
+        
+        if (data.authenticated) {
+          setAuthStatus('authenticated')
+        } else {
+          console.warn('🔍 Frontend shows user logged in but server disagrees:', data.error)
+          setAuthStatus('unauthenticated')
+        }
+      } catch (error) {
+        console.error('🔍 Auth status check failed:', error)
+        setAuthStatus('error')
+      }
+    }
+
+    if (user && !loading) {
+      checkAuthStatus()
+    }
+  }, [user, loading])
 
   useEffect(() => {
     startTimer()
@@ -99,48 +129,75 @@ export default function HomePage() {
         />
       );
     }
-    
+
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center space-x-3 mb-6">
-              <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white dark:bg-slate-700 shadow-lg border-2 border-slate-200 dark:border-slate-600">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600" />
-              </div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                Steward
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto mt-20">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+                Welcome to Steward
               </h1>
-            </div>
-            <p className="text-slate-600 dark:text-slate-400">
-              AI-powered receipt and expense tracking
-            </p>
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>New:</strong> AI Financial Assistant now available! Get personalized insights about your spending patterns.
+              <p className="text-slate-600 dark:text-slate-400">
+                Your AI-powered financial companion
               </p>
             </div>
-          </div>
-          <LoginForm />
-          <div className="text-center mt-4">
-            <Button
-              variant="link"
-              onClick={() => setShowWelcome(true)}
-              className="text-blue-600 hover:text-blue-700"
-            >
-              Learn More About Steward
-            </Button>
+            
+            <LoginForm />
+            
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setShowWelcome(true)}
+                className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                Learn more about Steward
+              </button>
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // Show authenticated dashboard
+  // Show authentication warning if there's a mismatch
+  if (user && authStatus === 'unauthenticated') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-semibold text-yellow-800 mb-2">
+                Authentication Session Expired
+              </h2>
+              <p className="text-yellow-700 mb-4">
+                It looks like your login session has expired. Please sign in again to continue using Steward.
+              </p>
+              <div className="space-x-4">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                >
+                  Refresh & Sign In
+                </button>
+                <button
+                  onClick={() => window.location.href = '/auth'}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                >
+                  Go to Login
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    // Immediate refresh for better performance
+    // Simulate refresh delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
     setIsRefreshing(false)
   }
 

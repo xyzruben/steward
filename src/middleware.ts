@@ -13,7 +13,8 @@ export async function middleware(request: NextRequest) {
   // Skip middleware for static files and API routes that handle their own auth
   if (request.nextUrl.pathname.startsWith('/_next') || 
       request.nextUrl.pathname.startsWith('/api/agent') ||
-      request.nextUrl.pathname.startsWith('/api/health')) {
+      request.nextUrl.pathname.startsWith('/api/health') ||
+      request.nextUrl.pathname.startsWith('/api/debug')) {
     return NextResponse.next();
   }
 
@@ -23,9 +24,13 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/profile')) {
     
     try {
-      // Check for auth cookie directly in middleware
-      const authCookie = request.cookies.get('sb-access-token');
-      if (!authCookie?.value) {
+      // Check for any Supabase auth cookies
+      const hasAuthCookie = request.cookies.getAll().some(cookie => 
+        cookie.name.startsWith('sb-') && cookie.value
+      );
+      
+      if (!hasAuthCookie) {
+        console.log('🔍 Middleware: No auth cookies found, redirecting to home');
         const redirectUrl = new URL('/', request.url);
         return NextResponse.redirect(redirectUrl);
       }

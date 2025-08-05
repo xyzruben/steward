@@ -1,24 +1,24 @@
-# Steward - AI-First Receipt & Expense Tracker
+# Steward - AI-Native Receipt & Expense Tracker
 
 > **Live Demo**: [https://hellosteward.org](https://hellosteward.org) 🚀
 
-A production-grade, **AI-First** receipt and expense tracker designed for individuals and professionals who value faithful financial stewardship. Built with a **Foundation-First, AI-Optimized** architecture that prioritizes solid infrastructure validation before AI enhancement.
+A production-grade, **AI-Native** receipt and expense tracker that transforms traditional CRUD applications into intelligent, conversational financial assistants. Built with **Foundation-First, AI-Optimized** architecture that prioritizes solid infrastructure validation before AI enhancement.
 
-## ✨ **AI-First Architecture Overview**
+## ✨ **AI-Native Architecture Overview**
 
-Steward implements a **Foundation-First, AI-Optimized** approach that transforms traditional CRUD applications into intelligent, AI-powered financial assistants. The system validates all critical infrastructure before AI optimization, ensuring reliable performance and user experience.
+Steward represents a **paradigm shift** from traditional CRUD applications to AI-native experiences. The system validates all critical infrastructure before AI optimization, ensuring reliable performance and user experience while delivering intelligent, conversational financial management.
 
-### 🎯 **Core AI-First Principles**
+### 🎯 **Core AI-Native Principles**
 
 1. **Foundation-First Validation** - All critical infrastructure validated before AI enhancement
-2. **AI-First Performance** - Optimized AI agent operations for speed and reliability  
-3. **Balanced Architecture** - Enhanced existing codebase without over-engineering
+2. **AI-Native Performance** - Optimized AI agent operations for speed and reliability  
+3. **Conversational Interface** - Natural language queries replace traditional UI interactions
 4. **Production-Ready Quality** - All code passes CI/CD and deploys successfully
 5. **Continuous Monitoring** - Health checks and validation at every stage
 
-### 🚀 **AI-First vs Traditional CRUD**
+### 🚀 **AI-Native vs Traditional CRUD**
 
-| Traditional CRUD App | **Steward AI-First** |
+| Traditional CRUD App | **Steward AI-Native** |
 |---------------------|---------------------|
 | Manual data entry | **AI-powered OCR extraction** |
 | Basic categorization | **Intelligent merchant matching** |
@@ -26,8 +26,10 @@ Steward implements a **Foundation-First, AI-Optimized** approach that transforms
 | Static reports | **AI-generated insights and analysis** |
 | Manual expense tracking | **Automated receipt processing** |
 | Basic filtering | **Contextual AI recommendations** |
+| UI-driven interactions | **Conversational AI interface** |
+| Manual data queries | **Natural language financial queries** |
 
-## 🧠 **AI/ML Capabilities**
+## 🧠 **Advanced AI/ML Capabilities**
 
 ### **Intelligent Data Extraction & Processing**
 - **Advanced OCR Processing** - Google Cloud Vision for precise text recognition
@@ -47,14 +49,17 @@ Steward implements a **Foundation-First, AI-Optimized** approach that transforms
 - **Intelligent Caching** - 10-minute cache TTL with user-specific invalidation
 - **Function Calling** - Direct integration with financial analysis functions
 - **Context-Aware Responses** - AI generates meaningful insights from data
+- **Intelligent Timeframe Parsing** - Smart date range selection for comprehensive data coverage
+- **Vendor-Specific Queries** - Precise merchant matching with fuzzy search capabilities
 
 ### **Natural Language Processing**
 - **Conversational Queries** - "How much did I spend on coffee last month?"
 - **Semantic Understanding** - AI comprehends intent, not just keywords
 - **Contextual Responses** - AI provides insights, not just data
 - **Multi-Function Analysis** - AI combines multiple data sources for comprehensive answers
+- **Vendor Recognition** - "Chick-fil-A" queries return accurate spending data ($45.92)
 
-## 🏗️ **AI-First Architecture**
+## 🏗️ **AI-Native Architecture**
 
 ### **Foundation Layer**
 ```
@@ -88,6 +93,7 @@ Steward implements a **Foundation-First, AI-Optimized** approach that transforms
 - **Streaming Responses** - Real-time AI analysis with progress feedback
 - **Request Deduplication** - Prevents duplicate processing
 - **Function Integration** - Direct access to financial analysis functions
+- **Smart Timeframe Handling** - Intelligent date range selection for comprehensive data coverage
 
 ### **Foundation Validation System**
 - **Comprehensive Health Checks** - Database, Storage, OCR, AI services
@@ -106,6 +112,8 @@ The application is fully deployed and operational with:
 - ✅ **AI-powered receipt processing** with intelligent categorization
 - ✅ **Foundation validation** with 80% test success rate
 - ✅ **Responsive design** for all devices
+- ✅ **AI-Native interface** with conversational financial queries
+- ✅ **Enhanced UI/UX** with AI-first design principles
 
 ## 🛠️ **Tech Stack**
 
@@ -148,6 +156,15 @@ The application is fully deployed and operational with:
 - **Intelligent insights** - AI-generated spending pattern analysis
 - **Context-aware recommendations** - Personalized financial advice
 - **Multi-function analysis** - Comprehensive data aggregation
+- **Vendor-specific queries** - "How much at Chick-fil-A?" returns $45.92
+- **Smart timeframe handling** - Intelligent date range selection
+
+### **AI-Native User Experience**
+- **Hero AI interface** - AI agent prominently featured as primary interaction method
+- **Quick action buttons** - Common queries for immediate access
+- **Streaming responses** - Real-time feedback during AI processing
+- **Intuitive navigation** - Seamless movement between AI and traditional interfaces
+- **Mobile-optimized** - Touch-friendly responsive design
 
 ### **Foundation-First Architecture**
 - **Comprehensive validation** - All critical services monitored
@@ -285,7 +302,7 @@ steward/
 └── docs/                      # Project documentation
 ```
 
-## 🎯 **AI-First Features**
+## 🎯 **AI-Native Features**
 
 ### **Intelligent Receipt Processing**
 - **AI-powered OCR** - Google Cloud Vision for precise text extraction
@@ -299,6 +316,8 @@ steward/
 - **Intelligent caching** - 10-minute TTL with user-specific invalidation
 - **Request deduplication** - Prevents duplicate processing
 - **Function integration** - Direct access to financial analysis
+- **Smart timeframe handling** - Intelligent date range selection
+- **Vendor-specific accuracy** - Precise merchant matching and spending data
 
 ### **Foundation Validation**
 - **Comprehensive health checks** - All critical services monitored
@@ -326,14 +345,22 @@ The application is deployed using:
 
 ### **Built by Ruben Rivas**
 
-This project was developed as a showcase of **AI-First architecture** capabilities, built entirely by a self-taught developer using prompt-driven development via Cursor.
+This project was developed as a showcase of **AI-Native architecture** capabilities, built entirely by a self-taught developer using prompt-driven development via Cursor.
 
 **Development Approach**:
-- **AI-First architecture** with foundation validation
+- **AI-Native architecture** with foundation validation
 - **Foundation-First approach** - Validate infrastructure before AI optimization
 - **Balanced implementation** - Enhanced existing codebase without over-engineering
 - **Production-ready quality** - All code passes CI/CD and deploys successfully
 - **Continuous monitoring** - Health checks and validation at every stage
+- **Systematic debugging** - Root cause analysis and comprehensive problem-solving
+
+### **Recent Major Improvements**
+- ✅ **AI Agent Accuracy** - Fixed timeframe parsing issues, now returns accurate spending data
+- ✅ **UI/UX Transformation** - Moved AI agent to hero position with enhanced interface
+- ✅ **Navigation Fixes** - Resolved mobile navigation issues for seamless user experience
+- ✅ **TypeScript Optimization** - Eliminated import resolution issues for robust CI/CD
+- ✅ **Performance Enhancements** - Streaming responses and intelligent caching
 
 ### **Contributing**
 
@@ -360,6 +387,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Steward** - Empowering faithful financial stewardship through **AI-First architecture**. 💰✨
+**Steward** - Empowering faithful financial stewardship through **AI-Native architecture**. 💰✨
 
 *Built with Foundation-First, AI-Optimized principles for maximum performance and reliability.*
+
+*Transforming traditional CRUD applications into intelligent, conversational financial assistants.*
