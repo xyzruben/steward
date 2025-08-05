@@ -31,9 +31,7 @@ export async function GET(request: NextRequest) {
       cookieNames: allCookies.map(c => c.name),
       supabaseCookies: allCookies.filter(c => c.name.startsWith('sb-')).map(c => ({
         name: c.name,
-        value: c.value ? 'SET' : 'NOT SET',
-        path: c.path,
-        httpOnly: c.httpOnly
+        value: c.value ? 'SET' : 'NOT SET'
       }))
     }
     
