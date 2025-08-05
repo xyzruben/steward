@@ -18,6 +18,10 @@ import { cn } from '@/lib/utils'
 
 interface ReceiptListProps {
   className?: string
+  receipts?: ReceiptItemProps[]
+  loading?: boolean
+  error?: string | null
+  onRefresh?: () => void
 }
 
 interface ReceiptItemProps {
@@ -127,45 +131,17 @@ function ReceiptItem({
 // MAIN RECEIPT LIST COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-export function ReceiptList({ className = '' }: ReceiptListProps) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [receipts, setReceipts] = useState<ReceiptItemProps[]>([])
+export function ReceiptList({ 
+  className = '', 
+  receipts = [], 
+  loading = false, 
+  error = null, 
+  onRefresh 
+}: ReceiptListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid')
 
-  // Fetch real receipt data
-  useEffect(() => {
-    const fetchReceipts = async () => {
-      try {
-        setIsLoading(true)
-        const response = await fetch('/api/receipts?limit=50')
-        if (response.ok) {
-          const data = await response.json()
-          const formattedReceipts = data.map((receipt: any) => ({
-            id: receipt.id,
-            merchant: receipt.merchant,
-            amount: Number(receipt.total),
-            date: receipt.purchaseDate.split('T')[0],
-            category: receipt.category || 'Uncategorized',
-            imageUrl: receipt.imageUrl
-          }))
-          setReceipts(formattedReceipts)
-        } else {
-          console.error('Failed to fetch receipts:', response.statusText)
-          setReceipts([])
-        }
-      } catch (error) {
-        console.error('Error fetching receipts:', error)
-        setReceipts([])
-      } finally {
-      setIsLoading(false)
-      }
-    }
-
-    fetchReceipts()
-  }, [])
-
   const renderContent = () => {
-    if (isLoading) {
+    if (loading) {
       switch (viewMode) {
         case 'table':
           return <SkeletonTable rows={8} columns={4} />
@@ -174,6 +150,28 @@ export function ReceiptList({ className = '' }: ReceiptListProps) {
         default:
           return <SkeletonGrid count={8} columns={3} variant="card" />
       }
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-12">
+          <Receipt className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+            Error loading receipts
+          </h3>
+          <p className="text-red-600 dark:text-red-400 mb-6">
+            {error}
+          </p>
+          {onRefresh && (
+            <button 
+              onClick={onRefresh}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          )}
+        </div>
+      )
     }
 
     if (receipts.length === 0) {
@@ -271,11 +269,11 @@ export function ReceiptList({ className = '' }: ReceiptListProps) {
             All Receipts
           </h2>
           <p className="text-slate-600 dark:text-slate-400 mt-1">
-            {isLoading ? 'Loading your receipts...' : `${receipts.length} receipts found`}
+            {loading ? 'Loading your receipts...' : `${receipts.length} receipts found`}
           </p>
         </div>
 
-        {!isLoading && (
+        {!loading && (
           <div className="flex items-center space-x-4">
             {/* View Mode Toggle */}
             <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">

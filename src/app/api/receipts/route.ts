@@ -4,6 +4,9 @@ import { getReceiptsByUserId } from '@/lib/db'
 import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  console.log('🔍 API /receipts: Request received with params:', Object.fromEntries(searchParams.entries()))
+  
   try {
     // Get authenticated user
     const cookieStore = await cookies()
@@ -11,15 +14,25 @@ export async function GET(request: NextRequest) {
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !user) {
+    if (authError) {
+      console.error('🔍 API /receipts: Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Authentication failed', details: authError.message },
         { status: 401 }
       )
     }
+    
+    if (!user) {
+      console.error('🔍 API /receipts: No user found in session')
+      return NextResponse.json(
+        { error: 'No user session found' },
+        { status: 401 }
+      )
+    }
+    
+    console.log('🔍 API /receipts: Authenticated user:', user.id)
 
     // Get query parameters
-    const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = parseInt(searchParams.get('skip') || '0')
     const orderBy = searchParams.get('orderBy') as 'createdAt' | 'purchaseDate' | 'total' | 'merchant' || 'createdAt'
@@ -89,6 +102,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Try to get receipts from database
+    console.log('🔍 API /receipts: Querying database with filters:', {
+      userId: user.id,
+      limit,
+      skip,
+      orderBy,
+      order,
+      search,
+      category,
+      subcategory,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      minConfidence
+    })
+    
     try {
       const receipts = await getReceiptsByUserId(user.id, {
         skip,
@@ -105,14 +134,25 @@ export async function GET(request: NextRequest) {
         minConfidence
       })
 
+      console.log('🔍 API /receipts: Database query successful:', {
+        count: receipts.length,
+        sample: receipts.slice(0, 2).map(r => ({
+          id: r.id,
+          merchant: r.merchant,
+          total: r.total,
+          category: r.category
+        }))
+      })
+
       return NextResponse.json(receipts)
     } catch (dbError) {
-      console.warn('Receipts API: Database error, returning empty array:', dbError)
+      console.error('🔍 API /receipts: Database error:', dbError)
       
       // Return empty array if database is unavailable
       return NextResponse.json([], {
         headers: {
-          'X-Database-Status': 'unavailable'
+          'X-Database-Status': 'unavailable',
+          'X-Error-Details': dbError instanceof Error ? dbError.message : 'Unknown database error'
         }
       })
     }

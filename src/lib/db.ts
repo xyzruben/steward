@@ -112,6 +112,7 @@ export async function getReceiptsByUserId(
     minConfidence?: number
   }
 ): Promise<Receipt[]> {
+  console.log('🔍 DB getReceiptsByUserId: Starting query for user:', userId)
   const { 
     skip = 0, 
     take = 20, 
@@ -178,21 +179,31 @@ export async function getReceiptsByUserId(
     }
   }
   
-  return prisma.receipt.findMany({
-    where: whereClause,
-    skip,
-    take,
-    orderBy: { [orderBy]: order },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true
+  console.log('🔍 DB getReceiptsByUserId: Final where clause:', JSON.stringify(whereClause, null, 2))
+  
+  try {
+    const results = await prisma.receipt.findMany({
+      where: whereClause,
+      skip,
+      take,
+      orderBy: { [orderBy]: order },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
       }
-    }
-  })
+    })
+    
+    console.log('🔍 DB getReceiptsByUserId: Query successful, found', results.length, 'receipts')
+    return results
+  } catch (error) {
+    console.error('🔍 DB getReceiptsByUserId: Query failed:', error)
+    throw error
+  }
 }
 
 export async function getReceiptById(id: string): Promise<Receipt | null> {
