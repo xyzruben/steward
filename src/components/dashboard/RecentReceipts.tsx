@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton, SkeletonList } from '@/components/ui/Skeleton'
 import { ReceiptsEmptyState } from '@/components/ui/EmptyState'
+// Removed ViewAllReceiptsButton import - using modal approach instead
 import { Receipt, Calendar, DollarSign, Tag, Eye, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,7 @@ interface RecentReceiptsProps {
     category: string
     imageUrl?: string
   }>
+  totalReceiptCount?: number
 }
 
 interface ReceiptItemProps {
@@ -148,7 +150,7 @@ function ReceiptItem({
 // MAIN RECENT RECEIPTS COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-export function RecentReceipts({ className = '', receipts: propReceipts }: RecentReceiptsProps) {
+export function RecentReceipts({ className = '', receipts: propReceipts, totalReceiptCount }: RecentReceiptsProps) {
   const [isLoading, setIsLoading] = useState(!propReceipts)
   const [receipts, setReceipts] = useState<ReceiptItemProps[]>([])
 
@@ -177,11 +179,14 @@ export function RecentReceipts({ className = '', receipts: propReceipts }: Recen
             </p>
           </div>
           {!isLoading && (
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Live updates
-              </span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Live updates
+                </span>
+              </div>
+              {/* View All button removed - using modal approach instead */}
             </div>
           )}
         </div>

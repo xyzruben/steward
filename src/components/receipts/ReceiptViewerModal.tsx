@@ -38,10 +38,10 @@ interface Receipt {
 // RECEIPT VIEWER MODAL COMPONENT
 // ============================================================================
 
-export function ReceiptViewerModal({ 
-  isOpen, 
-  onClose, 
-  initialFilters = {} 
+export function ReceiptViewerModal({
+  isOpen,
+  onClose,
+  initialFilters = {}
 }: ReceiptViewerModalProps) {
   const [receipts, setReceipts] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(false)
@@ -62,38 +62,38 @@ export function ReceiptViewerModal({
       const params = new URLSearchParams()
       params.append('page', pageNum.toString())
       params.append('limit', '20')
-      
+
       if (searchTerm.trim()) {
         params.append('search', searchTerm.trim())
       }
-      
+
       if (filters.category) {
         params.append('category', filters.category)
       }
-      
+
       if (filters.merchant) {
         params.append('merchant', filters.merchant)
       }
-      
+
       if (filters.minAmount !== undefined) {
         params.append('minAmount', filters.minAmount.toString())
       }
-      
+
       if (filters.maxAmount !== undefined) {
         params.append('maxAmount', filters.maxAmount.toString())
       }
 
       const response = await fetch(`/api/receipts?${params.toString()}`)
-      
+
       if (response.ok) {
         const data = await response.json()
-        
+
         if (append) {
           setReceipts(prev => [...prev, ...data])
         } else {
           setReceipts(data)
         }
-        
+
         setHasMore(data.length === 20) // If we got less than 20, we've reached the end
       } else {
         throw new Error('Failed to fetch receipts')
@@ -147,7 +147,7 @@ export function ReceiptViewerModal({
         },
         body: JSON.stringify({ filters, searchTerm })
       })
-      
+
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -257,7 +257,7 @@ export function ReceiptViewerModal({
               </div>
             ) : (
               <div className={cn(
-                viewMode === 'grid' 
+                viewMode === 'grid'
                   ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
                   : 'space-y-2'
               )}>
@@ -343,7 +343,7 @@ function ReceiptCard({ receipt, viewMode, formatDate, formatAmount }: ReceiptCar
               alt={`Receipt from ${receipt.merchant}`}
               className={cn(
                 'rounded-lg border',
-                viewMode === 'grid' 
+                viewMode === 'grid'
                   ? 'w-full h-32 object-cover'
                   : 'w-16 h-16 object-cover'
               )}
@@ -351,7 +351,7 @@ function ReceiptCard({ receipt, viewMode, formatDate, formatAmount }: ReceiptCar
           ) : (
             <div className={cn(
               'bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border flex items-center justify-center',
-              viewMode === 'grid' 
+              viewMode === 'grid'
                 ? 'w-full h-32'
                 : 'w-16 h-16'
             )}>

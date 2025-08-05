@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase'
-import { getReceiptsByUserId } from '@/lib/db'
+import { getReceiptsByUserId, getReceiptsWithPagination } from '@/lib/db'
 import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
@@ -33,8 +33,10 @@ export async function GET(request: NextRequest) {
     console.log('🔍 API /receipts: Authenticated user:', user.id)
 
     // Get query parameters
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const limit = parseInt(searchParams.get('limit') || '25')
     const skip = parseInt(searchParams.get('skip') || '0')
+    const cursor = searchParams.get('cursor') || undefined
+    const includePagination = searchParams.get('pagination') === 'true'
     const orderBy = searchParams.get('orderBy') as 'createdAt' | 'purchaseDate' | 'total' | 'merchant' || 'createdAt'
     const order = searchParams.get('order') as 'asc' | 'desc' || 'desc'
     
@@ -106,6 +108,8 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       limit,
       skip,
+      cursor,
+      includePagination,
       orderBy,
       order,
       search,
@@ -119,32 +123,71 @@ export async function GET(request: NextRequest) {
     })
     
     try {
-      const receipts = await getReceiptsByUserId(user.id, {
-        skip,
-        take: limit,
-        orderBy,
-        order,
-        search,
-        category,
-        subcategory,
-        minAmount,
-        maxAmount,
-        startDate,
-        endDate,
-        minConfidence
-      })
+      // Use enhanced pagination if requested
+      if (includePagination) {
+        const result = await getReceiptsWithPagination(user.id, {
+          skip,
+          take: limit,
+          cursor,
+          orderBy,
+          order,
+          search,
+          category,
+          subcategory,
+          minAmount,
+          maxAmount,
+          startDate,
+          endDate,
+          minConfidence
+        })
 
-      console.log('🔍 API /receipts: Database query successful:', {
-        count: receipts.length,
-        sample: receipts.slice(0, 2).map(r => ({
-          id: r.id,
-          merchant: r.merchant,
-          total: r.total,
-          category: r.category
-        }))
-      })
+        console.log('🔍 API /receipts: Database query successful (with pagination):', {
+          count: result.receipts.length,
+          hasMore: result.hasMore,
+          nextCursor: result.nextCursor,
+          totalCount: result.totalCount
+        })
 
-      return NextResponse.json(receipts)
+        return NextResponse.json({
+          data: result.receipts,
+          pagination: {
+            hasMore: result.hasMore,
+            nextCursor: result.nextCursor,
+            totalCount: result.totalCount,
+            currentPage: Math.floor(skip / limit) + 1,
+            limit
+          }
+        })
+      } else {
+        // Fallback to original method for backward compatibility
+        const receipts = await getReceiptsByUserId(user.id, {
+          skip,
+          take: limit,
+          cursor,
+          orderBy,
+          order,
+          search,
+          category,
+          subcategory,
+          minAmount,
+          maxAmount,
+          startDate,
+          endDate,
+          minConfidence
+        })
+
+        console.log('🔍 API /receipts: Database query successful:', {
+          count: receipts.length,
+          sample: receipts.slice(0, 2).map(r => ({
+            id: r.id,
+            merchant: r.merchant,
+            total: r.total,
+            category: r.category
+          }))
+        })
+
+        return NextResponse.json(receipts)
+      }
     } catch (dbError) {
       console.error('🔍 API /receipts: Database error:', dbError)
       
