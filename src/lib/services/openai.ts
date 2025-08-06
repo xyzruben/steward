@@ -142,9 +142,9 @@ Extract these fields as JSON:
       }
     }
   } catch (err) {
-    // SECURITY: Log security-relevant errors without exposing sensitive data
-    console.error('OpenAI extraction parse error - sanitized input was:', sanitizedOcrText.substring(0, 100))
-    console.error('Parse error type:', err instanceof Error ? err.message : 'Unknown error')
+    // SECURITY: Log errors without exposing sensitive data
+    console.error('OpenAI extraction parse error occurred')
+    console.error('Parse error type:', err instanceof Error ? err.constructor.name : 'Unknown error')
   }
   
   return aiResult

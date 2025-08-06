@@ -10,6 +10,7 @@ import { categorizeReceipt } from '@/lib/services/financeFunctions'
 import { withRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/rate-limiter'
 import { createReceiptImageValidator } from '@/lib/services/fileUploadSecurity'
 import { SecureUrlService } from '@/lib/services/secureUrlService'
+import { secureLog } from '@/lib/services/logger'
 // Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
@@ -485,13 +486,11 @@ async function processReceiptAsync(
       console.log(`🤖 Starting AI processing for receipt: ${receiptId}`)
       // Pass user ID for rate limiting OpenAI calls per user
       aiData = await extractReceiptDataWithAI(ocrText, userId)
-      console.log(`✅ AI processing completed for receipt: ${receiptId}`, {
-        merchant: aiData.merchant,
-        total: aiData.total,
-        category: aiData.category
-      })
+      console.log(`✅ AI processing completed for receipt: ${receiptId}`) // Safe: no sensitive data exposed
     } catch (err) {
-      console.error(`❌ OpenAI extraction failed for receipt: ${receiptId}`, err)
+      // SECURITY: Use secure logging for errors to prevent sensitive data exposure
+      secureLog.apiError(`/api/receipts/upload - OpenAI extraction for ${receiptId}`, err, userId)
+      console.error(`❌ OpenAI extraction failed for receipt: ${receiptId}`) // Safe: no error details exposed
       // Defensive: fallback to basic fields if AI fails (see master guide: Error Handling)
       aiData = {
         merchant: null,
@@ -513,15 +512,10 @@ async function processReceiptAsync(
 
     // 4. Apply intelligent categorization using our categorizeReceipt function
     const category = categorizeReceipt(merchant)
-    console.log(`🏷️ Categorized receipt: ${merchant} -> ${category}`)
+    // SECURITY: Log categorization without exposing merchant name
+    console.log(`🏷️ Receipt categorized as: ${category}`)
 
-    console.log(`💾 Updating receipt ${receiptId} with processed data:`, {
-      merchant,
-      total,
-      category,
-      purchaseDate: purchaseDate.toISOString(),
-      summary: summary.substring(0, 50) + '...'
-    })
+    console.log(`💾 Updating receipt ${receiptId} with processed data`) // Safe: no sensitive data
 
     // Get user profile (simplified)
     console.log(`👤 Processing receipt for user ${userId}`)
@@ -536,14 +530,10 @@ async function processReceiptAsync(
       currency: receiptCurrency
     })
     
-    console.log(`✅ Receipt processing completed and database updated: ${receiptId}`, {
-      receiptId,
-      merchant,
-      total,
-      purchaseDate,
-      summary,
-      ocrConfidence
-    })
+    // SECURITY: Use secure logging instead of console.log with sensitive data
+    secureLog.receipt(receiptId, 'completed', userId)
+    
+    console.log(`✅ Receipt processing completed: ${receiptId}`) // Safe: no sensitive data
 
     // Analytics, embeddings, and notifications removed for performance optimization
     console.log(`🎉 Async processing completed successfully for receipt: ${receiptId}`)
