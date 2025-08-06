@@ -1,5 +1,6 @@
 import { OpenAI } from 'openai'
 import { aiRateLimiter } from '@/lib/rate-limiter'
+import { secureLog } from './logger'
 
 // ============================================================================
 // OPENAI SERVICE FOR RECEIPT DATA EXTRACTION & SUMMARIZATION
@@ -67,7 +68,12 @@ export async function extractReceiptDataWithAI(ocrText: string, userKey?: string
   
   if (!rateLimitResult.allowed) {
     const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
-    throw new Error(`OpenAI API rate limit exceeded. Retry after ${retryAfter} seconds.`);
+    secureLog.security('OpenAI rate limit exceeded', 'medium', { 
+      userKey, 
+      retryAfter,
+      endpoint: 'extractReceiptDataWithAI'
+    });
+    throw new Error(`AI_RATE_LIMIT:${retryAfter}`);
   }
 
   // Create the OpenAI client inside the function for testability

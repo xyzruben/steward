@@ -11,6 +11,7 @@ import { withRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/rate-limiter'
 import { createReceiptImageValidator } from '@/lib/services/fileUploadSecurity'
 import { SecureUrlService } from '@/lib/services/secureUrlService'
 import { secureLog } from '@/lib/services/logger'
+import { secureError } from '@/lib/services/errorHandler'
 // Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
@@ -42,10 +43,10 @@ async function handleUpload(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return secureError.auth({
+        endpoint: '/api/receipts/upload',
+        ip: request.headers.get('x-forwarded-for') || 'unknown'
+      })
     }
 
     // Ensure user exists in our database (see master guide: Data Persistence)
@@ -61,11 +62,10 @@ async function handleUpload(request: NextRequest) {
         })
         console.log('User created in database:', dbUser.id)
       } catch (error) {
-        console.error('Error creating user:', error)
-        return NextResponse.json(
-          { error: 'Failed to create user record' },
-          { status: 500 }
-        )
+        return secureError.database(error, {
+          endpoint: '/api/receipts/upload',
+          userId: user.id
+        })
       }
     }
 
@@ -76,10 +76,10 @@ async function handleUpload(request: NextRequest) {
     const file = formData.get('file') as File
     
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      )
+      return secureError.validation('No file provided', {
+        endpoint: '/api/receipts/upload',
+        userId: user.id
+      })
     }
 
     // Convert file to Buffer for enhanced security validation
@@ -98,14 +98,10 @@ async function handleUpload(request: NextRequest) {
         warnings: validationResult.securityWarnings
       })
       
-      return NextResponse.json(
-        { 
-          error: 'File validation failed',
-          details: validationResult.errors.join('; '),
-          securityIssues: validationResult.securityWarnings.length > 0 ? 'Security concerns detected' : undefined
-        },
-        { status: 400 }
-      )
+      return secureError.fileUpload(validationResult.errors.join('; '), {
+        endpoint: '/api/receipts/upload',
+        userId: user.id
+      })
     }
 
     // Log security warnings (but allow upload to proceed)
@@ -129,13 +125,10 @@ async function handleUpload(request: NextRequest) {
             userId: user.id
           })
           
-          return NextResponse.json(
-            { 
-              error: 'File rejected due to security concerns',
-              details: 'The uploaded file was flagged by security scanning'
-            },
-            { status: 400 }
-          )
+          return secureError.fileUpload('File rejected due to security concerns', {
+            endpoint: '/api/receipts/upload',
+            userId: user.id
+          })
         }
         console.log('✅ Malware scan completed - file is clean')
       } catch (scanError) {
@@ -151,11 +144,12 @@ async function handleUpload(request: NextRequest) {
     
     if (isHeic) {
       console.log('HEIC file detected, rejecting upload')
-      return NextResponse.json(
-        { 
-          error: 'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading. You can use your phone\'s camera app to save as JPEG, or use online converters.' 
-        }, 
-        { status: 400 }
+      return secureError.fileUpload(
+        'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading.',
+        {
+          endpoint: '/api/receipts/upload',
+          userId: user.id
+        }
       )
     }
 
@@ -192,13 +186,12 @@ async function handleUpload(request: NextRequest) {
       }
       
     } catch (conversionError) {
-      console.error('Image processing failed:', conversionError)
-      return NextResponse.json(
-        { 
-          error: 'Failed to process image format',
-          details: 'Please try uploading a JPEG, PNG, or WebP image instead'
-        },
-        { status: 500 }
+      return secureError.fileUpload(
+        'Failed to process image format. Please try uploading a JPEG, PNG, or WebP image instead.',
+        {
+          endpoint: '/api/receipts/upload',
+          userId: user.id
+        }
       )
     }
 
@@ -218,10 +211,10 @@ async function handleUpload(request: NextRequest) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Failed to upload file' },
-        { status: 500 }
-      )
+      return secureError.unknown(uploadError, {
+        endpoint: '/api/receipts/upload - storage',
+        userId: user.id
+      })
     }
 
     // SECURITY: Generate secure signed URL with expiration instead of public URL
@@ -368,13 +361,11 @@ async function handleUpload(request: NextRequest) {
 
   } catch (error) {
     // ============================================================================
-    // ERROR HANDLING (see master guide: Secure Error Handling)
+    // SECURE ERROR HANDLING (SECURITY FIX: Prevent sensitive information exposure)
     // ============================================================================
-    console.error('Error uploading receipt:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return secureError.unknown(error, {
+      endpoint: '/api/receipts/upload'
+    })
   }
 }
 
