@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai'
+import { aiRateLimiter } from '@/lib/rate-limiter'
 
 // ============================================================================
 // OPENAI SERVICE FOR RECEIPT DATA EXTRACTION & SUMMARIZATION
@@ -59,7 +60,16 @@ function sanitizeOcrText(text: string): string {
  * - Adheres to architecture, type safety, and commentary standards in the master guide.
  * - Returns merchant, total, date, category, tags, confidence, and summary.
  */
-export async function extractReceiptDataWithAI(ocrText: string): Promise<ReceiptAIExtraction> {
+export async function extractReceiptDataWithAI(ocrText: string, userKey?: string): Promise<ReceiptAIExtraction> {
+  // SECURITY: Apply rate limiting to OpenAI API calls to prevent abuse
+  const rateLimitKey = userKey || 'openai-global';
+  const rateLimitResult = aiRateLimiter.isAllowed(rateLimitKey);
+  
+  if (!rateLimitResult.allowed) {
+    const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+    throw new Error(`OpenAI API rate limit exceeded. Retry after ${retryAfter} seconds.`);
+  }
+
   // Create the OpenAI client inside the function for testability
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,

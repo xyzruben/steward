@@ -7,6 +7,9 @@ import { cookies } from 'next/headers'
 import { extractReceiptDataWithAI } from '@/lib/services/openai'
 import { extractTextFromImage, imageBufferToBase64, compressImage } from '@/lib/services/cloudOcr'
 import { categorizeReceipt } from '@/lib/services/financeFunctions'
+import { withRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/rate-limiter'
+import { createReceiptImageValidator } from '@/lib/services/fileUploadSecurity'
+import { SecureUrlService } from '@/lib/services/secureUrlService'
 // Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
@@ -18,6 +21,13 @@ import { categorizeReceipt } from '@/lib/services/financeFunctions'
 // Concurrent Upload Handling, and File Storage Optimization
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Apply rate limiting to upload endpoint
+  return withRateLimit(request, RATE_LIMIT_CONFIGS.UPLOAD, async () => {
+    return handleUpload(request);
+  });
+}
+
+async function handleUpload(request: NextRequest) {
   console.log('=== RECEIPT UPLOAD START ===')
   console.log('Receipt upload endpoint called')
   
@@ -59,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // FILE VALIDATION & PROCESSING (see master guide: Input Validation, File Storage Optimization)
+    // ENHANCED FILE VALIDATION & SECURITY (SECURITY FIX: File Upload Security)
     // ============================================================================
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -71,31 +81,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type (see master guide: Input Validation)
-    const allowedTypes = [
-      'image/jpeg', 
-      'image/jpg', 
-      'image/png', 
-      'image/gif', 
-      'image/webp',
-      'image/heic',
-      'image/heif'
-    ]
-    if (!allowedTypes.includes(file.type)) {
+    // Convert file to Buffer for enhanced security validation
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    
+    // SECURITY: Enhanced file validation with signature checking
+    const fileValidator = createReceiptImageValidator()
+    const validationResult = await fileValidator.validateFile(file, fileBuffer)
+    
+    if (!validationResult.isValid) {
+      console.warn('File validation failed:', {
+        fileName: file.name,
+        declaredType: file.type,
+        detectedType: validationResult.detectedMimeType,
+        errors: validationResult.errors,
+        warnings: validationResult.securityWarnings
+      })
+      
       return NextResponse.json(
         { 
-          error: 'Unsupported file format',
-          details: 'Supported formats: JPEG, PNG, GIF, WebP, HEIC (iPhone). Please convert to a supported format.'
+          error: 'File validation failed',
+          details: validationResult.errors.join('; '),
+          securityIssues: validationResult.securityWarnings.length > 0 ? 'Security concerns detected' : undefined
         },
         { status: 400 }
       )
     }
 
-    // Validate file size (see master guide: File Storage Optimization)
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
+    // Log security warnings (but allow upload to proceed)
+    if (validationResult.securityWarnings.length > 0) {
+      console.warn('File security warnings:', {
+        fileName: file.name,
+        warnings: validationResult.securityWarnings
+      })
+    }
+
+    // SECURITY: Malware scanning (integration point for future enhancement)
+    if (fileValidator.config.enableMalwareScanning) {
+      try {
+        console.log('🔍 Initiating malware scan...')
+        const malwareScanResult = await fileValidator.scanForMalware(fileBuffer)
+        
+        if (!malwareScanResult.isClean) {
+          console.error('Malware detected in uploaded file:', {
+            fileName: file.name,
+            threats: malwareScanResult.threats,
+            userId: user.id
+          })
+          
+          return NextResponse.json(
+            { 
+              error: 'File rejected due to security concerns',
+              details: 'The uploaded file was flagged by security scanning'
+            },
+            { status: 400 }
+          )
+        }
+        console.log('✅ Malware scan completed - file is clean')
+      } catch (scanError) {
+        console.warn('Malware scanning failed, proceeding with upload:', scanError)
+        // Continue with upload even if scanning fails (graceful degradation)
+      }
+    }
+
+    // Early rejection for HEIC files with clear error message (legacy support)
+    const isHeicByType = file.type === 'image/heic' || file.type === 'image/heif'
+    const isHeicByExtension = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+    const isHeic = isHeicByType || isHeicByExtension
+    
+    if (isHeic) {
+      console.log('HEIC file detected, rejecting upload')
       return NextResponse.json(
-        { error: 'File too large. Maximum size is 10MB.' },
+        { 
+          error: 'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading. You can use your phone\'s camera app to save as JPEG, or use online converters.' 
+        }, 
         { status: 400 }
       )
     }
@@ -108,9 +166,6 @@ export async function POST(request: NextRequest) {
     let contentType: string
     
     try {
-      // Convert file to Buffer for processing
-      const fileBuffer = Buffer.from(await file.arrayBuffer())
-      
       // Debug file information
       console.log('=== FILE DEBUG INFO ===')
       console.log('File name:', file.name)
@@ -118,27 +173,9 @@ export async function POST(request: NextRequest) {
       console.log('File size:', file.size, 'bytes')
       console.log('Buffer size:', fileBuffer.length, 'bytes')
       console.log('File extension:', file.name.split('.').pop()?.toLowerCase())
-      
-      // Check for HEIC/HEIF files (multiple detection methods)
-      const isHeicByType = file.type === 'image/heic' || file.type === 'image/heif'
-      const isHeicByExtension = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
-      const isHeic = isHeicByType || isHeicByExtension
-      
-      console.log('Is HEIC by type:', isHeicByType)
-      console.log('Is HEIC by extension:', isHeicByExtension)
-      console.log('Is HEIC overall:', isHeic)
+      console.log('Validation result:', validationResult.isValid ? 'PASSED' : 'FAILED')
+      console.log('Security warnings:', validationResult.securityWarnings.length)
       console.log('========================')
-      
-      // Early rejection for HEIC files with clear error message
-      if (isHeic) {
-        console.log('HEIC file detected, rejecting upload')
-        return NextResponse.json(
-          { 
-            error: 'HEIC files are not supported. Please convert your receipt to JPEG or PNG format before uploading. You can use your phone\'s camera app to save as JPEG, or use online converters.' 
-          }, 
-          { status: 400 }
-        )
-      }
       
       // Compress image for better performance (see master guide: File Storage Optimization)
       console.log('Compressing image for better performance...')
@@ -165,14 +202,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // FILE UPLOAD TO STORAGE (see master guide: File Access Controls)
+    // SECURE FILE UPLOAD TO STORAGE (SECURITY FIX: Expiring URLs)
     // ============================================================================
-    const timestamp = Date.now()
-    const fileName = `${user.id}/${timestamp}.${fileExtension}`
+    // Generate secure filename with proper user isolation
+    const secureFileName = SecureUrlService.generateSecureFileName(user.id, file.name)
 
     const { error: uploadError } = await supabase.storage
       .from('receipts')
-      .upload(fileName, processedBuffer, {
+      .upload(secureFileName, processedBuffer, {
         cacheControl: '3600',
         upsert: false,
         contentType: contentType
@@ -186,10 +223,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get public URL (see master guide: File Access Controls)
-    const { data: { publicUrl } } = supabase.storage
-      .from('receipts')
-      .getPublicUrl(fileName)
+    // SECURITY: Generate secure signed URL with expiration instead of public URL
+    let imageUrl: string
+    try {
+      const secureUrlResult = await SecureUrlService.createReceiptImageUrl(secureFileName, {
+        expiresIn: 7200, // 2 hours for initial processing
+        transform: { width: 800, quality: 80 }
+      })
+      imageUrl = secureUrlResult.signedUrl
+      console.log(`Generated secure URL expiring at: ${secureUrlResult.expiresAt.toISOString()}`)
+    } catch (urlError) {
+      console.error('Failed to create secure URL, falling back to public URL:', urlError)
+      // Fallback to public URL if signed URL fails
+      const { data: { publicUrl } } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(secureFileName)
+      imageUrl = publicUrl
+    }
 
     // ============================================================================
     // IMMEDIATE RESPONSE WITH ASYNC PROCESSING (see master guide: Scalability and Performance)
@@ -199,7 +249,7 @@ export async function POST(request: NextRequest) {
 
     const tempReceipt = await createReceipt({
       userId: user.id,
-      imageUrl: publicUrl,
+      imageUrl: imageUrl,
       rawText: 'Processing...',
       merchant: 'Processing...',
       total: 0,
@@ -303,7 +353,7 @@ export async function POST(request: NextRequest) {
       success: true,
       receipt: {
         id: tempReceipt.id,
-        imageUrl: publicUrl,
+        imageUrl: imageUrl,
         merchant: 'Processing...',
         total: 0,
         purchaseDate: tempReceipt.purchaseDate,
@@ -433,7 +483,8 @@ async function processReceiptAsync(
     let aiData
     try {
       console.log(`🤖 Starting AI processing for receipt: ${receiptId}`)
-      aiData = await extractReceiptDataWithAI(ocrText)
+      // Pass user ID for rate limiting OpenAI calls per user
+      aiData = await extractReceiptDataWithAI(ocrText, userId)
       console.log(`✅ AI processing completed for receipt: ${receiptId}`, {
         merchant: aiData.merchant,
         total: aiData.total,

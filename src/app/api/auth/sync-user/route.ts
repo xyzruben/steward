@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createUser, getUserById } from '@/lib/db'
+import { withRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/rate-limiter'
 
 // ============================================================================
 // SYNC USER API ROUTE
@@ -9,6 +10,13 @@ import { createUser, getUserById } from '@/lib/db'
 // Uses service role key for server-side operations
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Apply rate limiting to auth endpoints
+  return withRateLimit(request, RATE_LIMIT_CONFIGS.AUTH, async () => {
+    return handleUserSync(request);
+  });
+}
+
+async function handleUserSync(request: NextRequest) {
   // Create Supabase client inside function to avoid build-time initialization
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
