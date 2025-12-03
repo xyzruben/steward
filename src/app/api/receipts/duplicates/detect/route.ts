@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // ============================================================================
     // PARSE REQUEST OPTIONS
     // ============================================================================
-    let options: {
+    const options: {
       autoMark?: boolean
       confidenceThreshold?: number
       dateRange?: {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-    } catch (parseError) {
+    } catch {
       // If body parsing fails, use defaults
       console.log('Using default options for batch detection')
     }
