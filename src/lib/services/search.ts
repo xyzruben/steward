@@ -102,7 +102,8 @@ export class SearchService {
 
   private buildWhereClause(userId: string, filters?: SearchFilters, query?: string) {
     const where: any = {
-      userId
+      userId,
+      isDuplicate: false // Exclude duplicates from search results
     }
 
     // Basic text search

@@ -13,6 +13,7 @@ import { ReceiptsEmptyState } from '@/components/ui/EmptyState'
 // Removed ViewAllReceiptsButton import - using modal approach instead
 import { Receipt, Calendar, DollarSign, Tag, Eye, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DuplicateBadge } from '@/components/receipts/DuplicateBadge'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -39,20 +40,26 @@ interface ReceiptItemProps {
   category: string
   imageUrl?: string
   loading?: boolean
+  isDuplicate?: boolean
+  duplicateConfidence?: number | { toNumber: () => number } | null
+  duplicateOf?: string | null
 }
 
 // ============================================================================
 // RECEIPT ITEM COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-function ReceiptItem({ 
-  id, 
-  merchant, 
-  amount, 
-  date, 
-  category, 
+function ReceiptItem({
+  id,
+  merchant,
+  amount,
+  date,
+  category,
   imageUrl,
-  loading = false 
+  loading = false,
+  isDuplicate = false,
+  duplicateConfidence,
+  duplicateOf
 }: ReceiptItemProps) {
   if (loading) {
     return (
@@ -102,14 +109,23 @@ function ReceiptItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {merchant}
-              {merchant === 'Processing...' && (
-                <span className="ml-2 text-xs text-orange-600 font-medium">
-                  (AI Processing)
-                </span>
-              )}
-            </h3>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                {merchant}
+                {merchant === 'Processing...' && (
+                  <span className="ml-2 text-xs text-orange-600 font-medium">
+                    (AI Processing)
+                  </span>
+                )}
+              </h3>
+              <DuplicateBadge
+                isDuplicate={isDuplicate}
+                duplicateConfidence={duplicateConfidence}
+                duplicateOf={duplicateOf}
+                variant="compact"
+                showConfidence={false}
+              />
+            </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               {category}
             </p>

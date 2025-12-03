@@ -81,8 +81,17 @@ model Receipt {
   convertedCurrency String?
   convertedTotal    Decimal?
   currency          String            @default("USD")
+
+  // Duplicate detection fields
+  isDuplicate         Boolean  @default(false)
+  duplicateOf         String?  @db.Uuid
+  duplicateConfidence Decimal? @db.Decimal(3, 2)
+
+  // Relations
   embedding         ReceiptEmbedding?
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalReceipt   Receipt?          @relation("ReceiptDuplicates", fields: [duplicateOf], references: [id], onDelete: SetNull)
+  duplicates        Receipt[]         @relation("ReceiptDuplicates")
 
   @@index([userId])
   @@index([purchaseDate])
@@ -97,6 +106,10 @@ model Receipt {
   @@index([purchaseDate, total])
   @@index([category, purchaseDate])
   @@index([merchant, purchaseDate])
+  // Duplicate detection indexes
+  @@index([isDuplicate])
+  @@index([userId, isDuplicate])
+  @@index([duplicateOf])
   @@map("receipts")
 }
 

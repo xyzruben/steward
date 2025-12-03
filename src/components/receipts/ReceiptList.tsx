@@ -9,8 +9,10 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton, SkeletonList, SkeletonTable, SkeletonGrid } from '@/components/ui/Skeleton'
-import { Receipt, Calendar, DollarSign, Tag, Eye, Download, Search, Filter } from 'lucide-react'
+import { Receipt as ReceiptIcon, Calendar, DollarSign, Tag, Eye, Download, Search, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Receipt } from '@prisma/client'
+import { DuplicateBadge } from './DuplicateBadge'
 
 // ============================================================================
 // TYPES AND INTERFACES (see master guide: TypeScript Standards)
@@ -18,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 interface ReceiptListProps {
   className?: string
-  receipts?: any[]
+  receipts?: Receipt[]
   loading?: boolean
   error?: string | null
   onRefresh?: () => void
@@ -32,20 +34,26 @@ interface ReceiptItemProps {
   category: string
   imageUrl?: string
   loading?: boolean
+  isDuplicate?: boolean
+  duplicateConfidence?: number | { toNumber: () => number } | null
+  duplicateOf?: string | null
 }
 
 // ============================================================================
 // RECEIPT ITEM COMPONENT (see master guide: Component Hierarchy)
 // ============================================================================
 
-function ReceiptItem({ 
-  id, 
-  merchant, 
-  amount, 
-  date, 
-  category, 
+function ReceiptItem({
+  id,
+  merchant,
+  amount,
+  date,
+  category,
   imageUrl,
-  loading = false 
+  loading = false,
+  isDuplicate = false,
+  duplicateConfidence,
+  duplicateOf
 }: ReceiptItemProps) {
   if (loading) {
     return (
@@ -79,7 +87,7 @@ function ReceiptItem({
           />
         ) : (
           <div className="w-15 h-15 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center">
-            <Receipt className="w-6 h-6 text-slate-400 dark:text-slate-500" />
+            <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-slate-500" />
           </div>
         )}
       </div>
@@ -88,9 +96,18 @@ function ReceiptItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {merchant}
-            </h3>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                {merchant}
+              </h3>
+              <DuplicateBadge
+                isDuplicate={isDuplicate}
+                duplicateConfidence={duplicateConfidence}
+                duplicateOf={duplicateOf}
+                variant="compact"
+                showConfidence={false}
+              />
+            </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
               {category}
             </p>
@@ -141,13 +158,16 @@ export function ReceiptList({
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid')
 
   // Format receipts for display
-  const formattedReceipts = receipts.map((receipt: any) => ({
+  const formattedReceipts = receipts.map((receipt: Receipt) => ({
     id: receipt.id,
     merchant: receipt.merchant,
     amount: Number(receipt.total),
-    date: receipt.purchaseDate ? receipt.purchaseDate.split('T')[0] : 'Unknown',
+    date: receipt.purchaseDate ? receipt.purchaseDate.toString().split('T')[0] : 'Unknown',
     category: receipt.category || 'Uncategorized',
-    imageUrl: receipt.imageUrl
+    imageUrl: receipt.imageUrl,
+    isDuplicate: receipt.isDuplicate,
+    duplicateConfidence: receipt.duplicateConfidence,
+    duplicateOf: receipt.duplicateOf
   }))
 
   const renderContent = () => {
@@ -166,7 +186,7 @@ export function ReceiptList({
       return (
         <div className="text-center py-12">
           <div className="text-red-500 mb-4">
-            <Receipt className="w-16 h-16 mx-auto mb-4" />
+            <ReceiptIcon className="w-16 h-16 mx-auto mb-4" />
           </div>
           <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
             Error loading receipts
@@ -189,7 +209,7 @@ export function ReceiptList({
     if (formattedReceipts.length === 0) {
       return (
         <div className="text-center py-12">
-          <Receipt className="w-16 h-16 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
+          <ReceiptIcon className="w-16 h-16 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
             No receipts found
           </h3>
@@ -220,7 +240,7 @@ export function ReceiptList({
                   <tr key={receipt.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="p-4">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border border-slate-200 dark:border-slate-600 flex items-center justify-center">
-                        <Receipt className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                        <ReceiptIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                       </div>
                     </td>
                     <td className="p-4 font-medium text-slate-900 dark:text-white">{receipt.merchant}</td>

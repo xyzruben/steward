@@ -2,29 +2,12 @@
 // DATABASE TYPES
 // ============================================================================
 // Type definitions for Steward database entities
-// These will be replaced by generated Prisma types once client is generated
+// Using Prisma-generated types for accuracy and completeness
 
-export interface User {
-  id: string
-  email: string
-  name: string | null
-  avatarUrl: string | null
-  createdAt: Date
-  updatedAt: Date
-}
+// Import Prisma types for local use and re-export
+import type { User, Receipt } from '@prisma/client'
 
-export interface Receipt {
-  id: string
-  userId: string
-  imageUrl: string
-  rawText: string
-  merchant: string
-  total: number
-  purchaseDate: Date
-  summary: string | null
-  createdAt: Date
-  updatedAt: Date
-}
+export type { User, Receipt }
 
 // ============================================================================
 // API TYPES

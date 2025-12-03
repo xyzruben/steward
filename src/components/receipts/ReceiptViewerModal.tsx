@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Receipt, Search, Filter, Download, X, Calendar, DollarSign, Tag } from 'lucide-react'
+import { Receipt as ReceiptIcon, Search, Filter, Download, X, Calendar, DollarSign, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Receipt } from '@prisma/client'
+import { DuplicateBadge } from './DuplicateBadge'
 
 // ============================================================================
 // TYPES AND INTERFACES
@@ -23,15 +25,6 @@ interface ReceiptViewerModalProps {
     minAmount?: number
     maxAmount?: number
   }
-}
-
-interface Receipt {
-  id: string
-  merchant: string
-  total: number
-  purchaseDate: string
-  category: string
-  imageUrl?: string
 }
 
 // ============================================================================
@@ -165,16 +158,18 @@ export function ReceiptViewerModal({
   }
 
   // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    return dateObj.toLocaleDateString()
   }
 
   // Format amount
-  const formatAmount = (amount: number) => {
+  const formatAmount = (amount: number | { toNumber: () => number }) => {
+    const numericAmount = typeof amount === 'number' ? amount : amount.toNumber()
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount)
+    }).format(numericAmount)
   }
 
   return (
@@ -183,7 +178,7 @@ export function ReceiptViewerModal({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Receipt className="h-5 w-5" />
+              <ReceiptIcon className="h-5 w-5" />
               <span>All Receipts</span>
               {filters.category && (
                 <span className="text-sm text-gray-500">
@@ -248,7 +243,7 @@ export function ReceiptViewerModal({
             </div>
           ) : receipts.length === 0 ? (
             <div className="text-center py-8">
-              <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <ReceiptIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No receipts found</h3>
               <p className="text-gray-600">
                 {searchTerm ? 'Try adjusting your search terms' : 'Upload your first receipt to get started'}
@@ -320,8 +315,8 @@ export function ReceiptViewerModal({
 interface ReceiptCardProps {
   receipt: Receipt
   viewMode: 'grid' | 'list'
-  formatDate: (date: string) => string
-  formatAmount: (amount: number) => string
+  formatDate: (date: Date | string) => string
+  formatAmount: (amount: number | { toNumber: () => number }) => string
 }
 
 function ReceiptCard({ receipt, viewMode, formatDate, formatAmount }: ReceiptCardProps) {
@@ -356,7 +351,7 @@ function ReceiptCard({ receipt, viewMode, formatDate, formatAmount }: ReceiptCar
                 ? 'w-full h-32'
                 : 'w-16 h-16'
             )}>
-              <Receipt className="h-6 w-6 text-gray-400" />
+              <ReceiptIcon className="h-6 w-6 text-gray-400" />
             </div>
           )}
         </div>
@@ -369,9 +364,17 @@ function ReceiptCard({ receipt, viewMode, formatDate, formatAmount }: ReceiptCar
             viewMode === 'grid' ? 'space-y-2' : 'flex items-center justify-between'
           )}>
             <div>
-              <h3 className="font-semibold text-gray-900 truncate">
-                {receipt.merchant}
-              </h3>
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="font-semibold text-gray-900 truncate">
+                  {receipt.merchant}
+                </h3>
+                <DuplicateBadge
+                  isDuplicate={receipt.isDuplicate}
+                  duplicateConfidence={receipt.duplicateConfidence}
+                  duplicateOf={receipt.duplicateOf}
+                  variant="compact"
+                />
+              </div>
               <p className="text-sm text-gray-600">
                 {receipt.category || 'Uncategorized'}
               </p>

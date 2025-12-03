@@ -12,6 +12,7 @@ import { createReceiptImageValidator } from '@/lib/services/fileUploadSecurity'
 import { SecureUrlService } from '@/lib/services/secureUrlService'
 import { secureLog } from '@/lib/services/logger'
 import { secureError } from '@/lib/services/errorHandler'
+import { detectAndMarkDuplicate } from '@/lib/services/duplicateDetection'
 // Removed analytics, realtime, notifications, userProfile, and embeddings services for performance optimization
 // Removed: import { convertCurrency } from '@/lib/services/currency'
 
@@ -520,11 +521,34 @@ async function processReceiptAsync(
       category,
       currency: receiptCurrency
     })
-    
+
     // SECURITY: Use secure logging instead of console.log with sensitive data
     secureLog.receipt(receiptId, 'completed', userId)
-    
+
     console.log(`✅ Receipt processing completed: ${receiptId}`) // Safe: no sensitive data
+
+    // ============================================================================
+    // DUPLICATE DETECTION (Phase 4: Upload-Time Detection)
+    // ============================================================================
+    // Check for duplicates after receipt is fully processed
+    try {
+      console.log(`🔍 Starting duplicate detection for receipt: ${receiptId}`)
+      const duplicateMatch = await detectAndMarkDuplicate(receiptId, true) // autoMark=true
+
+      if (duplicateMatch) {
+        console.log(`🔖 Duplicate detected for receipt ${receiptId}:`, {
+          originalId: duplicateMatch.receipt.id,
+          confidence: duplicateMatch.confidence.toFixed(2),
+          autoMarked: duplicateMatch.confidence >= 0.90
+        })
+      } else {
+        console.log(`✅ No duplicates found for receipt: ${receiptId}`)
+      }
+    } catch (duplicateError) {
+      // Don't fail the entire upload if duplicate detection fails
+      console.error(`⚠️ Duplicate detection failed for receipt ${receiptId}:`, duplicateError)
+      // Continue processing - duplicate detection is non-critical
+    }
 
     // Analytics, embeddings, and notifications removed for performance optimization
     console.log(`🎉 Async processing completed successfully for receipt: ${receiptId}`)

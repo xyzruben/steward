@@ -129,7 +129,8 @@ export class ExportService {
 
   private buildWhereClause(userId: string, options: ExportOptions) {
     const where: any = {
-      userId
+      userId,
+      isDuplicate: false // Exclude duplicates from exports
     }
 
     if (options.dateRange) {

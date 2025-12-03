@@ -114,11 +114,11 @@ export async function getReceiptsByUserId(
   }
 ): Promise<Receipt[]> {
   console.log('🔍 DB getReceiptsByUserId: Starting query for user:', userId)
-  const { 
-    skip = 0, 
+  const {
+    skip = 0,
     take = 25, // Optimal batch size for performance
     cursor,
-    orderBy = 'createdAt', 
+    orderBy = 'createdAt',
     order = 'desc',
     search,
     category,
@@ -129,9 +129,9 @@ export async function getReceiptsByUserId(
     endDate,
     minConfidence
   } = options || {}
-  
+
   // Build where clause with filters
-  const whereClause: any = { userId }
+  const whereClause: any = { userId, isDuplicate: false }
   
   // Search across merchant, summary, and rawText
   if (search && search.trim()) {
@@ -247,12 +247,12 @@ export async function getReceiptsWithPagination(
   totalCount?: number
 }> {
   console.log('🔍 DB getReceiptsWithPagination: Starting query for user:', userId)
-  
-  const { 
-    skip = 0, 
-    take = 25, 
+
+  const {
+    skip = 0,
+    take = 25,
     cursor,
-    orderBy = 'createdAt', 
+    orderBy = 'createdAt',
     order = 'desc',
     search,
     category,
@@ -263,9 +263,9 @@ export async function getReceiptsWithPagination(
     endDate,
     minConfidence
   } = options || {}
-  
+
   // Build where clause with filters
-  const whereClause: any = { userId }
+  const whereClause: any = { userId, isDuplicate: false }
   
   // Search across merchant, summary, and rawText
   if (search && search.trim()) {
@@ -409,13 +409,13 @@ export async function deleteReceipt(id: string): Promise<Receipt> {
 
 export async function getReceiptStats(userId: string) {
   const [totalReceipts, totalSpent, averageSpent] = await Promise.all([
-    prisma.receipt.count({ where: { userId } }),
+    prisma.receipt.count({ where: { userId, isDuplicate: false } }),
     prisma.receipt.aggregate({
-      where: { userId },
+      where: { userId, isDuplicate: false },
       _sum: { total: true }
     }),
     prisma.receipt.aggregate({
-      where: { userId },
+      where: { userId, isDuplicate: false },
       _avg: { total: true }
     })
   ])

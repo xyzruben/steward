@@ -129,14 +129,15 @@ interface TrendPoint {
  * Gets total spending by category for a user in a given timeframe.
  * @param params userId, category, timeframe
  */
-export async function getSpendingByCategory(params: { 
-  userId: string; 
-  category?: string; 
+export async function getSpendingByCategory(params: {
+  userId: string;
+  category?: string;
   timeframe?: TimeframeRange | string
 }): Promise<{ category: string; total: number; currency: string }> {
   try {
     const whereClause: any = {
       userId: params.userId,
+      isDuplicate: false, // Exclude duplicates from spending calculations
     };
 
     // Parse timeframe if it's a string
@@ -249,6 +250,7 @@ export async function getSpendingByTime(params: {
     const queryPromise = prisma.receipt.aggregate({
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates from spending calculations
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,
@@ -306,14 +308,15 @@ export async function getSpendingByTime(params: {
  * Gets total spending by vendor for a user in a given timeframe.
  * @param params userId, vendor, timeframe
  */
-export async function getSpendingByVendor(params: { 
-  userId: string; 
-  vendor?: string; 
-  timeframe?: TimeframeRange 
+export async function getSpendingByVendor(params: {
+  userId: string;
+  vendor?: string;
+  timeframe?: TimeframeRange
 }): Promise<{ vendor: string; total: number; currency: string }> {
   try {
     const whereClause: any = {
       userId: params.userId,
+      isDuplicate: false, // Exclude duplicates from spending calculations
     };
 
     // Add vendor filter if specified
@@ -392,6 +395,7 @@ export async function getDiningHistory(params: {
 
     const whereClause: any = {
       userId: params.userId,
+      isDuplicate: false, // Exclude duplicates from dining history
       purchaseDate: {
         gte: parsedTimeframe.start,
         lte: parsedTimeframe.end,
@@ -484,6 +488,7 @@ export async function getSpendingForCustomPeriod(params: {
     const totalResult = await prisma.receipt.aggregate({
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,
@@ -499,6 +504,7 @@ export async function getSpendingForCustomPeriod(params: {
       by: ['category'],
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,
@@ -555,6 +561,7 @@ export async function getSpendingComparison(params: {
   try {
     const baseWhereClause: any = {
       userId: params.userId,
+      isDuplicate: false, // Exclude duplicates from comparisons
     };
 
     // Add optional filters
@@ -637,6 +644,7 @@ export async function detectSpendingAnomalies(params: {
     const historicalResult = await prisma.receipt.aggregate({
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: historicalStart,
           lt: params.timeframe.start,
@@ -657,6 +665,7 @@ export async function detectSpendingAnomalies(params: {
     const currentTransactions = await prisma.receipt.findMany({
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,
@@ -700,6 +709,7 @@ export async function detectSpendingAnomalies(params: {
       const historicalVendors = await prisma.receipt.findMany({
         where: {
           userId: params.userId,
+          isDuplicate: false, // Exclude duplicates
           purchaseDate: {
             gte: historicalStart,
             lt: params.timeframe.start,
@@ -757,6 +767,7 @@ export async function getSpendingTrends(params: {
     // Build where clause
     const whereClause: any = {
       userId: params.userId,
+      isDuplicate: false, // Exclude duplicates from trends
       purchaseDate: {
         gte: params.timeframe.start,
         lte: params.timeframe.end,
@@ -809,6 +820,7 @@ export async function summarizeTopVendors(params: {
       by: ['merchant'],
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,
@@ -851,6 +863,7 @@ export async function summarizeTopCategories(params: {
       by: ['category'],
       where: {
         userId: params.userId,
+        isDuplicate: false, // Exclude duplicates
         purchaseDate: {
           gte: params.timeframe.start,
           lte: params.timeframe.end,

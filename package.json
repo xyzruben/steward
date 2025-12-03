@@ -19,6 +19,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:test": "dotenv -e .env.local -- node scripts/db-test.js",
+    "duplicates:detect": "dotenv -e .env.local -- tsx scripts/detect-duplicates.ts",
     "validate:production": "node scripts/production-validation.js",
     "validate:env": "node scripts/production-validation.js --env-only",
     "validate:build": "node scripts/production-validation.js --build-only",
