@@ -4,6 +4,18 @@
 
 A production-grade, **AI-Native** receipt and expense tracker that transforms traditional CRUD applications into intelligent, conversational financial assistants. Built with **Foundation-First, AI-Optimized** architecture that prioritizes solid infrastructure validation before AI enhancement.
 
+## Troubleshooting
+
+Common Problems and Fixes:
+- **Login errors** → Clear browser cookies and re-login (JWT sessions expire after 7 days)
+- **Receipt upload fails** → Check file size (<10MB), format (JPEG/PNG/HEIC/PDF), and rate limit (10 per 15 min)
+- **API returns 403 Forbidden** → Check authentication status or contact support for permissions
+- **OCR text extraction poor** → Ensure good image quality (lighting, angle, resolution)
+- **Duplicate receipts appearing** → Run duplicate detection: `POST /api/receipts/duplicates/detect`
+- **AI Agent not responding** → Check health endpoint at `/api/health` or retry after rate limit resets
+
+For detailed troubleshooting, see [SUPPORT.md](SUPPORT.md)
+
 ## ✨ **AI-Native Architecture Overview**
 
 Steward represents a **paradigm shift** from traditional CRUD applications to AI-native experiences. The system validates all critical infrastructure before AI optimization, ensuring reliable performance and user experience while delivering intelligent, conversational financial management.
